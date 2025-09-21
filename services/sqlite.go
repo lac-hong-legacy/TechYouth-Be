@@ -55,6 +55,9 @@ func (ds *SqliteService) Start() (err error) {
 	}
 	models := []interface{}{
 		&model.User{},
+		&model.GuestSession{},
+		&model.GuestProgress{},
+		&model.GuestLessonAttempt{},
 	}
 
 	err = ds.db.AutoMigrate(models...)
@@ -143,4 +146,58 @@ func (ds *SqliteService) CreateUser(user dto.RegisterRequest) (*model.User, erro
 		return nil, err
 	}
 	return &userModel, nil
+}
+
+func (ds *SqliteService) GetSessionByDeviceID(deviceID string) (*model.GuestSession, error) {
+	var session model.GuestSession
+	if err := ds.db.Where("device_id = ?", deviceID).First(&session).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &session, nil
+}
+
+func (ds *SqliteService) CreateSession(session *model.GuestSession) (*model.GuestSession, error) {
+	session.ID = uuid.New().String()
+	if err := ds.db.Create(session).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return session, nil
+}
+
+func (ds *SqliteService) UpdateSession(session *model.GuestSession) error {
+	if err := ds.db.Save(session).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+func (ds *SqliteService) GetProgress(sessionID string) (*model.GuestProgress, error) {
+	var progress model.GuestProgress
+	if err := ds.db.Where("session_id = ?", sessionID).First(&progress).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &progress, nil
+}
+
+func (ds *SqliteService) CreateProgress(progress *model.GuestProgress) (*model.GuestProgress, error) {
+	progress.ID = uuid.New().String()
+	if err := ds.db.Create(progress).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return progress, nil
+}
+
+func (ds *SqliteService) UpdateProgress(progress *model.GuestProgress) error {
+	if err := ds.db.Save(progress).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+func (ds *SqliteService) CreateLessonAttempt(attempt *model.GuestLessonAttempt) error {
+	attempt.ID = uuid.New().String()
+	if err := ds.db.Create(attempt).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
 }
