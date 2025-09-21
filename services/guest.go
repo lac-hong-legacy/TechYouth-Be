@@ -198,3 +198,35 @@ func calculateLevel(totalXP int) int {
 	}
 	return (totalXP / 100) + 1
 }
+
+func (svc *GuestService) AddHeartsFromAdWatch(sessionID string) error {
+	progress, err := svc.sqlSvc.GetProgress(sessionID)
+	if err != nil {
+		return err
+	}
+
+	progress.Hearts = min(progress.Hearts+3, progress.MaxHearts)
+	progress.AdsWatched++
+
+	return svc.sqlSvc.UpdateProgress(progress)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func (svc *GuestService) LoseHeart(sessionID string) error {
+	progress, err := svc.sqlSvc.GetProgress(sessionID)
+	if err != nil {
+		return err
+	}
+
+	if progress.Hearts > 0 {
+		progress.Hearts--
+	}
+
+	return svc.sqlSvc.UpdateProgress(progress)
+}

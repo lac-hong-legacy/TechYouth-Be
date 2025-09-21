@@ -201,3 +201,8 @@ func (ds *SqliteService) CreateLessonAttempt(attempt *model.GuestLessonAttempt) 
 	}
 	return nil
 }
+
+func DeactivateSession(sessionID string) error {
+	// Placeholder for session deactivation logic
+	return nil
+}
