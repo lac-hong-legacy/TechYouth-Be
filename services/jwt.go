@@ -3,8 +3,8 @@ package services
 import (
 	"errors"
 	"fmt"
+	"github.com/lac-hong-legacy/TechYouth-Be/dto"
 	"os"
-	"tech-youth-be/dto"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"

@@ -7,6 +7,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/lac-hong-legacy/TechYouth-Be/dto"
+	"github.com/lac-hong-legacy/TechYouth-Be/model"
+
 	"github.com/alphabatem/common/context"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/sqlite"
@@ -35,7 +39,7 @@ func (ds SqliteService) Db() *gorm.DB {
 
 // Configure the service
 func (ds *SqliteService) Configure(ctx *context.Context) error {
-	ds.database = os.Getenv("DB_DATABASE")
+	ds.database = os.Getenv("DB_NAME")
 
 	return ds.DefaultService.Configure(ctx)
 }
@@ -49,7 +53,9 @@ func (ds *SqliteService) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	models := []interface{}{}
+	models := []interface{}{
+		&model.User{},
+	}
 
 	err = ds.db.AutoMigrate(models...)
 	if err != nil {
@@ -112,4 +118,29 @@ func (ds *SqliteService) HandleError(err error) error {
 	}
 
 	return fmt.Errorf("%s: %w", errorType, err)
+}
+
+func (ds *SqliteService) GetUserByEmail(email string) (*model.User, error) {
+	var user model.User
+	if err := ds.db.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (ds *SqliteService) CreateUser(user dto.RegisterRequest) (*model.User, error) {
+	if _, err := ds.GetUserByEmail(user.Email); err == nil {
+		return nil, errors.New("user already exists")
+	}
+
+	userModel := model.User{
+		ID:       uuid.New().String(),
+		Email:    user.Email,
+		Password: user.Password,
+	}
+
+	if err := ds.db.Create(&userModel).Error; err != nil {
+		return nil, err
+	}
+	return &userModel, nil
 }

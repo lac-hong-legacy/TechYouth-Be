@@ -1,7 +1,8 @@
 package main
 
 import (
-	"tech-youth-be/services"
+	"github.com/lac-hong-legacy/TechYouth-Be/middleware"
+	"github.com/lac-hong-legacy/TechYouth-Be/services"
 
 	"github.com/alphabatem/common/context"
 	"github.com/joho/godotenv"
@@ -15,10 +16,10 @@ func main() {
 	}
 
 	ctx, err := context.NewCtx(
-
-		&services.JWTService{},
-		&services.AuthMiddleware{},
 		&services.SqliteService{},
+		&services.JWTService{},
+		&middleware.AuthMiddleware{},
+		&services.AuthService{},
 
 		&services.HttpService{},
 	)
