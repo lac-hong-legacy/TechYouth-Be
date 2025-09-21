@@ -1,0 +1,33 @@
+definitions:
+  shared.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /ping:
+    get:
+      consumes:
+      - application/json
+      description: This endpoint checks the health of the service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      summary: Ping
+      tags:
+      - health
+swagger: "2.0"

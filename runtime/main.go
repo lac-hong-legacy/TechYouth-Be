@@ -19,18 +19,7 @@ func main() {
 		&services.JWTService{},
 		&services.AuthMiddleware{},
 		&services.SqliteService{},
-		&services.AwardService{},
-		&services.CacheService{},
-		&services.SocialService{},
-		&services.IngestionService{},
-		&services.PostService{},
-		&services.ProfileService{},
-		&services.FeedService{},
-		&services.GroupService{},
-		&services.ImageService{},
-		&services.ResizeService{},
-		&services.ActivityService{},
-		&authServices.AuthService{},
+
 		&services.HttpService{},
 	)
 	if err != nil {

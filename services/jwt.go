@@ -44,7 +44,7 @@ func (svc *JWTService) Start() error {
 	return nil
 }
 
-func (svc *JWTService) VerifyUnifiedJWT(jwtToken string) (string, error) {
+func (svc *JWTService) VerifyJWTToken(jwtToken string) (string, error) {
 	token, err := jwt.ParseWithClaims(jwtToken, &CustomClaims{}, svc.getJWTKey)
 	if err == nil && token.Valid {
 		claims, ok := token.Claims.(*CustomClaims)
