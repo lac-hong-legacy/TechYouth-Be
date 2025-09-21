@@ -199,7 +199,7 @@ func calculateLevel(totalXP int) int {
 	return (totalXP / 100) + 1
 }
 
-func (svc *GuestService) AddHeartsFromAdWatch(sessionID string) error {
+func (svc *GuestService) AddHeartsFromAd(sessionID string) error {
 	progress, err := svc.sqlSvc.GetProgress(sessionID)
 	if err != nil {
 		return err

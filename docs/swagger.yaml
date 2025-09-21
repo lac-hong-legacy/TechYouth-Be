@@ -1,4 +1,31 @@
 definitions:
+  dto.CompleteLessonRequest:
+    properties:
+      lesson_id:
+        type: string
+      score:
+        type: integer
+      time_spent:
+        type: integer
+    required:
+    - lesson_id
+    - score
+    - time_spent
+    type: object
+  dto.CreateSessionRequest:
+    properties:
+      device_id:
+        type: string
+    required:
+    - device_id
+    type: object
+  dto.LessonAccessResponse:
+    properties:
+      can_access:
+        type: boolean
+      reason:
+        type: string
+    type: object
   dto.LoginRequest:
     properties:
       email:
@@ -34,6 +61,141 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/guest/progress/{sessionId}:
+    get:
+      consumes:
+      - application/json
+      description: This endpoint retrieves the progress of a guest session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Get Guest Progress
+      tags:
+      - guest
+  /api/v1/guest/progress/{sessionId}/add-hearts:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint adds hearts to a guest session when an ad is watched
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Add Hearts from Ad
+      tags:
+      - guest
+  /api/v1/guest/progress/{sessionId}/complete:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint marks a lesson as completed for a guest session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Complete lesson request
+        in: body
+        name: completeLessonRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CompleteLessonRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Complete Lesson
+      tags:
+      - guest
+  /api/v1/guest/progress/{sessionId}/lesson/{lessonId}/access:
+    get:
+      consumes:
+      - application/json
+      description: This endpoint checks if a guest session can access a specific lesson
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LessonAccessResponse'
+              type: object
+      summary: Check Lesson Access
+      tags:
+      - guest
+  /api/v1/guest/progress/{sessionId}/lose-heart:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint deducts a heart from a guest session when a lesson
+        is failed
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Lose Heart
+      tags:
+      - guest
+  /api/v1/guest/session:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint creates a new guest session or retrieves an existing
+        one based on device ID
+      parameters:
+      - description: Create session request
+        in: body
+        name: createSessionRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Create or Get Guest Session
+      tags:
+      - guest
   /api/v1/login:
     post:
       consumes:

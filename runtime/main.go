@@ -20,7 +20,7 @@ func main() {
 		&services.JWTService{},
 		&middleware.AuthMiddleware{},
 		&services.AuthService{},
-
+		&services.GuestService{},
 		&services.HttpService{},
 	)
 	if err != nil {
