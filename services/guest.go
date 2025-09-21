@@ -230,3 +230,10 @@ func (svc *GuestService) LoseHeart(sessionID string) error {
 
 	return svc.sqlSvc.UpdateProgress(progress)
 }
+
+// func (svc *GuestService) CleanUpInactiveSessions(threshold time.Duration) error {
+// 	sessions, err := svc.sqlSvc.GetAllSessions()
+// 	if err != nil {
+// 		return err
+// 	}
+
