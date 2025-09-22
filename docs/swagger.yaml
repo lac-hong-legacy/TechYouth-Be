@@ -1,4 +1,97 @@
 definitions:
+  dto.AchievementResponse:
+    properties:
+      badge_url:
+        type: string
+      category:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      unlocked_at:
+        type: string
+      xp_reward:
+        type: integer
+    type: object
+  dto.AddHeartsRequest:
+    properties:
+      amount:
+        type: integer
+      source:
+        description: '"ad", "purchase", "daily_reset"'
+        type: string
+    type: object
+  dto.CharacterCollectionResponse:
+    properties:
+      characters:
+        items:
+          $ref: '#/definitions/dto.CharacterResponse'
+        type: array
+      total:
+        type: integer
+      unlocked:
+        type: integer
+    type: object
+  dto.CharacterResponse:
+    properties:
+      achievements:
+        items:
+          type: string
+        type: array
+      birth_year:
+        type: integer
+      death_year:
+        type: integer
+      description:
+        type: string
+      dynasty:
+        type: string
+      famous_quote:
+        type: string
+      id:
+        type: string
+      image_url:
+        type: string
+      is_unlocked:
+        type: boolean
+      lesson_count:
+        type: integer
+      name:
+        type: string
+      rarity:
+        type: string
+    type: object
+  dto.CollectionResponse:
+    properties:
+      achievements:
+        items:
+          $ref: '#/definitions/dto.AchievementResponse'
+        type: array
+      characters:
+        $ref: '#/definitions/dto.CharacterCollectionResponse'
+      stats:
+        $ref: '#/definitions/dto.CollectionStatsResponse'
+    type: object
+  dto.CollectionStatsResponse:
+    properties:
+      completion_rate:
+        type: number
+      dynasty_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      rarity_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      total_characters:
+        type: integer
+      unlocked_characters:
+        type: integer
+    type: object
   dto.CompleteLessonRequest:
     properties:
       lesson_id:
@@ -12,6 +105,19 @@ definitions:
     - score
     - time_spent
     type: object
+  dto.CompleteLessonResponse:
+    properties:
+      character_unlock:
+        type: string
+      leveled_up:
+        type: boolean
+      new_level:
+        type: integer
+      spirit_evolved:
+        type: boolean
+      xp_gained:
+        type: integer
+    type: object
   dto.CreateSessionRequest:
     properties:
       device_id:
@@ -19,12 +125,80 @@ definitions:
     required:
     - device_id
     type: object
+  dto.HeartStatusResponse:
+    properties:
+      ads_watched_today:
+        type: integer
+      can_watch_ad:
+        type: boolean
+      hearts:
+        type: integer
+      max_hearts:
+        type: integer
+      next_reset_time:
+        type: string
+    type: object
+  dto.LeaderboardResponse:
+    properties:
+      current_user:
+        $ref: '#/definitions/dto.LeaderboardUserResponse'
+      period:
+        type: string
+      top_users:
+        items:
+          $ref: '#/definitions/dto.LeaderboardUserResponse'
+        type: array
+    type: object
+  dto.LeaderboardUserResponse:
+    properties:
+      level:
+        type: integer
+      rank:
+        type: integer
+      spirit_stage:
+        type: integer
+      spirit_type:
+        type: string
+      user_id:
+        type: string
+      username:
+        type: string
+      xp:
+        type: integer
+    type: object
   dto.LessonAccessResponse:
     properties:
       can_access:
         type: boolean
+      hearts_needed:
+        type: integer
       reason:
         type: string
+    type: object
+  dto.LessonResponse:
+    properties:
+      character:
+        $ref: '#/definitions/dto.CharacterResponse'
+      character_id:
+        type: string
+      id:
+        type: string
+      min_score:
+        type: integer
+      order:
+        type: integer
+      questions:
+        items:
+          $ref: '#/definitions/dto.QuestionResponse'
+        type: array
+      story:
+        type: string
+      title:
+        type: string
+      voice_over_url:
+        type: string
+      xp_reward:
+        type: integer
     type: object
   dto.LoginRequest:
     properties:
@@ -36,6 +210,24 @@ definitions:
   dto.LoginResponse:
     properties:
       access_token:
+        type: string
+    type: object
+  dto.QuestionResponse:
+    properties:
+      id:
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+      options:
+        items:
+          type: string
+        type: array
+      points:
+        type: integer
+      question:
+        type: string
+      type:
         type: string
     type: object
   dto.RegisterRequest:
@@ -50,6 +242,188 @@ definitions:
       user_id:
         type: string
     type: object
+  dto.SearchResponse:
+    properties:
+      characters:
+        items:
+          $ref: '#/definitions/dto.CharacterResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  dto.ShareRequest:
+    properties:
+      content:
+        type: string
+      item_id:
+        type: string
+      type:
+        description: '"achievement", "character_unlock", "level_up"'
+        type: string
+    type: object
+  dto.ShareResponse:
+    properties:
+      platforms:
+        items:
+          type: string
+        type: array
+      share_image:
+        type: string
+      share_text:
+        type: string
+      share_url:
+        type: string
+    type: object
+  dto.SpiritResponse:
+    properties:
+      id:
+        type: string
+      image_url:
+        type: string
+      name:
+        type: string
+      stage:
+        type: integer
+      type:
+        type: string
+      xp:
+        type: integer
+      xp_to_next:
+        type: integer
+    type: object
+  dto.TimelineCollectionResponse:
+    properties:
+      eras:
+        items:
+          $ref: '#/definitions/dto.TimelineEraResponse'
+        type: array
+    type: object
+  dto.TimelineDynastyResponse:
+    properties:
+      characters:
+        items:
+          $ref: '#/definitions/dto.CharacterResponse'
+        type: array
+      dynasty:
+        type: string
+      end_year:
+        type: integer
+      is_unlocked:
+        type: boolean
+      progress:
+        type: number
+      start_year:
+        type: integer
+    type: object
+  dto.TimelineEraResponse:
+    properties:
+      dynasties:
+        items:
+          $ref: '#/definitions/dto.TimelineDynastyResponse'
+        type: array
+      era:
+        type: string
+      is_unlocked:
+        type: boolean
+      progress:
+        type: number
+    type: object
+  dto.UpdateProfileRequest:
+    properties:
+      birth_year:
+        type: integer
+      username:
+        type: string
+    type: object
+  dto.UserProfileResponse:
+    properties:
+      birth_year:
+        type: integer
+      email:
+        type: string
+      joined_at:
+        type: string
+      last_login_at:
+        type: string
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.UserProgressResponse:
+    properties:
+      completed_lessons:
+        items:
+          type: string
+        type: array
+      hearts:
+        type: integer
+      last_activity:
+        type: string
+      last_heart_reset:
+        type: string
+      level:
+        type: integer
+      max_hearts:
+        type: integer
+      recent_achievements:
+        items:
+          $ref: '#/definitions/dto.AchievementResponse'
+        type: array
+      spirit:
+        $ref: '#/definitions/dto.SpiritResponse'
+      streak:
+        type: integer
+      total_play_time:
+        type: integer
+      unlocked_characters:
+        items:
+          type: string
+        type: array
+      user_id:
+        type: string
+      xp:
+        type: integer
+      xp_to_next_level:
+        type: integer
+    type: object
+  dto.UserStatsResponse:
+    properties:
+      achievements:
+        type: integer
+      completed_lessons:
+        type: integer
+      hearts:
+        type: integer
+      level:
+        type: integer
+      monthly_stats:
+        additionalProperties: true
+        type: object
+      rank:
+        type: integer
+      spirit_stage:
+        type: integer
+      spirit_type:
+        type: string
+      streak:
+        type: integer
+      total_play_time:
+        type: integer
+      unlocked_characters:
+        type: integer
+      user_id:
+        type: string
+      weekly_stats:
+        additionalProperties: true
+        type: object
+      xp:
+        type: integer
+    type: object
+  model.Character:
+    type: object
+  model.Lesson:
+    type: object
   shared.Response:
     properties:
       code:
@@ -61,6 +435,230 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/admin/characters:
+    post:
+      consumes:
+      - application/json
+      description: Create a new historical character (admin only)
+      parameters:
+      - description: Character data
+        in: body
+        name: character
+        required: true
+        schema:
+          $ref: '#/definitions/model.Character'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CharacterResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Create Character (Admin)
+      tags:
+      - admin
+  /api/v1/admin/lessons:
+    post:
+      consumes:
+      - application/json
+      description: Create a new lesson (admin only)
+      parameters:
+      - description: Lesson data
+        in: body
+        name: lesson
+        required: true
+        schema:
+          $ref: '#/definitions/model.Lesson'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LessonResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Create Lesson (Admin)
+      tags:
+      - admin
+  /api/v1/content/characters:
+    get:
+      consumes:
+      - application/json
+      description: Get list of historical characters with filtering options
+      parameters:
+      - description: Filter by dynasty
+        in: query
+        name: dynasty
+        type: string
+      - description: Filter by rarity
+        in: query
+        name: rarity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CharacterCollectionResponse'
+              type: object
+      summary: Get Characters
+      tags:
+      - content
+  /api/v1/content/characters/{characterId}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific character
+      parameters:
+      - description: Character ID
+        in: path
+        name: characterId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CharacterResponse'
+              type: object
+      summary: Get Character
+      tags:
+      - content
+  /api/v1/content/characters/{characterId}/lessons:
+    get:
+      consumes:
+      - application/json
+      description: Get all lessons for a specific character
+      parameters:
+      - description: Character ID
+        in: path
+        name: characterId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.LessonResponse'
+                  type: array
+              type: object
+      summary: Get Character Lessons
+      tags:
+      - content
+  /api/v1/content/lessons/{lessonId}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed lesson content including questions
+      parameters:
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LessonResponse'
+              type: object
+      summary: Get Lesson
+      tags:
+      - content
+  /api/v1/content/search:
+    get:
+      consumes:
+      - application/json
+      description: Search characters and content with various filters
+      parameters:
+      - description: Search query
+        in: query
+        name: query
+        type: string
+      - description: Filter by dynasty
+        in: query
+        name: dynasty
+        type: string
+      - description: Filter by rarity
+        in: query
+        name: rarity
+        type: string
+      - description: Limit results
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SearchResponse'
+              type: object
+      summary: Search Content
+      tags:
+      - content
+  /api/v1/content/timeline:
+    get:
+      consumes:
+      - application/json
+      description: Get the historical timeline with eras and dynasties
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TimelineCollectionResponse'
+              type: object
+      summary: Get Timeline
+      tags:
+      - content
   /api/v1/guest/progress/{sessionId}:
     get:
       consumes:
@@ -196,6 +794,81 @@ paths:
       summary: Create or Get Guest Session
       tags:
       - guest
+  /api/v1/leaderboard/all-time:
+    get:
+      consumes:
+      - application/json
+      description: Get all-time leaderboard rankings
+      parameters:
+      - description: Limit results (default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LeaderboardResponse'
+              type: object
+      summary: Get All Time Leaderboard
+      tags:
+      - leaderboard
+  /api/v1/leaderboard/monthly:
+    get:
+      consumes:
+      - application/json
+      description: Get monthly leaderboard rankings
+      parameters:
+      - description: Limit results (default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LeaderboardResponse'
+              type: object
+      summary: Get Monthly Leaderboard
+      tags:
+      - leaderboard
+  /api/v1/leaderboard/weekly:
+    get:
+      consumes:
+      - application/json
+      description: Get weekly leaderboard rankings
+      parameters:
+      - description: Limit results (default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LeaderboardResponse'
+              type: object
+      summary: Get Weekly Leaderboard
+      tags:
+      - leaderboard
   /api/v1/login:
     post:
       consumes:
@@ -250,6 +923,312 @@ paths:
       summary: Register
       tags:
       - auth
+  /api/v1/user/collection:
+    get:
+      consumes:
+      - application/json
+      description: Get user's character collection and achievements
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CollectionResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Get User Collection
+      tags:
+      - user
+  /api/v1/user/hearts:
+    get:
+      consumes:
+      - application/json
+      description: Get current heart status and reset information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.HeartStatusResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Get Heart Status
+      tags:
+      - user
+  /api/v1/user/hearts/add:
+    post:
+      consumes:
+      - application/json
+      description: Add hearts from ads or other sources
+      parameters:
+      - description: Add hearts request
+        in: body
+        name: addHeartsRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddHeartsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.HeartStatusResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Add User Hearts
+      tags:
+      - user
+  /api/v1/user/hearts/lose:
+    post:
+      consumes:
+      - application/json
+      description: Deduct a heart when user fails a lesson
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.HeartStatusResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Lose User Heart
+      tags:
+      - user
+  /api/v1/user/initialize:
+    post:
+      consumes:
+      - application/json
+      description: Initialize user profile after first login (zodiac setup)
+      parameters:
+      - description: Birth year for zodiac
+        in: body
+        name: birthYear
+        required: true
+        schema:
+          additionalProperties:
+            type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserProgressResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Initialize User Profile
+      tags:
+      - user
+  /api/v1/user/lesson/{lessonId}/access:
+    get:
+      consumes:
+      - application/json
+      description: Check if user can access a specific lesson
+      parameters:
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LessonAccessResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Check User Lesson Access
+      tags:
+      - user
+  /api/v1/user/lesson/complete:
+    post:
+      consumes:
+      - application/json
+      description: Complete a lesson for registered user
+      parameters:
+      - description: Complete lesson request
+        in: body
+        name: completeLessonRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CompleteLessonRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CompleteLessonResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Complete User Lesson
+      tags:
+      - user
+  /api/v1/user/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get current user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserProfileResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Get User Profile
+      tags:
+      - user
+    put:
+      consumes:
+      - application/json
+      description: Update user profile information
+      parameters:
+      - description: Update profile request
+        in: body
+        name: updateProfileRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserProfileResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Update User Profile
+      tags:
+      - user
+  /api/v1/user/progress:
+    get:
+      consumes:
+      - application/json
+      description: Get current user's game progress
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserProgressResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Get User Progress
+      tags:
+      - user
+  /api/v1/user/share:
+    post:
+      consumes:
+      - application/json
+      description: Share user achievement or progress on social media
+      parameters:
+      - description: Share request
+        in: body
+        name: shareRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ShareRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ShareResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Share Achievement
+      tags:
+      - user
+  /api/v1/user/stats:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed user statistics and analytics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserStatsResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Get User Stats
+      tags:
+      - user
   /ping:
     get:
       consumes:

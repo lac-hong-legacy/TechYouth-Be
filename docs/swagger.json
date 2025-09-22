@@ -4,6 +4,388 @@
         "contact": {}
     },
     "paths": {
+        "/api/v1/admin/characters": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Create a new historical character (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Create Character (Admin)",
+                "parameters": [
+                    {
+                        "description": "Character data",
+                        "name": "character",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Character"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CharacterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/lessons": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Create a new lesson (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Create Lesson (Admin)",
+                "parameters": [
+                    {
+                        "description": "Lesson data",
+                        "name": "lesson",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Lesson"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LessonResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content/characters": {
+            "get": {
+                "description": "Get list of historical characters with filtering options",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Get Characters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by dynasty",
+                        "name": "dynasty",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by rarity",
+                        "name": "rarity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CharacterCollectionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content/characters/{characterId}": {
+            "get": {
+                "description": "Get detailed information about a specific character",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Get Character",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Character ID",
+                        "name": "characterId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CharacterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content/characters/{characterId}/lessons": {
+            "get": {
+                "description": "Get all lessons for a specific character",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Get Character Lessons",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Character ID",
+                        "name": "characterId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dto.LessonResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content/lessons/{lessonId}": {
+            "get": {
+                "description": "Get detailed lesson content including questions",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Get Lesson",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LessonResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content/search": {
+            "get": {
+                "description": "Search characters and content with various filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Search Content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "query",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by dynasty",
+                        "name": "dynasty",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by rarity",
+                        "name": "rarity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit results",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.SearchResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content/timeline": {
+            "get": {
+                "description": "Get the historical timeline with eras and dynasties",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Get Timeline",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.TimelineCollectionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/guest/progress/{sessionId}": {
             "get": {
                 "description": "This endpoint retrieves the progress of a guest session",
@@ -211,6 +593,135 @@
                 }
             }
         },
+        "/api/v1/leaderboard/all-time": {
+            "get": {
+                "description": "Get all-time leaderboard rankings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leaderboard"
+                ],
+                "summary": "Get All Time Leaderboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit results (default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LeaderboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/leaderboard/monthly": {
+            "get": {
+                "description": "Get monthly leaderboard rankings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leaderboard"
+                ],
+                "summary": "Get Monthly Leaderboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit results (default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LeaderboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/leaderboard/weekly": {
+            "get": {
+                "description": "Get weekly leaderboard rankings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leaderboard"
+                ],
+                "summary": "Get Weekly Leaderboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit results (default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LeaderboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/login": {
             "post": {
                 "description": "This endpoint logs in a user",
@@ -303,6 +814,551 @@
                 }
             }
         },
+        "/api/v1/user/collection": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get user's character collection and achievements",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get User Collection",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CollectionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/hearts": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get current heart status and reset information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get Heart Status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.HeartStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/hearts/add": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Add hearts from ads or other sources",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Add User Hearts",
+                "parameters": [
+                    {
+                        "description": "Add hearts request",
+                        "name": "addHeartsRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AddHeartsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.HeartStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/hearts/lose": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Deduct a heart when user fails a lesson",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Lose User Heart",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.HeartStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/initialize": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Initialize user profile after first login (zodiac setup)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Initialize User Profile",
+                "parameters": [
+                    {
+                        "description": "Birth year for zodiac",
+                        "name": "birthYear",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.UserProgressResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/lesson/complete": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Complete a lesson for registered user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Complete User Lesson",
+                "parameters": [
+                    {
+                        "description": "Complete lesson request",
+                        "name": "completeLessonRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CompleteLessonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CompleteLessonResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/lesson/{lessonId}/access": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Check if user can access a specific lesson",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Check User Lesson Access",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LessonAccessResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/profile": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get current user's profile information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get User Profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.UserProfileResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update user profile information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Update User Profile",
+                "parameters": [
+                    {
+                        "description": "Update profile request",
+                        "name": "updateProfileRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.UserProfileResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/progress": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get current user's game progress",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get User Progress",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.UserProgressResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/share": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Share user achievement or progress on social media",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Share Achievement",
+                "parameters": [
+                    {
+                        "description": "Share request",
+                        "name": "shareRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ShareRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.ShareResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/stats": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get detailed user statistics and analytics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get User Stats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.UserStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/ping": {
             "get": {
                 "description": "This endpoint checks the health of the service",
@@ -340,6 +1396,148 @@
         }
     },
     "definitions": {
+        "dto.AchievementResponse": {
+            "type": "object",
+            "properties": {
+                "badge_url": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "unlocked_at": {
+                    "type": "string"
+                },
+                "xp_reward": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.AddHeartsRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "source": {
+                    "description": "\"ad\", \"purchase\", \"daily_reset\"",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CharacterCollectionResponse": {
+            "type": "object",
+            "properties": {
+                "characters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CharacterResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unlocked": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CharacterResponse": {
+            "type": "object",
+            "properties": {
+                "achievements": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "birth_year": {
+                    "type": "integer"
+                },
+                "death_year": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dynasty": {
+                    "type": "string"
+                },
+                "famous_quote": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_unlocked": {
+                    "type": "boolean"
+                },
+                "lesson_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rarity": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CollectionResponse": {
+            "type": "object",
+            "properties": {
+                "achievements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AchievementResponse"
+                    }
+                },
+                "characters": {
+                    "$ref": "#/definitions/dto.CharacterCollectionResponse"
+                },
+                "stats": {
+                    "$ref": "#/definitions/dto.CollectionStatsResponse"
+                }
+            }
+        },
+        "dto.CollectionStatsResponse": {
+            "type": "object",
+            "properties": {
+                "completion_rate": {
+                    "type": "number"
+                },
+                "dynasty_breakdown": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "rarity_breakdown": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total_characters": {
+                    "type": "integer"
+                },
+                "unlocked_characters": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.CompleteLessonRequest": {
             "type": "object",
             "required": [
@@ -359,6 +1557,26 @@
                 }
             }
         },
+        "dto.CompleteLessonResponse": {
+            "type": "object",
+            "properties": {
+                "character_unlock": {
+                    "type": "string"
+                },
+                "leveled_up": {
+                    "type": "boolean"
+                },
+                "new_level": {
+                    "type": "integer"
+                },
+                "spirit_evolved": {
+                    "type": "boolean"
+                },
+                "xp_gained": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.CreateSessionRequest": {
             "type": "object",
             "required": [
@@ -370,14 +1588,118 @@
                 }
             }
         },
+        "dto.HeartStatusResponse": {
+            "type": "object",
+            "properties": {
+                "ads_watched_today": {
+                    "type": "integer"
+                },
+                "can_watch_ad": {
+                    "type": "boolean"
+                },
+                "hearts": {
+                    "type": "integer"
+                },
+                "max_hearts": {
+                    "type": "integer"
+                },
+                "next_reset_time": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LeaderboardResponse": {
+            "type": "object",
+            "properties": {
+                "current_user": {
+                    "$ref": "#/definitions/dto.LeaderboardUserResponse"
+                },
+                "period": {
+                    "type": "string"
+                },
+                "top_users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LeaderboardUserResponse"
+                    }
+                }
+            }
+        },
+        "dto.LeaderboardUserResponse": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "integer"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "spirit_stage": {
+                    "type": "integer"
+                },
+                "spirit_type": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "xp": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.LessonAccessResponse": {
             "type": "object",
             "properties": {
                 "can_access": {
                     "type": "boolean"
                 },
+                "hearts_needed": {
+                    "type": "integer"
+                },
                 "reason": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.LessonResponse": {
+            "type": "object",
+            "properties": {
+                "character": {
+                    "$ref": "#/definitions/dto.CharacterResponse"
+                },
+                "character_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "min_score": {
+                    "type": "integer"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.QuestionResponse"
+                    }
+                },
+                "story": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "voice_over_url": {
+                    "type": "string"
+                },
+                "xp_reward": {
+                    "type": "integer"
                 }
             }
         },
@@ -400,6 +1722,33 @@
                 }
             }
         },
+        "dto.QuestionResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "points": {
+                    "type": "integer"
+                },
+                "question": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.RegisterRequest": {
             "type": "object",
             "properties": {
@@ -418,6 +1767,283 @@
                     "type": "string"
                 }
             }
+        },
+        "dto.SearchResponse": {
+            "type": "object",
+            "properties": {
+                "characters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CharacterResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ShareRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"achievement\", \"character_unlock\", \"level_up\"",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ShareResponse": {
+            "type": "object",
+            "properties": {
+                "platforms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "share_image": {
+                    "type": "string"
+                },
+                "share_text": {
+                    "type": "string"
+                },
+                "share_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SpiritResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "xp": {
+                    "type": "integer"
+                },
+                "xp_to_next": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TimelineCollectionResponse": {
+            "type": "object",
+            "properties": {
+                "eras": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TimelineEraResponse"
+                    }
+                }
+            }
+        },
+        "dto.TimelineDynastyResponse": {
+            "type": "object",
+            "properties": {
+                "characters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CharacterResponse"
+                    }
+                },
+                "dynasty": {
+                    "type": "string"
+                },
+                "end_year": {
+                    "type": "integer"
+                },
+                "is_unlocked": {
+                    "type": "boolean"
+                },
+                "progress": {
+                    "type": "number"
+                },
+                "start_year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TimelineEraResponse": {
+            "type": "object",
+            "properties": {
+                "dynasties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TimelineDynastyResponse"
+                    }
+                },
+                "era": {
+                    "type": "string"
+                },
+                "is_unlocked": {
+                    "type": "boolean"
+                },
+                "progress": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.UpdateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "birth_year": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserProfileResponse": {
+            "type": "object",
+            "properties": {
+                "birth_year": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "type": "string"
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserProgressResponse": {
+            "type": "object",
+            "properties": {
+                "completed_lessons": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hearts": {
+                    "type": "integer"
+                },
+                "last_activity": {
+                    "type": "string"
+                },
+                "last_heart_reset": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "max_hearts": {
+                    "type": "integer"
+                },
+                "recent_achievements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AchievementResponse"
+                    }
+                },
+                "spirit": {
+                    "$ref": "#/definitions/dto.SpiritResponse"
+                },
+                "streak": {
+                    "type": "integer"
+                },
+                "total_play_time": {
+                    "type": "integer"
+                },
+                "unlocked_characters": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "xp": {
+                    "type": "integer"
+                },
+                "xp_to_next_level": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.UserStatsResponse": {
+            "type": "object",
+            "properties": {
+                "achievements": {
+                    "type": "integer"
+                },
+                "completed_lessons": {
+                    "type": "integer"
+                },
+                "hearts": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "monthly_stats": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "spirit_stage": {
+                    "type": "integer"
+                },
+                "spirit_type": {
+                    "type": "string"
+                },
+                "streak": {
+                    "type": "integer"
+                },
+                "total_play_time": {
+                    "type": "integer"
+                },
+                "unlocked_characters": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "weekly_stats": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "xp": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.Character": {
+            "type": "object"
+        },
+        "model.Lesson": {
+            "type": "object"
         },
         "shared.Response": {
             "type": "object",
