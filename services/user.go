@@ -34,6 +34,14 @@ func (svc *UserService) Configure(ctx *context.Context) error {
 func (svc *UserService) Start() error {
 	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
 	svc.contentSvc = svc.Service(CONTENT_SVC).(*ContentService)
+
+	ticker := time.NewTicker(24 * time.Hour)
+	go func() {
+		for range ticker.C {
+			svc.ResetDailyHearts()
+		}
+	}()
+
 	return nil
 }
 
