@@ -20,8 +20,8 @@ func main() {
 		&services.RateLimitService{},
 		&services.AuthService{},
 		&services.GuestService{},
-		&services.UserService{},
 		&services.ContentService{},
+		&services.UserService{},
 		&services.HttpService{},
 	)
 	if err != nil {

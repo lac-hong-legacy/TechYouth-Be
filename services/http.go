@@ -613,6 +613,10 @@ func (svc *HttpService) InitializeUserProfile(c *gin.Context) {
 	}
 
 	progress, err := svc.userSvc.GetUserProgress(userID)
+	if err != nil {
+		svc.HandleError(c, err)
+		return
+	}
 
 	shared.ResponseJSON(c, http.StatusOK, "Success", progress)
 }
