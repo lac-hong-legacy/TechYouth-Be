@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -54,6 +55,7 @@ func (ds *SqliteService) Start() (err error) {
 	if err != nil {
 		return err
 	}
+
 	models := []interface{}{
 		&model.User{},
 		&model.GuestSession{},
@@ -61,6 +63,17 @@ func (ds *SqliteService) Start() (err error) {
 		&model.GuestLessonAttempt{},
 		&model.RateLimit{},
 		&model.RateLimitConfig{},
+
+		// New content models
+		&model.Character{},
+		&model.Lesson{},
+		&model.Timeline{},
+
+		// New user models
+		&model.UserProgress{},
+		&model.Spirit{},
+		&model.Achievement{},
+		&model.UserAchievement{},
 	}
 
 	err = ds.db.AutoMigrate(models...)
@@ -229,14 +242,14 @@ func (s *SqliteService) SaveRateLimit(rateLimit *model.RateLimit) error {
 	if rateLimit.ID == "" {
 		rateLimit.ID = uuid.New().String()
 	}
-	
+
 	// Set timestamps if not set
 	now := time.Now()
 	if rateLimit.CreatedAt.IsZero() {
 		rateLimit.CreatedAt = now
 	}
 	rateLimit.UpdatedAt = now
-	
+
 	// Use GORM's Save method which will INSERT or UPDATE based on primary key
 	if err := s.db.Save(rateLimit).Error; err != nil {
 		return err
@@ -265,4 +278,380 @@ func (s *SqliteService) CleanupOldRecords() error {
 		Delete(&model.RateLimit{}).Error
 
 	return err
+}
+
+// ==================== CHARACTER METHODS ====================
+
+func (ds *SqliteService) CreateCharacter(character *model.Character) (*model.Character, error) {
+	if character.ID == "" {
+		character.ID = uuid.New().String()
+	}
+	character.CreatedAt = time.Now()
+	character.UpdatedAt = time.Now()
+
+	if err := ds.db.Create(character).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return character, nil
+}
+
+func (ds *SqliteService) GetCharacter(id string) (*model.Character, error) {
+	var character model.Character
+	if err := ds.db.Where("id = ?", id).First(&character).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &character, nil
+}
+
+func (ds *SqliteService) GetCharactersByDynasty(dynasty string) ([]model.Character, error) {
+	var characters []model.Character
+	query := ds.db.Model(&model.Character{})
+
+	if dynasty != "" {
+		query = query.Where("dynasty = ?", dynasty)
+	}
+
+	if err := query.Find(&characters).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return characters, nil
+}
+
+func (ds *SqliteService) GetCharactersByRarity(rarity string) ([]model.Character, error) {
+	var characters []model.Character
+	if err := ds.db.Where("rarity = ?", rarity).Find(&characters).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return characters, nil
+}
+
+func (ds *SqliteService) UpdateCharacter(character *model.Character) error {
+	character.UpdatedAt = time.Now()
+	if err := ds.db.Save(character).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+// ==================== LESSON METHODS ====================
+
+func (ds *SqliteService) CreateLesson(lesson *model.Lesson) (*model.Lesson, error) {
+	if lesson.ID == "" {
+		lesson.ID = uuid.New().String()
+	}
+	lesson.CreatedAt = time.Now()
+	lesson.UpdatedAt = time.Now()
+
+	if err := ds.db.Create(lesson).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return lesson, nil
+}
+
+func (ds *SqliteService) GetLesson(id string) (*model.Lesson, error) {
+	var lesson model.Lesson
+	if err := ds.db.Preload("Character").Where("id = ?", id).First(&lesson).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &lesson, nil
+}
+
+func (ds *SqliteService) GetLessonsByCharacter(characterID string) ([]model.Lesson, error) {
+	var lessons []model.Lesson
+	if err := ds.db.Where("character_id = ? AND is_active = ?", characterID, true).
+		Order("\"order\" ASC").Find(&lessons).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return lessons, nil
+}
+
+func (ds *SqliteService) UpdateLesson(lesson *model.Lesson) error {
+	lesson.UpdatedAt = time.Now()
+	if err := ds.db.Save(lesson).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+// ==================== TIMELINE METHODS ====================
+
+func (ds *SqliteService) CreateTimeline(timeline *model.Timeline) (*model.Timeline, error) {
+	if timeline.ID == "" {
+		timeline.ID = uuid.New().String()
+	}
+	timeline.CreatedAt = time.Now()
+	timeline.UpdatedAt = time.Now()
+
+	if err := ds.db.Create(timeline).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return timeline, nil
+}
+
+func (ds *SqliteService) GetTimeline() ([]model.Timeline, error) {
+	var timelines []model.Timeline
+	if err := ds.db.Order("\"order\" ASC").Find(&timelines).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return timelines, nil
+}
+
+func (ds *SqliteService) GetTimelineByEra(era string) ([]model.Timeline, error) {
+	var timelines []model.Timeline
+	if err := ds.db.Where("era = ?", era).Order("\"order\" ASC").Find(&timelines).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return timelines, nil
+}
+
+// ==================== USER PROGRESS METHODS ====================
+
+func (ds *SqliteService) CreateUserProgress(progress *model.UserProgress) (*model.UserProgress, error) {
+	if progress.ID == "" {
+		progress.ID = uuid.New().String()
+	}
+	progress.CreatedAt = time.Now()
+	progress.UpdatedAt = time.Now()
+
+	if err := ds.db.Create(progress).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return progress, nil
+}
+
+func (ds *SqliteService) GetUserProgress(userID string) (*model.UserProgress, error) {
+	var progress model.UserProgress
+	if err := ds.db.Where("user_id = ?", userID).First(&progress).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &progress, nil
+}
+
+func (ds *SqliteService) UpdateUserProgress(progress *model.UserProgress) error {
+	progress.UpdatedAt = time.Now()
+	if err := ds.db.Save(progress).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+func (ds *SqliteService) GetUsersForHeartReset(since time.Time) ([]model.UserProgress, error) {
+	var users []model.UserProgress
+	if err := ds.db.Where("last_heart_reset < ? OR last_heart_reset IS NULL", since).
+		Find(&users).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return users, nil
+}
+
+// ==================== SPIRIT METHODS ====================
+
+func (ds *SqliteService) CreateSpirit(spirit *model.Spirit) (*model.Spirit, error) {
+	if spirit.ID == "" {
+		spirit.ID = uuid.New().String()
+	}
+	spirit.CreatedAt = time.Now()
+	spirit.UpdatedAt = time.Now()
+
+	if err := ds.db.Create(spirit).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return spirit, nil
+}
+
+func (ds *SqliteService) GetUserSpirit(userID string) (*model.Spirit, error) {
+	var spirit model.Spirit
+	if err := ds.db.Where("user_id = ?", userID).First(&spirit).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &spirit, nil
+}
+
+func (ds *SqliteService) UpdateSpirit(spirit *model.Spirit) error {
+	spirit.UpdatedAt = time.Now()
+	if err := ds.db.Save(spirit).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+// ==================== ACHIEVEMENT METHODS ====================
+
+func (ds *SqliteService) CreateAchievement(achievement *model.Achievement) (*model.Achievement, error) {
+	if achievement.ID == "" {
+		achievement.ID = uuid.New().String()
+	}
+	achievement.CreatedAt = time.Now()
+	achievement.UpdatedAt = time.Now()
+
+	if err := ds.db.Create(achievement).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return achievement, nil
+}
+
+func (ds *SqliteService) GetActiveAchievements() ([]model.Achievement, error) {
+	var achievements []model.Achievement
+	if err := ds.db.Where("is_active = ?", true).Find(&achievements).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return achievements, nil
+}
+
+func (ds *SqliteService) CreateUserAchievement(userAchievement *model.UserAchievement) error {
+	if userAchievement.ID == "" {
+		userAchievement.ID = uuid.New().String()
+	}
+	userAchievement.CreatedAt = time.Now()
+	userAchievement.UnlockedAt = time.Now()
+
+	if err := ds.db.Create(userAchievement).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+func (ds *SqliteService) GetUserAchievements(userID string) ([]model.UserAchievement, error) {
+	var userAchievements []model.UserAchievement
+	if err := ds.db.Preload("Achievement").Where("user_id = ?", userID).
+		Find(&userAchievements).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return userAchievements, nil
+}
+
+func (ds *SqliteService) HasUserUnlockedAchievement(userID, achievementID string) (bool, error) {
+	var count int64
+	if err := ds.db.Model(&model.UserAchievement{}).
+		Where("user_id = ? AND achievement_id = ?", userID, achievementID).
+		Count(&count).Error; err != nil {
+		return false, ds.HandleError(err)
+	}
+	return count > 0, nil
+}
+
+// ==================== LEADERBOARD METHODS ====================
+
+func (ds *SqliteService) GetWeeklyLeaderboard(limit int) ([]model.UserProgress, error) {
+	var users []model.UserProgress
+	weekAgo := time.Now().AddDate(0, 0, -7)
+
+	if err := ds.db.Where("updated_at >= ?", weekAgo).
+		Order("xp DESC").Limit(limit).Find(&users).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return users, nil
+}
+
+func (ds *SqliteService) GetMonthlyLeaderboard(limit int) ([]model.UserProgress, error) {
+	var users []model.UserProgress
+	monthAgo := time.Now().AddDate(0, -1, 0)
+
+	if err := ds.db.Where("updated_at >= ?", monthAgo).
+		Order("xp DESC").Limit(limit).Find(&users).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return users, nil
+}
+
+func (ds *SqliteService) GetAllTimeLeaderboard(limit int) ([]model.UserProgress, error) {
+	var users []model.UserProgress
+	if err := ds.db.Order("xp DESC").Limit(limit).Find(&users).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return users, nil
+}
+
+func (ds *SqliteService) GetUserRank(userID string) (int, error) {
+	var rank int64
+	userProgress, err := ds.GetUserProgress(userID)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := ds.db.Model(&model.UserProgress{}).
+		Where("xp > ?", userProgress.XP).Count(&rank).Error; err != nil {
+		return 0, ds.HandleError(err)
+	}
+
+	return int(rank + 1), nil // +1 because rank is 0-indexed
+}
+
+// ==================== CONTENT SEARCH AND FILTERING ====================
+
+func (ds *SqliteService) SearchCharacters(query string, dynasty string, rarity string, limit int) ([]model.Character, error) {
+	var characters []model.Character
+	dbQuery := ds.db.Model(&model.Character{})
+
+	if query != "" {
+		dbQuery = dbQuery.Where("name LIKE ? OR description LIKE ?", "%"+query+"%", "%"+query+"%")
+	}
+
+	if dynasty != "" {
+		dbQuery = dbQuery.Where("dynasty = ?", dynasty)
+	}
+
+	if rarity != "" {
+		dbQuery = dbQuery.Where("rarity = ?", rarity)
+	}
+
+	if limit > 0 {
+		dbQuery = dbQuery.Limit(limit)
+	}
+
+	if err := dbQuery.Find(&characters).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return characters, nil
+}
+
+// ==================== ANALYTICS METHODS ====================
+
+func (ds *SqliteService) GetUserStats(userID string) (map[string]interface{}, error) {
+	progress, err := ds.GetUserProgress(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	spirit, err := ds.GetUserSpirit(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var completedLessons []string
+	if err := json.Unmarshal(progress.CompletedLessons, &completedLessons); err != nil {
+		return nil, err
+	}
+
+	var unlockedCharacters []string
+	if err := json.Unmarshal(progress.UnlockedCharacters, &unlockedCharacters); err != nil {
+		return nil, err
+	}
+
+	achievements, err := ds.GetUserAchievements(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	rank, err := ds.GetUserRank(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := map[string]interface{}{
+		"user_id":             userID,
+		"level":               progress.Level,
+		"xp":                  progress.XP,
+		"hearts":              progress.Hearts,
+		"streak":              progress.Streak,
+		"total_play_time":     progress.TotalPlayTime,
+		"completed_lessons":   len(completedLessons),
+		"unlocked_characters": len(unlockedCharacters),
+		"achievements":        len(achievements),
+		"rank":                rank,
+		"spirit_stage":        spirit.Stage,
+		"spirit_type":         spirit.Type,
+	}
+
+	return stats, nil
 }
