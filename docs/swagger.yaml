@@ -952,6 +952,13 @@ paths:
       consumes:
       - application/json
       description: Get current heart status and reset information
+      parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -975,6 +982,12 @@ paths:
       - application/json
       description: Add hearts from ads or other sources
       parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       - description: Add hearts request
         in: body
         name: addHeartsRequest
@@ -1003,6 +1016,13 @@ paths:
       consumes:
       - application/json
       description: Deduct a heart when user fails a lesson
+      parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1026,6 +1046,12 @@ paths:
       - application/json
       description: Initialize user profile after first login (zodiac setup)
       parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       - description: Birth year for zodiac
         in: body
         name: birthYear
@@ -1113,6 +1139,13 @@ paths:
       consumes:
       - application/json
       description: Get current user's profile information
+      parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1135,6 +1168,12 @@ paths:
       - application/json
       description: Update user profile information
       parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       - description: Update profile request
         in: body
         name: updateProfileRequest
@@ -1163,6 +1202,13 @@ paths:
       consumes:
       - application/json
       description: Get current user's game progress
+      parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1214,6 +1260,13 @@ paths:
       consumes:
       - application/json
       description: Get detailed user statistics and analytics
+      parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:

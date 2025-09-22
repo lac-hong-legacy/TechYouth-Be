@@ -883,6 +883,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get Heart Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -924,6 +934,14 @@ const docTemplate = `{
                 ],
                 "summary": "Add User Hearts",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Add hearts request",
                         "name": "addHeartsRequest",
@@ -974,6 +992,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Lose User Heart",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1015,6 +1043,14 @@ const docTemplate = `{
                 ],
                 "summary": "Initialize User Profile",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Birth year for zodiac",
                         "name": "birthYear",
@@ -1168,6 +1204,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get User Profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1207,6 +1253,14 @@ const docTemplate = `{
                 ],
                 "summary": "Update User Profile",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Update profile request",
                         "name": "updateProfileRequest",
@@ -1257,6 +1311,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get User Progress",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1348,6 +1412,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get User Stats",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",

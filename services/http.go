@@ -572,6 +572,7 @@ func (svc *HttpService) SearchContent(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
 // @Router /api/v1/user/profile [get]
 func (svc *HttpService) GetUserProfile(c *gin.Context) {
@@ -592,6 +593,7 @@ func (svc *HttpService) GetUserProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Param updateProfileRequest body dto.UpdateProfileRequest true "Update profile request"
 // @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
 // @Router /api/v1/user/profile [put]
@@ -619,6 +621,7 @@ func (svc *HttpService) UpdateUserProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Param birthYear body map[string]int true "Birth year for zodiac"
 // @Success 200 {object} shared.Response{data=dto.UserProgressResponse}
 // @Router /api/v1/user/initialize [post]
@@ -660,6 +663,7 @@ func (svc *HttpService) InitializeUserProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.UserProgressResponse}
 // @Router /api/v1/user/progress [get]
 func (svc *HttpService) GetUserProgress(c *gin.Context) {
@@ -680,6 +684,7 @@ func (svc *HttpService) GetUserProgress(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.UserStatsResponse}
 // @Router /api/v1/user/stats [get]
 func (svc *HttpService) GetUserStats(c *gin.Context) {
@@ -779,6 +784,7 @@ func (svc *HttpService) CompleteUserLesson(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.HeartStatusResponse}
 // @Router /api/v1/user/hearts [get]
 func (svc *HttpService) GetHeartStatus(c *gin.Context) {
@@ -799,6 +805,7 @@ func (svc *HttpService) GetHeartStatus(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Param addHeartsRequest body dto.AddHeartsRequest true "Add hearts request"
 // @Success 200 {object} shared.Response{data=dto.HeartStatusResponse}
 // @Router /api/v1/user/hearts/add [post]
@@ -826,6 +833,7 @@ func (svc *HttpService) AddUserHearts(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.HeartStatusResponse}
 // @Router /api/v1/user/hearts/lose [post]
 func (svc *HttpService) LoseUserHeart(c *gin.Context) {
