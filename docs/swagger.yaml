@@ -465,6 +465,11 @@ paths:
       - application/json
       description: Create a new historical character (admin only)
       parameters:
+      - description: Admin internal password
+        in: header
+        name: X-Internal-Password
+        required: true
+        type: string
       - description: Character data
         in: body
         name: character
@@ -483,8 +488,6 @@ paths:
                 data:
                   $ref: '#/definitions/dto.CharacterResponse'
               type: object
-      security:
-      - Bearer: []
       summary: Create Character (Admin)
       tags:
       - admin
@@ -494,6 +497,11 @@ paths:
       - application/json
       description: Create a new lesson (admin only)
       parameters:
+      - description: Admin internal password
+        in: header
+        name: X-Internal-Password
+        required: true
+        type: string
       - description: Lesson data
         in: body
         name: lesson

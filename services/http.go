@@ -30,6 +30,8 @@ type HttpService struct {
 	userSvc    *UserService
 	sqliteSvc  *SqliteService
 
+	internalPassword string
+
 	port   int
 	server *http.Server
 }
@@ -49,6 +51,8 @@ func (svc *HttpService) Configure(ctx *context.Context) error {
 	} else {
 		svc.port = 8000
 	}
+
+	svc.internalPassword = os.Getenv("INTERNAL_PASSWORD")
 
 	return svc.DefaultService.Configure(ctx)
 }
@@ -1021,12 +1025,15 @@ func (svc *HttpService) ShareAchievement(c *gin.Context) {
 // @Tags admin
 // @Accept json
 // @Produce json
-// @Security Bearer
+// @Param X-Internal-Password header string true "Admin internal password"
 // @Param character body model.Character true "Character data"
 // @Success 201 {object} shared.Response{data=dto.CharacterResponse}
 // @Router /api/v1/admin/characters [post]
 func (svc *HttpService) CreateCharacter(c *gin.Context) {
-	// TODO: Add admin authentication check
+	isAdmin := svc.isAdmin(c)
+	if !isAdmin {
+		return
+	}
 
 	var character model.Character
 	if err := c.ShouldBindJSON(&character); err != nil {
@@ -1049,11 +1056,15 @@ func (svc *HttpService) CreateCharacter(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param X-Internal-Password header string true "Admin internal password"
 // @Param lesson body model.Lesson true "Lesson data"
 // @Success 201 {object} shared.Response{data=dto.LessonResponse}
 // @Router /api/v1/admin/lessons [post]
 func (svc *HttpService) CreateLesson(c *gin.Context) {
-	// TODO: Add admin authentication check
+	isAdmin := svc.isAdmin(c)
+	if !isAdmin {
+		return
+	}
 
 	var lesson model.Lesson
 	if err := c.ShouldBindJSON(&lesson); err != nil {
@@ -1070,23 +1081,10 @@ func (svc *HttpService) CreateLesson(c *gin.Context) {
 	shared.ResponseJSON(c, http.StatusCreated, "Lesson created successfully", created)
 }
 
-// ==================== HELPER METHODS ====================
-
-func (svc *HttpService) getUserIDFromOptionalAuth(c *gin.Context) string {
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		return ""
+func (svc *HttpService) isAdmin(c *gin.Context) bool {
+	if c.GetHeader("X-Internal-Password") != svc.internalPassword {
+		svc.HandleError(c, shared.NewUnauthorizedError(nil, "Admin access required"))
+		return false
 	}
-
-	token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader)
-	if err != nil {
-		return ""
-	}
-
-	userID, err := svc.jwtSvc.VerifyJWTToken(token)
-	if err != nil {
-		return ""
-	}
-
-	return userID
+	return true
 }

@@ -17,11 +17,6 @@ const docTemplate = `{
     "paths": {
         "/api/v1/admin/characters": {
             "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
                 "description": "Create a new historical character (admin only)",
                 "consumes": [
                     "application/json"
@@ -34,6 +29,13 @@ const docTemplate = `{
                 ],
                 "summary": "Create Character (Admin)",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin internal password",
+                        "name": "X-Internal-Password",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Character data",
                         "name": "character",
@@ -85,6 +87,13 @@ const docTemplate = `{
                 ],
                 "summary": "Create Lesson (Admin)",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin internal password",
+                        "name": "X-Internal-Password",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Lesson data",
                         "name": "lesson",
