@@ -1,3 +1,4 @@
+// model/content.go
 package model
 
 import (
@@ -5,6 +6,7 @@ import (
 	"time"
 )
 
+// Character represents historical Vietnamese characters
 type Character struct {
 	ID           string          `json:"id" gorm:"primaryKey"`
 	Name         string          `json:"name" gorm:"not null"`
@@ -105,6 +107,26 @@ type UserAchievement struct {
 	AchievementID string    `json:"achievement_id" gorm:"not null"`
 	UnlockedAt    time.Time `json:"unlocked_at"`
 	CreatedAt     time.Time `json:"created_at"`
+
+	// Relationship
+	Achievement Achievement `json:"achievement" gorm:"foreignKey:AchievementID"`
+}
+
+// UserLessonAttempt tracks lesson attempts for registered users (different from guest)
+type UserLessonAttempt struct {
+	ID            string    `json:"id" gorm:"primaryKey"`
+	UserID        string    `json:"user_id" gorm:"not null"`
+	LessonID      string    `json:"lesson_id" gorm:"not null"`
+	IsCompleted   bool      `json:"is_completed" gorm:"not null"`
+	Score         int       `json:"score" gorm:"not null"`
+	TimeSpent     int       `json:"time_spent" gorm:"not null"` // in seconds
+	AttemptsCount int       `json:"attempts_count" gorm:"not null"`
+	CreatedAt     time.Time `json:"created_at" gorm:"not null"`
+	UpdatedAt     time.Time `json:"updated_at" gorm:"not null"`
+
+	// Relationship
+	User   User   `json:"user" gorm:"foreignKey:UserID"`
+	Lesson Lesson `json:"lesson" gorm:"foreignKey:LessonID"`
 }
 
 // Spirit/Linh Thu system

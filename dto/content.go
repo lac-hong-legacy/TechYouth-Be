@@ -1,0 +1,109 @@
+package dto
+
+// Character DTOs
+type CharacterResponse struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Dynasty      string   `json:"dynasty"`
+	Rarity       string   `json:"rarity"`
+	BirthYear    *int     `json:"birth_year"`
+	DeathYear    *int     `json:"death_year"`
+	Description  string   `json:"description"`
+	FamousQuote  string   `json:"famous_quote"`
+	Achievements []string `json:"achievements"`
+	ImageURL     string   `json:"image_url"`
+	IsUnlocked   bool     `json:"is_unlocked"`
+	LessonCount  int      `json:"lesson_count"`
+}
+
+type CharacterCollectionResponse struct {
+	Characters []CharacterResponse `json:"characters"`
+	Total      int                 `json:"total"`
+	Unlocked   int                 `json:"unlocked"`
+}
+
+// Lesson DTOs
+type QuestionResponse struct {
+	ID       string                 `json:"id"`
+	Type     string                 `json:"type"`
+	Question string                 `json:"question"`
+	Options  []string               `json:"options,omitempty"`
+	Points   int                    `json:"points"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type LessonResponse struct {
+	ID           string             `json:"id"`
+	CharacterID  string             `json:"character_id"`
+	Title        string             `json:"title"`
+	Order        int                `json:"order"`
+	Story        string             `json:"story"`
+	VoiceOverURL string             `json:"voice_over_url"`
+	Questions    []QuestionResponse `json:"questions"`
+	XPReward     int                `json:"xp_reward"`
+	MinScore     int                `json:"min_score"`
+	Character    CharacterResponse  `json:"character"`
+}
+
+type LessonAccessRequest struct {
+	LessonID string `json:"lesson_id" binding:"required"`
+}
+
+type LessonAccessResponse struct {
+	CanAccess    bool   `json:"can_access"`
+	Reason       string `json:"reason"`
+	HeartsNeeded int    `json:"hearts_needed,omitempty"`
+}
+
+type CompleteLessonResponse struct {
+	XPGained        int    `json:"xp_gained"`
+	NewLevel        int    `json:"new_level"`
+	LeveledUp       bool   `json:"leveled_up"`
+	CharacterUnlock string `json:"character_unlock,omitempty"`
+	SpiritEvolved   bool   `json:"spirit_evolved"`
+}
+
+// Timeline DTOs
+type TimelineResponse struct {
+	ID          string `json:"id"`
+	Era         string `json:"era"`
+	Dynasty     string `json:"dynasty"`
+	StartYear   int    `json:"start_year"`
+	EndYear     *int   `json:"end_year"`
+	Order       int    `json:"order"`
+	Description string `json:"description"`
+	IsUnlocked  bool   `json:"is_unlocked"`
+}
+
+type TimelineCollectionResponse struct {
+	Eras []TimelineEraResponse `json:"eras"`
+}
+
+type TimelineEraResponse struct {
+	Era        string                    `json:"era"`
+	Dynasties  []TimelineDynastyResponse `json:"dynasties"`
+	IsUnlocked bool                      `json:"is_unlocked"`
+	Progress   float64                   `json:"progress"`
+}
+
+type TimelineDynastyResponse struct {
+	Dynasty    string              `json:"dynasty"`
+	StartYear  int                 `json:"start_year"`
+	EndYear    *int                `json:"end_year"`
+	Characters []CharacterResponse `json:"characters"`
+	IsUnlocked bool                `json:"is_unlocked"`
+	Progress   float64             `json:"progress"`
+}
+
+// Search DTOs
+type SearchRequest struct {
+	Query   string `json:"query" form:"query"`
+	Dynasty string `json:"dynasty" form:"dynasty"`
+	Rarity  string `json:"rarity" form:"rarity"`
+	Limit   int    `json:"limit" form:"limit"`
+}
+
+type SearchResponse struct {
+	Characters []CharacterResponse `json:"characters"`
+	Total      int                 `json:"total"`
+}

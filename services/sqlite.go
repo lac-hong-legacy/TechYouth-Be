@@ -74,6 +74,7 @@ func (ds *SqliteService) Start() (err error) {
 		&model.Spirit{},
 		&model.Achievement{},
 		&model.UserAchievement{},
+		&model.UserLessonAttempt{},
 	}
 
 	err = ds.db.AutoMigrate(models...)
@@ -520,16 +521,6 @@ func (ds *SqliteService) GetUserAchievements(userID string) ([]model.UserAchieve
 	return userAchievements, nil
 }
 
-func (ds *SqliteService) HasUserUnlockedAchievement(userID, achievementID string) (bool, error) {
-	var count int64
-	if err := ds.db.Model(&model.UserAchievement{}).
-		Where("user_id = ? AND achievement_id = ?", userID, achievementID).
-		Count(&count).Error; err != nil {
-		return false, ds.HandleError(err)
-	}
-	return count > 0, nil
-}
-
 // ==================== LEADERBOARD METHODS ====================
 
 func (ds *SqliteService) GetWeeklyLeaderboard(limit int) ([]model.UserProgress, error) {
@@ -651,6 +642,172 @@ func (ds *SqliteService) GetUserStats(userID string) (map[string]interface{}, er
 		"rank":                rank,
 		"spirit_stage":        spirit.Stage,
 		"spirit_type":         spirit.Type,
+	}
+
+	return stats, nil
+}
+
+func (ds *SqliteService) HasUserUnlockedAchievement(userID, achievementID string) (bool, error) {
+	var count int64
+	if err := ds.db.Model(&model.UserAchievement{}).
+		Where("user_id = ? AND achievement_id = ?", userID, achievementID).
+		Count(&count).Error; err != nil {
+		return false, ds.HandleError(err)
+	}
+	return count > 0, nil
+}
+
+// Add these methods to the existing sqlite_service_extensions
+
+// ==================== MISSING USER METHODS ====================
+
+func (ds *SqliteService) GetUser(userID string) (*model.User, error) {
+	var user model.User
+	if err := ds.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &user, nil
+}
+
+func (ds *SqliteService) UpdateUser(user *model.User) error {
+	user.UpdatedAt = time.Now()
+	if err := ds.db.Save(user).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+// ==================== ACHIEVEMENT PRELOAD METHODS ====================
+
+// Update the existing GetUserAchievements method to include Achievement preloading
+func (ds *SqliteService) GetUserAchievementsWithDetails(userID string) ([]struct {
+	UserAchievement model.UserAchievement
+	Achievement     model.Achievement
+}, error) {
+	var results []struct {
+		UserAchievement model.UserAchievement
+		Achievement     model.Achievement
+	}
+
+	if err := ds.db.Table("user_achievements").
+		Select("user_achievements.*, achievements.*").
+		Joins("LEFT JOIN achievements ON user_achievements.achievement_id = achievements.id").
+		Where("user_achievements.user_id = ?", userID).
+		Scan(&results).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+
+	return results, nil
+}
+
+// ==================== ADVANCED QUERY METHODS ====================
+
+func (ds *SqliteService) GetUserProgressWithJoins(userID string) (*model.UserProgress, error) {
+	var progress model.UserProgress
+	if err := ds.db.Where("user_id = ?", userID).First(&progress).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &progress, nil
+}
+
+func (ds *SqliteService) GetCharactersWithLessonCount() ([]struct {
+	Character   model.Character
+	LessonCount int64
+}, error) {
+	var results []struct {
+		Character   model.Character
+		LessonCount int64
+	}
+
+	if err := ds.db.Table("characters").
+		Select("characters.*, COUNT(lessons.id) as lesson_count").
+		Joins("LEFT JOIN lessons ON characters.id = lessons.character_id").
+		Group("characters.id").
+		Scan(&results).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+
+	return results, nil
+}
+
+// ==================== BATCH OPERATIONS ====================
+
+func (ds *SqliteService) BatchUpdateCharacterUnlockStatus(characterIDs []string, unlocked bool) error {
+	if len(characterIDs) == 0 {
+		return nil
+	}
+
+	if err := ds.db.Model(&model.Character{}).
+		Where("id IN ?", characterIDs).
+		Update("is_unlocked", unlocked).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+func (ds *SqliteService) GetMultipleCharacters(characterIDs []string) ([]model.Character, error) {
+	var characters []model.Character
+	if err := ds.db.Where("id IN ?", characterIDs).Find(&characters).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return characters, nil
+}
+
+// ==================== LESSON ATTEMPT TRACKING ====================
+
+func (ds *SqliteService) CreateUserLessonAttempt(attempt *model.UserLessonAttempt) error {
+	attempt.ID = uuid.New().String()
+	attempt.CreatedAt = time.Now()
+	attempt.UpdatedAt = time.Now()
+
+	if err := ds.db.Create(attempt).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+func (ds *SqliteService) GetUserLessonAttempts(userID, lessonID string) ([]model.UserLessonAttempt, error) {
+	var attempts []model.UserLessonAttempt
+	if err := ds.db.Where("user_id = ? AND lesson_id = ?", userID, lessonID).
+		Order("created_at DESC").Find(&attempts).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return attempts, nil
+}
+
+// ==================== ANALYTICS HELPERS ====================
+
+func (ds *SqliteService) GetDailyActiveUsers(date time.Time) (int64, error) {
+	var count int64
+	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	if err := ds.db.Model(&model.UserProgress{}).
+		Where("last_activity_date >= ? AND last_activity_date < ?", startOfDay, endOfDay).
+		Count(&count).Error; err != nil {
+		return 0, ds.HandleError(err)
+	}
+	return count, nil
+}
+
+func (ds *SqliteService) GetLessonCompletionStats() (map[string]interface{}, error) {
+	var totalLessons int64
+	var totalCompletions int64
+
+	// Get total lessons
+	if err := ds.db.Model(&model.Lesson{}).Where("is_active = ?", true).Count(&totalLessons).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+
+	// Get total completions (this is a simplified count)
+	if err := ds.db.Model(&model.UserProgress{}).Count(&totalCompletions).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+
+	stats := map[string]interface{}{
+		"total_lessons":           totalLessons,
+		"total_completions":       totalCompletions,
+		"average_completion_rate": 0.0, // TODO: Calculate proper completion rate
 	}
 
 	return stats, nil

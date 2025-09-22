@@ -1,8 +1,7 @@
-package middleware
+package services
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,36 +13,40 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lac-hong-legacy/TechYouth-Be/dto"
 	"github.com/lac-hong-legacy/TechYouth-Be/model"
-	"github.com/lac-hong-legacy/TechYouth-Be/services"
+	log "github.com/sirupsen/logrus"
 )
 
-type RateLimitMiddleware struct {
+type RateLimitService struct {
 	context.DefaultService
 
 	configs map[string]*model.RateLimitConfig
 	mutex   sync.RWMutex
-	sqlSvc  *services.SqliteService
+
+	sqlSvc *SqliteService
 }
 
-const RATE_LIMIT_MIDDLEWARE_SVC = "rate_limit"
+const RATE_LIMIT_SVC = "rate_limit_svc"
 
-func (svc *RateLimitMiddleware) Id() string {
-	return RATE_LIMIT_MIDDLEWARE_SVC
+func (svc RateLimitService) Id() string {
+	return RATE_LIMIT_SVC
 }
 
-func (svc *RateLimitMiddleware) Configure(ctx *context.Context) error {
-	svc.sqlSvc = ctx.Service(services.SQLITE_SVC).(*services.SqliteService)
+func (svc *RateLimitService) Configure(ctx *context.Context) error {
+	svc.sqlSvc = ctx.Service(SQLITE_SVC).(*SqliteService)
 
 	svc.configs = make(map[string]*model.RateLimitConfig)
 	return svc.DefaultService.Configure(ctx)
 }
 
-func (svc *RateLimitMiddleware) Start() error {
+func (svc *RateLimitService) Start() error {
 	svc.initDefaultConfigs()
+
+	go svc.StartCleanupJob()
+
 	return nil
 }
 
-func (svc *RateLimitMiddleware) initDefaultConfigs() {
+func (svc *RateLimitService) initDefaultConfigs() {
 	svc.configs = map[string]*model.RateLimitConfig{
 		// Guest session creation - prevent device ID spam
 		"guest_session": {
@@ -92,7 +95,7 @@ func (svc *RateLimitMiddleware) initDefaultConfigs() {
 	}
 }
 
-func (svc *RateLimitMiddleware) IsAllowed(identifier, endpointType string) (bool, *dto.RateLimitInfo, error) {
+func (svc *RateLimitService) IsAllowed(identifier, endpointType string) (bool, *dto.RateLimitInfo, error) {
 	svc.mutex.RLock()
 	config, exists := svc.configs[endpointType]
 	svc.mutex.RUnlock()
@@ -179,8 +182,24 @@ func (svc *RateLimitMiddleware) IsAllowed(identifier, endpointType string) (bool
 	}, nil
 }
 
+func (svc *RateLimitService) CleanupOldRecords() error {
+	return svc.sqlSvc.CleanupOldRecords()
+}
+
+// Background cleanup job
+func (svc *RateLimitService) StartCleanupJob() {
+	ticker := time.NewTicker(1 * time.Hour) // Run every hour
+	go func() {
+		for range ticker.C {
+			if err := svc.CleanupOldRecords(); err != nil {
+				log.Printf("Rate limit cleanup error: %v", err)
+			}
+		}
+	}()
+}
+
 // General rate limiting by IP
-func (svc *RateLimitMiddleware) IPRateLimit() gin.HandlerFunc {
+func (svc *RateLimitService) IPRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := getClientIP(c)
 
@@ -204,7 +223,7 @@ func (svc *RateLimitMiddleware) IPRateLimit() gin.HandlerFunc {
 				retryAfter = strconv.FormatInt(info.BlockedUntil.Unix(), 10)
 				c.Header("Retry-After", retryAfter)
 			}
-			
+
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error":       "Rate limit exceeded",
 				"message":     "Too many requests from this IP address",
@@ -219,7 +238,7 @@ func (svc *RateLimitMiddleware) IPRateLimit() gin.HandlerFunc {
 }
 
 // Strict rate limiting for sensitive endpoints
-func (svc *RateLimitMiddleware) StrictRateLimit() gin.HandlerFunc {
+func (svc *RateLimitService) StrictRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := getClientIP(c)
 
@@ -241,7 +260,7 @@ func (svc *RateLimitMiddleware) StrictRateLimit() gin.HandlerFunc {
 				retryAfter = strconv.FormatInt(info.BlockedUntil.Unix(), 10)
 				c.Header("Retry-After", retryAfter)
 			}
-			
+
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error":         "Rate limit exceeded - strict mode",
 				"blocked_until": retryAfter,
@@ -256,7 +275,7 @@ func (svc *RateLimitMiddleware) StrictRateLimit() gin.HandlerFunc {
 }
 
 // Guest session specific rate limiting
-func (svc *RateLimitMiddleware) GuestSessionRateLimit() gin.HandlerFunc {
+func (svc *RateLimitService) GuestSessionRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Use device_id from request body if available, otherwise fall back to IP
 		deviceID := getDeviceIDFromRequest(c)
@@ -286,7 +305,7 @@ func (svc *RateLimitMiddleware) GuestSessionRateLimit() gin.HandlerFunc {
 }
 
 // Lesson completion rate limiting
-func (svc *RateLimitMiddleware) LessonCompletionRateLimit() gin.HandlerFunc {
+func (svc *RateLimitService) LessonCompletionRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("sessionId")
 		if sessionID == "" {
@@ -315,7 +334,7 @@ func (svc *RateLimitMiddleware) LessonCompletionRateLimit() gin.HandlerFunc {
 }
 
 // Hearts from ads rate limiting
-func (svc *RateLimitMiddleware) HeartsFromAdRateLimit() gin.HandlerFunc {
+func (svc *RateLimitService) HeartsFromAdRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("sessionId")
 		if sessionID == "" {
@@ -341,10 +360,6 @@ func (svc *RateLimitMiddleware) HeartsFromAdRateLimit() gin.HandlerFunc {
 
 		c.Next()
 	}
-}
-
-func (svc *RateLimitMiddleware) CleanupOldRecords() error {
-	return svc.sqlSvc.CleanupOldRecords()
 }
 
 // Utility functions
@@ -395,7 +410,7 @@ func generateID() string {
 }
 
 // Admin handlers for rate limit management
-func (svc *RateLimitMiddleware) GetRateLimitStats() gin.HandlerFunc {
+func (svc *RateLimitService) GetRateLimitStats() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Return rate limit statistics
 		c.JSON(200, gin.H{
@@ -405,7 +420,7 @@ func (svc *RateLimitMiddleware) GetRateLimitStats() gin.HandlerFunc {
 	}
 }
 
-func (svc *RateLimitMiddleware) CleanupRateLimits() gin.HandlerFunc {
+func (svc *RateLimitService) CleanupRateLimits() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if err := svc.CleanupOldRecords(); err != nil {
 			c.JSON(500, gin.H{"error": "Failed to cleanup rate limits"})
@@ -415,7 +430,7 @@ func (svc *RateLimitMiddleware) CleanupRateLimits() gin.HandlerFunc {
 	}
 }
 
-func (svc *RateLimitMiddleware) RemoveRateLimit() gin.HandlerFunc {
+func (svc *RateLimitService) RemoveRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		identifier := c.Param("identifier")
 		endpointType := c.Param("endpointType")
@@ -425,16 +440,4 @@ func (svc *RateLimitMiddleware) RemoveRateLimit() gin.HandlerFunc {
 			"message": fmt.Sprintf("Rate limit removed for %s/%s", identifier, endpointType),
 		})
 	}
-}
-
-// Background cleanup job
-func (svc *RateLimitMiddleware) StartCleanupJob() {
-	ticker := time.NewTicker(1 * time.Hour) // Run every hour
-	go func() {
-		for range ticker.C {
-			if err := svc.CleanupOldRecords(); err != nil {
-				log.Printf("Rate limit cleanup error: %v", err)
-			}
-		}
-	}()
 }

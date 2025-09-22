@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/lac-hong-legacy/TechYouth-Be/middleware"
 	"github.com/lac-hong-legacy/TechYouth-Be/services"
 
 	"github.com/alphabatem/common/context"
@@ -18,9 +17,11 @@ func main() {
 	ctx, err := context.NewCtx(
 		&services.SqliteService{},
 		&services.JWTService{},
-		&middleware.AuthMiddleware{},
+		&services.RateLimitService{},
 		&services.AuthService{},
 		&services.GuestService{},
+		&services.UserService{},
+		&services.ContentService{},
 		&services.HttpService{},
 	)
 	if err != nil {

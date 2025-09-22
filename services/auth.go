@@ -2,7 +2,9 @@ package services
 
 import (
 	"errors"
+	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/lac-hong-legacy/TechYouth-Be/dto"
 	"github.com/lac-hong-legacy/TechYouth-Be/shared"
 
@@ -59,4 +61,32 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest) (*dto.LoginResponse
 	return &dto.LoginResponse{
 		AccessToken: tokenPair.AccessToken,
 	}, nil
+}
+
+func (svc *AuthService) RequiredAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader)
+		if err != nil {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", err.Error())
+			c.Abort()
+			return
+		}
+
+		userID, err := svc.jwtSvc.VerifyJWTToken(token)
+		if err != nil {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid JWT token")
+			c.Abort()
+			return
+		}
+
+		if userID == "" {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid user ID in token")
+			c.Abort()
+			return
+		}
+
+		c.Set(shared.UserID, userID)
+		c.Next()
+	}
 }

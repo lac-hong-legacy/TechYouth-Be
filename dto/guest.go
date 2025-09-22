@@ -11,11 +11,6 @@ type CreateSessionResponse struct {
 	Progress *model.GuestProgress `json:"progress"`
 }
 
-type LessonAccessResponse struct {
-	CanAccess bool   `json:"can_access"`
-	Reason    string `json:"reason"`
-}
-
 type CompleteLessonRequest struct {
 	LessonID  string `json:"lesson_id" binding:"required"`
 	Score     int    `json:"score" binding:"required"`

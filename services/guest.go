@@ -211,13 +211,6 @@ func (svc *GuestService) AddHeartsFromAd(sessionID string) error {
 	return svc.sqlSvc.UpdateProgress(progress)
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func (svc *GuestService) LoseHeart(sessionID string) error {
 	progress, err := svc.sqlSvc.GetProgress(sessionID)
 	if err != nil {
@@ -236,4 +229,3 @@ func (svc *GuestService) LoseHeart(sessionID string) error {
 // 	if err != nil {
 // 		return err
 // 	}
-
