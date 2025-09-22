@@ -35,14 +35,27 @@ func (svc *UserService) Start() error {
 	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
 	svc.contentSvc = svc.Service(CONTENT_SVC).(*ContentService)
 
-	ticker := time.NewTicker(24 * time.Hour)
-	go func() {
+	go svc.startHeartResetScheduler()
+
+	return nil
+}
+
+func (svc *UserService) startHeartResetScheduler() {
+	for {
+		now := time.Now()
+		nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+		durationUntilMidnight := nextMidnight.Sub(now)
+
+		timer := time.NewTimer(durationUntilMidnight)
+		<-timer.C
+
+		svc.ResetDailyHearts()
+
+		ticker := time.NewTicker(24 * time.Hour)
 		for range ticker.C {
 			svc.ResetDailyHearts()
 		}
-	}()
-
-	return nil
+	}
 }
 
 // Initialize user profile after registration
