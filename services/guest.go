@@ -8,6 +8,7 @@ import (
 	"github.com/alphabatem/common/context"
 	"github.com/google/uuid"
 	"github.com/lac-hong-legacy/TechYouth-Be/model"
+	"github.com/lac-hong-legacy/TechYouth-Be/shared"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -108,7 +109,7 @@ func (svc *GuestService) CanAccessLesson(sessionID, lessonID string) (bool, stri
 	// For simplicity, assume lessons are "lesson_1", "lesson_2", etc.
 	// and only "lesson_1" and "lesson_2" are available to guests.
 	// TODO: Replace with real lesson availability logic.
-	allowedLessons := []string{"lesson_1", "lesson_2"}
+	allowedLessons := []string{"lesson_hung_vuong_1", "lesson_hung_vuong_2"}
 	for _, allowedID := range allowedLessons {
 		if allowedID == lessonID {
 			return true, "Access granted", nil
@@ -121,21 +122,21 @@ func (svc *GuestService) CanAccessLesson(sessionID, lessonID string) (bool, stri
 func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeSpent int) error {
 	canAccess, reason, err := svc.CanAccessLesson(sessionID, lessonID)
 	if err != nil {
-		return err
+		return shared.NewInternalError(err, "Failed to check lesson access")
 	}
 
 	if !canAccess {
-		return fmt.Errorf("access denied: %s", reason)
+		return shared.NewForbiddenError(fmt.Errorf("access denied: %s", reason), "Access denied")
 	}
 
 	progress, err := svc.sqlSvc.GetProgress(sessionID)
 	if err != nil {
-		return err
+		return shared.NewInternalError(err, "Failed to get progress")
 	}
 
 	var completedLessons []string
 	if err := json.Unmarshal(progress.CompletedLessons, &completedLessons); err != nil {
-		return err
+		return shared.NewInternalError(err, "Failed to parse completed lessons")
 	}
 
 	isAlreadyCompleted := false
@@ -150,7 +151,7 @@ func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeS
 		completedLessons = append(completedLessons, lessonID)
 		completedLessonsJSON, err := json.Marshal(completedLessons)
 		if err != nil {
-			return err
+			return shared.NewInternalError(err, "Failed to marshal completed lessons")
 		}
 		progress.CompletedLessons = completedLessonsJSON
 
@@ -176,7 +177,7 @@ func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeS
 	}
 
 	if err := svc.sqlSvc.CreateLessonAttempt(attempt); err != nil {
-		return err
+		return shared.NewInternalError(err, "Failed to create lesson attempt")
 	}
 
 	// Update progress
@@ -202,7 +203,7 @@ func calculateLevel(totalXP int) int {
 func (svc *GuestService) AddHeartsFromAd(sessionID string) error {
 	progress, err := svc.sqlSvc.GetProgress(sessionID)
 	if err != nil {
-		return err
+		return shared.NewInternalError(err, "Failed to get progress")
 	}
 
 	progress.Hearts = min(progress.Hearts+3, progress.MaxHearts)
@@ -214,7 +215,7 @@ func (svc *GuestService) AddHeartsFromAd(sessionID string) error {
 func (svc *GuestService) LoseHeart(sessionID string) error {
 	progress, err := svc.sqlSvc.GetProgress(sessionID)
 	if err != nil {
-		return err
+		return shared.NewInternalError(err, "Failed to get progress")
 	}
 
 	if progress.Hearts > 0 {

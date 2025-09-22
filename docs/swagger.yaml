@@ -422,6 +422,28 @@ definitions:
       xp:
         type: integer
     type: object
+  dto.ValidateLessonRequest:
+    properties:
+      lesson_id:
+        type: string
+      user_answers:
+        additionalProperties: true
+        type: object
+    required:
+    - lesson_id
+    - user_answers
+    type: object
+  dto.ValidateLessonResponse:
+    properties:
+      min_score:
+        type: integer
+      passed:
+        type: boolean
+      score:
+        type: integer
+      total_points:
+        type: integer
+    type: object
   model.Character:
     type: object
   model.Lesson:
@@ -602,6 +624,33 @@ paths:
                   $ref: '#/definitions/dto.LessonResponse'
               type: object
       summary: Get Lesson
+      tags:
+      - content
+  /api/v1/content/lessons/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validate user answers for a lesson and return score
+      parameters:
+      - description: Validation request
+        in: body
+        name: validateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ValidateLessonRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ValidateLessonResponse'
+              type: object
+      summary: Validate Lesson Answers
       tags:
       - content
   /api/v1/content/search:
@@ -1099,6 +1148,12 @@ paths:
         name: lessonId
         required: true
         type: string
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1128,6 +1183,12 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/dto.CompleteLessonRequest'
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1243,6 +1304,12 @@ paths:
       - application/json
       description: Share user achievement or progress on social media
       parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       - description: Share request
         in: body
         name: shareRequest

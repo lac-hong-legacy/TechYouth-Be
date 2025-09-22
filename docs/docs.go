@@ -257,6 +257,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/content/lessons/validate": {
+            "post": {
+                "description": "Validate user answers for a lesson and return score",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Validate Lesson Answers",
+                "parameters": [
+                    {
+                        "description": "Validation request",
+                        "name": "validateRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ValidateLessonRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.ValidateLessonResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/content/lessons/{lessonId}": {
             "get": {
                 "description": "Get detailed lesson content including questions",
@@ -1129,6 +1175,14 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.CompleteLessonRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1177,6 +1231,14 @@ const docTemplate = `{
                         "description": "Lesson ID",
                         "name": "lessonId",
                         "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
                         "required": true
                     }
                 ],
@@ -1378,6 +1440,14 @@ const docTemplate = `{
                 ],
                 "summary": "Share Achievement",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Share request",
                         "name": "shareRequest",
@@ -2181,6 +2251,39 @@ const docTemplate = `{
                     "additionalProperties": true
                 },
                 "xp": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ValidateLessonRequest": {
+            "type": "object",
+            "required": [
+                "lesson_id",
+                "user_answers"
+            ],
+            "properties": {
+                "lesson_id": {
+                    "type": "string"
+                },
+                "user_answers": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "dto.ValidateLessonResponse": {
+            "type": "object",
+            "properties": {
+                "min_score": {
+                    "type": "integer"
+                },
+                "passed": {
+                    "type": "boolean"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "total_points": {
                     "type": "integer"
                 }
             }

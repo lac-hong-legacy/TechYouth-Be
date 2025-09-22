@@ -96,11 +96,11 @@ func (svc *HttpService) Start() error {
 	guest := v1.Group("/guest")
 	{
 		guest.POST("/session", svc.CreateSession)
-		guest.GET("/session/:sessionId/progress", svc.GetProgress)
-		guest.GET("/session/:sessionId/lesson/:lessonId/access", svc.CheckLessonAccess)
-		guest.POST("/session/:sessionId/lesson/complete", svc.CompleteLesson)
-		guest.POST("/session/:sessionId/hearts/add", svc.AddHeartsFromAd)
-		guest.POST("/session/:sessionId/hearts/lose", svc.LoseHeart)
+		guest.GET("/progress/:sessionId", svc.GetProgress)
+		guest.GET("/progress/:sessionId/lesson/:lessonId/access", svc.CheckLessonAccess)
+		guest.POST("/progress/:sessionId/complete", svc.CompleteLesson)
+		guest.POST("/progress/:sessionId/add-hearts", svc.AddHeartsFromAd)
+		guest.POST("/progress/:sessionId/lose-heart", svc.LoseHeart)
 	}
 
 	content := v1.Group("/content")
@@ -110,6 +110,7 @@ func (svc *HttpService) Start() error {
 		content.GET("/characters/:characterId", svc.GetCharacter)
 		content.GET("/characters/:characterId/lessons", svc.GetCharacterLessons)
 		content.GET("/lessons/:lessonId", svc.GetLesson)
+		content.POST("/lessons/validate", svc.ValidateLessonAnswers)
 		content.GET("/search", svc.SearchContent)
 	}
 
@@ -533,6 +534,30 @@ func (svc *HttpService) GetLesson(c *gin.Context) {
 	shared.ResponseJSON(c, http.StatusOK, "Success", lesson)
 }
 
+// @Summary Validate Lesson Answers
+// @Description Validate user answers for a lesson and return score
+// @Tags content
+// @Accept json
+// @Produce json
+// @Param validateRequest body dto.ValidateLessonRequest true "Validation request"
+// @Success 200 {object} shared.Response{data=dto.ValidateLessonResponse}
+// @Router /api/v1/content/lessons/validate [post]
+func (svc *HttpService) ValidateLessonAnswers(c *gin.Context) {
+	var req dto.ValidateLessonRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+		return
+	}
+
+	result, err := svc.contentSvc.ValidateLessonAnswers(req.LessonID, req.UserAnswers)
+	if err != nil {
+		svc.HandleError(c, err)
+		return
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, "Validation completed", result)
+}
+
 // @Summary Search Content
 // @Description Search characters and content with various filters
 // @Tags content
@@ -733,6 +758,7 @@ func (svc *HttpService) GetUserCollection(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param lessonId path string true "Lesson ID"
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.LessonAccessResponse}
 // @Router /api/v1/user/lesson/{lessonId}/access [get]
 func (svc *HttpService) CheckUserLessonAccess(c *gin.Context) {
@@ -755,6 +781,7 @@ func (svc *HttpService) CheckUserLessonAccess(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param completeLessonRequest body dto.CompleteLessonRequest true "Complete lesson request"
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.CompleteLessonResponse}
 // @Router /api/v1/user/lesson/complete [post]
 func (svc *HttpService) CompleteUserLesson(c *gin.Context) {
@@ -965,6 +992,7 @@ func (svc *HttpService) GetAllTimeLeaderboard(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Param shareRequest body dto.ShareRequest true "Share request"
 // @Success 200 {object} shared.Response{data=dto.ShareResponse}
 // @Router /api/v1/user/share [post]

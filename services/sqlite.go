@@ -211,7 +211,7 @@ func (ds *SqliteService) UpdateSession(session *model.GuestSession) error {
 
 func (ds *SqliteService) GetProgress(sessionID string) (*model.GuestProgress, error) {
 	var progress model.GuestProgress
-	if err := ds.db.Where("session_id = ?", sessionID).First(&progress).Error; err != nil {
+	if err := ds.db.Where("guest_session_id = ?", sessionID).First(&progress).Error; err != nil {
 		return nil, ds.HandleError(err)
 	}
 	return &progress, nil
@@ -380,7 +380,7 @@ func (ds *SqliteService) GetLesson(id string) (*model.Lesson, error) {
 
 func (ds *SqliteService) GetLessonsByCharacter(characterID string) ([]model.Lesson, error) {
 	var lessons []model.Lesson
-	if err := ds.db.Where("character_id = ? AND is_active = ?", characterID, true).
+	if err := ds.db.Preload("Character").Where("character_id = ? AND is_active = ?", characterID, true).
 		Order("\"order\" ASC").Find(&lessons).Error; err != nil {
 		return nil, ds.HandleError(err)
 	}

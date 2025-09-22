@@ -40,48 +40,50 @@ func (svc *ContentService) GetTimeline() (*dto.TimelineCollectionResponse, error
 		return nil, err
 	}
 
-	// Group timelines by era
-	eraMap := make(map[string]*dto.TimelineEraResponse)
+	eras := make([]dto.TimelineEraResponse, len(timelines))
 
-	for _, timeline := range timelines {
-		era, exists := eraMap[timeline.Era]
-		if !exists {
-			era = &dto.TimelineEraResponse{
-				Era:        timeline.Era,
-				Dynasties:  []dto.TimelineDynastyResponse{},
-				IsUnlocked: timeline.IsUnlocked,
+	for i, timeline := range timelines {
+		// Get characters for this timeline/era
+		var characterIDs []string
+		if timeline.CharacterIds != nil {
+			if err := json.Unmarshal(timeline.CharacterIds, &characterIDs); err != nil {
+				log.Printf("Failed to unmarshal character IDs for timeline %s: %v", timeline.Era, err)
+				characterIDs = []string{}
 			}
-			eraMap[timeline.Era] = era
 		}
 
-		// Get characters for this dynasty
-		characters, err := svc.sqlSvc.GetCharactersByDynasty(timeline.Dynasty)
-		if err != nil {
-			log.Printf("Failed to get characters for dynasty %s: %v", timeline.Dynasty, err)
-			characters = []model.Character{}
+		// Fetch characters by IDs
+		characters := []model.Character{}
+		for _, charID := range characterIDs {
+			char, err := svc.sqlSvc.GetCharacter(charID)
+			if err != nil {
+				log.Printf("Failed to get character %s: %v", charID, err)
+				continue
+			}
+			characters = append(characters, *char)
 		}
 
 		characterResponses := make([]dto.CharacterResponse, len(characters))
-		for i, char := range characters {
-			characterResponses[i] = svc.mapCharacterToResponse(&char)
+		for j, char := range characters {
+			characterResponses[j] = svc.mapCharacterToResponse(&char)
 		}
 
-		dynasty := dto.TimelineDynastyResponse{
-			Dynasty:    timeline.Dynasty,
-			StartYear:  timeline.StartYear,
-			EndYear:    timeline.EndYear,
-			Characters: characterResponses,
+		// Create era response (treating each timeline as an era)
+		eras[i] = dto.TimelineEraResponse{
+			Era: timeline.Era,
+			Dynasties: []dto.TimelineDynastyResponse{
+				{
+					Dynasty:    timeline.Era, // Use era name as dynasty for now
+					StartYear:  timeline.StartYear,
+					EndYear:    timeline.EndYear,
+					Characters: characterResponses,
+					IsUnlocked: timeline.IsUnlocked,
+					Progress:   svc.calculateDynastyProgress(characters),
+				},
+			},
 			IsUnlocked: timeline.IsUnlocked,
 			Progress:   svc.calculateDynastyProgress(characters),
 		}
-
-		era.Dynasties = append(era.Dynasties, dynasty)
-	}
-
-	// Convert map to slice
-	eras := make([]dto.TimelineEraResponse, 0, len(eraMap))
-	for _, era := range eraMap {
-		eras = append(eras, *era)
 	}
 
 	return &dto.TimelineCollectionResponse{
@@ -129,6 +131,12 @@ func (svc *ContentService) GetCharacters(dynasty, rarity string) (*dto.Character
 		characterResponses[i] = svc.mapCharacterToResponse(&char)
 		if char.IsUnlocked {
 			unlockedCount++
+		}
+		lessons, err := svc.sqlSvc.GetLessonsByCharacter(char.ID)
+		if err != nil {
+			log.Printf("Failed to get lesson count for character %s: %v", char.ID, err)
+		} else {
+			characterResponses[i].LessonCount = len(lessons)
 		}
 	}
 
@@ -288,15 +296,15 @@ func (svc *ContentService) CreateLesson(lesson *model.Lesson) (*dto.LessonRespon
 
 // ==================== VALIDATION METHODS ====================
 
-func (svc *ContentService) ValidateLessonAnswers(lessonID string, userAnswers map[string]interface{}) (int, error) {
+func (svc *ContentService) ValidateLessonAnswers(lessonID string, userAnswers map[string]interface{}) (*dto.ValidateLessonResponse, error) {
 	lesson, err := svc.sqlSvc.GetLesson(lessonID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	var questions []model.Question
 	if err := json.Unmarshal(lesson.Questions, &questions); err != nil {
-		return 0, fmt.Errorf("failed to parse lesson questions: %v", err)
+		return nil, fmt.Errorf("failed to parse lesson questions: %v", err)
 	}
 
 	totalPoints := 0
@@ -312,11 +320,23 @@ func (svc *ContentService) ValidateLessonAnswers(lessonID string, userAnswers ma
 	}
 
 	if totalPoints == 0 {
-		return 100, nil // Default to 100% if no questions
+		return &dto.ValidateLessonResponse{
+			Score:       100,
+			Passed:      true,
+			TotalPoints: 0,
+			MinScore:    lesson.MinScore,
+		}, nil
 	}
 
 	score := (earnedPoints * 100) / totalPoints
-	return score, nil
+	passed := score >= lesson.MinScore
+
+	return &dto.ValidateLessonResponse{
+		Score:       score,
+		Passed:      passed,
+		TotalPoints: totalPoints,
+		MinScore:    lesson.MinScore,
+	}, nil
 }
 
 func (svc *ContentService) isAnswerCorrect(question model.Question, userAnswer interface{}) bool {
@@ -328,7 +348,7 @@ func (svc *ContentService) isAnswerCorrect(question model.Question, userAnswer i
 		correctAnswer, ok1 := question.Answer.(string)
 		userAnswerStr, ok2 := userAnswer.(string)
 		if ok1 && ok2 {
-			return strings.ToLower(strings.TrimSpace(correctAnswer)) == strings.ToLower(strings.TrimSpace(userAnswerStr))
+			return strings.EqualFold(strings.TrimSpace(correctAnswer), strings.TrimSpace(userAnswerStr))
 		}
 	case "drag_drop", "connect":
 		// For array-based answers, compare as JSON

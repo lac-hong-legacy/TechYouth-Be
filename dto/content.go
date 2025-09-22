@@ -55,6 +55,18 @@ type LessonAccessResponse struct {
 	HeartsNeeded int    `json:"hearts_needed,omitempty"`
 }
 
+type ValidateLessonRequest struct {
+	LessonID    string                 `json:"lesson_id" binding:"required"`
+	UserAnswers map[string]interface{} `json:"user_answers" binding:"required"`
+}
+
+type ValidateLessonResponse struct {
+	Score       int  `json:"score"`
+	Passed      bool `json:"passed"`
+	TotalPoints int  `json:"total_points"`
+	MinScore    int  `json:"min_score"`
+}
+
 type CompleteLessonResponse struct {
 	XPGained        int    `json:"xp_gained"`
 	NewLevel        int    `json:"new_level"`

@@ -844,51 +844,6 @@ func (svc *UserService) CreateShareContent(userID string, req dto.ShareRequest) 
 	}, nil
 }
 
-func (svc *UserService) initializeUserProfile(userID string, birthYear int) error {
-	// Create user progress
-	progress := &model.UserProgress{
-		ID:                 uuid.New().String(),
-		UserID:             userID,
-		Hearts:             5,
-		MaxHearts:          5,
-		XP:                 0,
-		Level:              1,
-		CompletedLessons:   json.RawMessage("[]"),
-		UnlockedCharacters: json.RawMessage("[]"),
-		Streak:             0,
-		TotalPlayTime:      0,
-		LastHeartReset:     &[]time.Time{time.Now()}[0],
-		LastActivityDate:   &[]time.Time{time.Now()}[0],
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
-	}
-
-	if _, err := svc.sqlSvc.CreateUserProgress(progress); err != nil {
-		return err
-	}
-
-	// Create zodiac-based spirit
-	spiritType := svc.getZodiacAnimal(birthYear)
-	spirit := &model.Spirit{
-		ID:        uuid.New().String(),
-		UserID:    userID,
-		Type:      spiritType,
-		Stage:     1,
-		XP:        0,
-		XPToNext:  500,
-		Name:      "",
-		ImageURL:  svc.getSpiritImageURL(spiritType, 1),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	if _, err := svc.sqlSvc.CreateSpirit(spirit); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ==================== USERNAME VALIDATION ====================
 
 func (svc *UserService) CheckUsernameAvailability(username string) (bool, error) {
