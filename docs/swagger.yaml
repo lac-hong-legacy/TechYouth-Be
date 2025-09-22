@@ -202,7 +202,7 @@ definitions:
     type: object
   dto.LoginRequest:
     properties:
-      email:
+      email_or_username:
         type: string
       password:
         type: string
@@ -235,6 +235,8 @@ definitions:
       email:
         type: string
       password:
+        type: string
+      username:
         type: string
     type: object
   dto.RegisterResponse:
@@ -1229,6 +1231,31 @@ paths:
       summary: Get User Stats
       tags:
       - user
+  /api/v1/username/check/{username}:
+    get:
+      description: Check if a username is available for registration
+      parameters:
+      - description: Username to check
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: Check Username Availability
+      tags:
+      - auth
   /ping:
     get:
       consumes:

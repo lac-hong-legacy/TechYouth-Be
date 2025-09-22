@@ -44,13 +44,13 @@ func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.Regi
 }
 
 func (svc *AuthService) Login(loginRequest dto.LoginRequest) (*dto.LoginResponse, error) {
-	user, err := svc.sqlSvc.GetUserByEmail(loginRequest.Email)
+	user, err := svc.sqlSvc.GetUserByEmailOrUsername(loginRequest.EmailOrUsername)
 	if err != nil {
-		return nil, shared.NewInternalError(err, "Internal server error")
+		return nil, shared.NewUnauthorizedError(err, "Invalid credentials")
 	}
 
 	if user.Password != loginRequest.Password {
-		return nil, shared.NewUnauthorizedError(errors.New("invalid password"), "Invalid password")
+		return nil, shared.NewUnauthorizedError(errors.New("invalid password"), "Invalid credentials")
 	}
 
 	tokenPair, err := svc.jwtSvc.GenerateTokenPair(user.ID)

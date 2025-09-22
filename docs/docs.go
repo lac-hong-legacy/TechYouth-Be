@@ -1370,6 +1370,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/username/check/{username}": {
+            "get": {
+                "description": "Check if a username is available for registration",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Check Username Availability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username to check",
+                        "name": "username",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/ping": {
             "get": {
                 "description": "This endpoint checks the health of the service",
@@ -1717,7 +1759,7 @@ const docTemplate = `{
         "dto.LoginRequest": {
             "type": "object",
             "properties": {
-                "email": {
+                "email_or_username": {
                     "type": "string"
                 },
                 "password": {
@@ -1767,6 +1809,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

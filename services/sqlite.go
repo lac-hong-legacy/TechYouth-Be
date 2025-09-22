@@ -148,14 +148,35 @@ func (ds *SqliteService) GetUserByEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
+func (ds *SqliteService) GetUserByUsername(username string) (*model.User, error) {
+	var user model.User
+	if err := ds.db.Where("username = ?", username).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (ds *SqliteService) GetUserByEmailOrUsername(emailOrUsername string) (*model.User, error) {
+	var user model.User
+	if err := ds.db.Where("email = ? OR username = ?", emailOrUsername, emailOrUsername).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (ds *SqliteService) CreateUser(user dto.RegisterRequest) (*model.User, error) {
 	if _, err := ds.GetUserByEmail(user.Email); err == nil {
-		return nil, errors.New("user already exists")
+		return nil, errors.New("email already exists")
+	}
+
+	if _, err := ds.GetUserByUsername(user.Username); err == nil {
+		return nil, errors.New("username already exists")
 	}
 
 	userModel := model.User{
 		ID:       uuid.New().String(),
 		Email:    user.Email,
+		Username: user.Username,
 		Password: user.Password,
 	}
 

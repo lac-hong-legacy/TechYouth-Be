@@ -91,6 +91,7 @@ func (svc *HttpService) Start() error {
 
 	v1.POST("/register", svc.Register)
 	v1.POST("/login", svc.Login)
+	v1.GET("/username/check/:username", svc.CheckUsernameAvailability)
 
 	guest := v1.Group("/guest")
 	{
@@ -234,6 +235,36 @@ func (svc *HttpService) Login(c *gin.Context) {
 	}
 
 	shared.ResponseJSON(c, http.StatusOK, "Success", loginResponse)
+}
+
+// @Summary Check Username Availability
+// @Description Check if a username is available for registration
+// @Tags auth
+// @Produce json
+// @Param username path string true "Username to check"
+// @Success 200 {object} shared.Response{data=map[string]interface{}}
+// @Router /api/v1/username/check/{username} [get]
+func (svc *HttpService) CheckUsernameAvailability(c *gin.Context) {
+	username := c.Param("username")
+
+	available, err := svc.userSvc.CheckUsernameAvailability(username)
+	if err != nil {
+		shared.ResponseJSON(c, http.StatusBadRequest, "Invalid username", map[string]interface{}{
+			"available": false,
+			"error":     err.Error(),
+		})
+		return
+	}
+
+	message := "Username is available"
+	if !available {
+		message = "Username is already taken"
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, message, map[string]interface{}{
+		"available": available,
+		"username":  username,
+	})
 }
 
 // @Summary Create or Get Guest Session

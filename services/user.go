@@ -312,6 +312,7 @@ func (svc *UserService) GetUserProfile(userID string) (*dto.UserProfileResponse,
 	return &dto.UserProfileResponse{
 		UserID:      user.ID,
 		Email:       user.Email,
+		Username:    user.Username,
 		JoinedAt:    user.CreatedAt,
 		LastLoginAt: user.LastLogin,
 	}, nil
@@ -324,8 +325,12 @@ func (svc *UserService) UpdateUserProfile(userID string, req dto.UpdateProfileRe
 	}
 
 	// Update user fields if provided
-	if req.Username != "" {
-		// TODO: Add username field to User model
+	if req.Username != "" && req.Username != user.Username {
+		// Check if username is already taken
+		if _, err := svc.sqlSvc.GetUserByUsername(req.Username); err == nil {
+			return nil, fmt.Errorf("username already exists")
+		}
+		user.Username = req.Username
 	}
 
 	if req.BirthYear > 0 {
@@ -737,6 +742,13 @@ func (svc *UserService) buildLeaderboardResponse(period string, users []model.Us
 	var currentUser dto.LeaderboardUserResponse
 
 	for i, user := range users {
+		// Get user details
+		userDetails, err := svc.sqlSvc.GetUser(user.UserID)
+		if err != nil {
+			log.Printf("Failed to get user details for %s: %v", user.UserID, err)
+			continue
+		}
+
 		// Get user's spirit
 		spirit, err := svc.sqlSvc.GetUserSpirit(user.UserID)
 		if err != nil {
@@ -746,7 +758,7 @@ func (svc *UserService) buildLeaderboardResponse(period string, users []model.Us
 
 		leaderboardUser := dto.LeaderboardUserResponse{
 			UserID:      user.UserID,
-			Username:    fmt.Sprintf("Player_%s", user.UserID[:8]), // TODO: Get actual username
+			Username:    userDetails.Username,
 			Level:       user.Level,
 			XP:          user.XP,
 			Rank:        i + 1,
@@ -767,19 +779,22 @@ func (svc *UserService) buildLeaderboardResponse(period string, users []model.Us
 		if err == nil {
 			userProgress, err := svc.sqlSvc.GetUserProgress(currentUserID)
 			if err == nil {
-				spirit, err := svc.sqlSvc.GetUserSpirit(currentUserID)
-				if err != nil {
-					spirit = &model.Spirit{Type: "unknown", Stage: 1}
-				}
+				userDetails, err := svc.sqlSvc.GetUser(currentUserID)
+				if err == nil {
+					spirit, err := svc.sqlSvc.GetUserSpirit(currentUserID)
+					if err != nil {
+						spirit = &model.Spirit{Type: "unknown", Stage: 1}
+					}
 
-				currentUser = dto.LeaderboardUserResponse{
-					UserID:      currentUserID,
-					Username:    fmt.Sprintf("Player_%s", currentUserID[:8]),
-					Level:       userProgress.Level,
-					XP:          userProgress.XP,
-					Rank:        rank,
-					SpiritType:  spirit.Type,
-					SpiritStage: spirit.Stage,
+					currentUser = dto.LeaderboardUserResponse{
+						UserID:      currentUserID,
+						Username:    userDetails.Username,
+						Level:       userProgress.Level,
+						XP:          userProgress.XP,
+						Rank:        rank,
+						SpiritType:  spirit.Type,
+						SpiritStage: spirit.Stage,
+					}
 				}
 			}
 		}
@@ -872,4 +887,32 @@ func (svc *UserService) initializeUserProfile(userID string, birthYear int) erro
 	}
 
 	return nil
+}
+
+// ==================== USERNAME VALIDATION ====================
+
+func (svc *UserService) CheckUsernameAvailability(username string) (bool, error) {
+	if username == "" {
+		return false, fmt.Errorf("username cannot be empty")
+	}
+
+	if len(username) < 3 || len(username) > 20 {
+		return false, fmt.Errorf("username must be between 3 and 20 characters")
+	}
+
+	// Check for valid characters (alphanumeric and underscores only)
+	for _, char := range username {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') || char == '_') {
+			return false, fmt.Errorf("username can only contain letters, numbers, and underscores")
+		}
+	}
+
+	// Check if username is already taken
+	_, err := svc.sqlSvc.GetUserByUsername(username)
+	if err == nil {
+		return false, nil // Username exists
+	}
+
+	return true, nil // Username is available
 }
