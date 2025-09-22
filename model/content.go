@@ -55,16 +55,19 @@ type Question struct {
 
 // Timeline represents the historical timeline structure
 type Timeline struct {
-	ID          string    `json:"id" gorm:"primaryKey"`
-	Era         string    `json:"era"` // "Bac_Thuoc", "Doc_Lap", etc.
-	Dynasty     string    `json:"dynasty"`
-	StartYear   int       `json:"start_year"`
-	EndYear     *int      `json:"end_year"`
-	Order       int       `json:"order"`
-	Description string    `json:"description"`
-	IsUnlocked  bool      `json:"is_unlocked" gorm:"default:false"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           string          `json:"id" gorm:"primaryKey"`
+	Era          string          `json:"era"` // "Bac_Thuoc", "Doc_Lap", etc.
+	Dynasty      string          `json:"dynasty"`
+	StartYear    int             `json:"start_year"`
+	EndYear      *int            `json:"end_year"`
+	Order        int             `json:"order"`
+	Description  string          `json:"description"`
+	KeyEvents    json.RawMessage `json:"key_events" gorm:"type:text"`    // JSON array of key events
+	CharacterIds json.RawMessage `json:"character_ids" gorm:"type:text"` // JSON array of character IDs
+	ImageURL     string          `json:"image_url"`
+	IsUnlocked   bool            `json:"is_unlocked" gorm:"default:false"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 // UserProgress represents registered user progress (different from guest)
