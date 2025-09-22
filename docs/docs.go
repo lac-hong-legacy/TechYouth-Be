@@ -843,6 +843,22 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get User Collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "UserID",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",

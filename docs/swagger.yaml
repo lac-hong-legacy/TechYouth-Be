@@ -930,6 +930,17 @@ paths:
       consumes:
       - application/json
       description: Get user's character collection and achievements
+      parameters:
+      - description: User ID
+        in: query
+        name: UserID
+        type: string
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:

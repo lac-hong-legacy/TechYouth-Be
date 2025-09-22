@@ -705,10 +705,15 @@ func (svc *HttpService) GetUserStats(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param UserID query string false "User ID"
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.CollectionResponse}
 // @Router /api/v1/user/collection [get]
 func (svc *HttpService) GetUserCollection(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+	userID := c.Query("userId")
+	if userID == "" {
+		userID = c.GetString(shared.UserID)
+	}
 
 	collection, err := svc.userSvc.GetUserCollection(userID)
 	if err != nil {
