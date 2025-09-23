@@ -10,6 +10,7 @@ import (
 type Character struct {
 	ID           string          `json:"id" gorm:"primaryKey"`
 	Name         string          `json:"name" gorm:"not null"`
+	Era          string          `json:"era"` // "Bac_Thuoc", "Doc_Lap", etc.
 	Dynasty      string          `json:"dynasty"`
 	Rarity       string          `json:"rarity"` // Common, Rare, Legendary
 	BirthYear    *int            `json:"birth_year"`

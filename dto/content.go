@@ -4,6 +4,7 @@ package dto
 type CharacterResponse struct {
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
+	Era          string   `json:"era"`
 	Dynasty      string   `json:"dynasty"`
 	Rarity       string   `json:"rarity"`
 	BirthYear    *int     `json:"birth_year"`
@@ -110,6 +111,7 @@ type TimelineDynastyResponse struct {
 // Search DTOs
 type SearchRequest struct {
 	Query   string `json:"query" form:"query"`
+	Era     string `json:"era" form:"era"`
 	Dynasty string `json:"dynasty" form:"dynasty"`
 	Rarity  string `json:"rarity" form:"rarity"`
 	Limit   int    `json:"limit" form:"limit"`

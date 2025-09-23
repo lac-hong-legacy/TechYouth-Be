@@ -591,12 +591,16 @@ func (ds *SqliteService) GetUserRank(userID string) (int, error) {
 
 // ==================== CONTENT SEARCH AND FILTERING ====================
 
-func (ds *SqliteService) SearchCharacters(query string, dynasty string, rarity string, limit int) ([]model.Character, error) {
+func (ds *SqliteService) SearchCharacters(query string, era string, dynasty string, rarity string, limit int) ([]model.Character, error) {
 	var characters []model.Character
 	dbQuery := ds.db.Model(&model.Character{})
 
 	if query != "" {
 		dbQuery = dbQuery.Where("name LIKE ? OR description LIKE ?", "%"+query+"%", "%"+query+"%")
+	}
+
+	if era != "" {
+		dbQuery = dbQuery.Where("era = ?", era)
 	}
 
 	if dynasty != "" {

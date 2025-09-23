@@ -1694,6 +1694,9 @@ const docTemplate = `{
                 "dynasty": {
                     "type": "string"
                 },
+                "era": {
+                    "type": "string"
+                },
                 "famous_quote": {
                     "type": "string"
                 },

@@ -49,6 +49,8 @@ definitions:
         type: string
       dynasty:
         type: string
+      era:
+        type: string
       famous_quote:
         type: string
       id:

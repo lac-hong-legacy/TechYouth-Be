@@ -55,6 +55,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_hung_vuong",
 			Name:        "Hùng Vương",
+			Era:         "Bac_Thuoc",
 			Dynasty:     "Văn Lang",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(-2879),
@@ -75,6 +76,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_ly_thai_to",
 			Name:        "Lý Thái Tổ",
+			Era:         "Phong_Kien",
 			Dynasty:     "Lý",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(974),
@@ -95,6 +97,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_tran_hung_dao",
 			Name:        "Trần Hưng Đạo",
+			Era:         "Phong_Kien",
 			Dynasty:     "Trần",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(1228),
@@ -115,6 +118,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_le_loi",
 			Name:        "Lê Lợi",
+			Era:         "Phong_Kien",
 			Dynasty:     "Lê",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(1385),
@@ -135,6 +139,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_nguyen_trai",
 			Name:        "Nguyễn Trãi",
+			Era:         "Phong_Kien",
 			Dynasty:     "Lê",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(1380),
@@ -155,6 +160,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_nguyen_hue",
 			Name:        "Nguyễn Huệ (Quang Trung)",
+			Era:         "Phong_Kien",
 			Dynasty:     "Tây Sơn",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(1753),
@@ -175,6 +181,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_hai_ba_trung",
 			Name:        "Hai Bà Trưng",
+			Era:         "Bac_Thuoc",
 			Dynasty:     "Trưng",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(12),
@@ -195,6 +202,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_ly_thuong_kiet",
 			Name:        "Lý Thường Kiệt",
+			Era:         "Phong_Kien",
 			Dynasty:     "Lý",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(1019),
@@ -215,6 +223,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_ngo_quyen",
 			Name:        "Ngô Quyền",
+			Era:         "Doc_Lap",
 			Dynasty:     "Ngô",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(897),
@@ -235,6 +244,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_dinh_bo_linh",
 			Name:        "Đinh Bộ Lĩnh",
+			Era:         "Doc_Lap",
 			Dynasty:     "Đinh",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(924),
@@ -255,6 +265,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_le_thanh_tong",
 			Name:        "Lê Thánh Tông",
+			Era:         "Phong_Kien",
 			Dynasty:     "Lê",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(1442),
@@ -275,6 +286,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_ho_quy_ly",
 			Name:        "Hồ Quý Ly",
+			Era:         "Phong_Kien",
 			Dynasty:     "Hồ",
 			Rarity:      "Thường",
 			BirthYear:   intPtr(1336),
@@ -295,6 +307,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_mac_dang_dung",
 			Name:        "Mạc Đăng Dung",
+			Era:         "Phong_Kien",
 			Dynasty:     "Mạc",
 			Rarity:      "Thường",
 			BirthYear:   intPtr(1483),
@@ -315,6 +328,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_nguyen_anh",
 			Name:        "Nguyễn Ánh (Gia Long)",
+			Era:         "Phong_Kien",
 			Dynasty:     "Nguyễn",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(1762),
@@ -335,6 +349,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_phan_boi_chau",
 			Name:        "Phan Bội Châu",
+			Era:         "Can_Dai",
 			Dynasty:     "Cận đại",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(1867),
@@ -355,6 +370,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_phan_chu_trinh",
 			Name:        "Phan Châu Trinh",
+			Era:         "Can_Dai",
 			Dynasty:     "Cận đại",
 			Rarity:      "Thường",
 			BirthYear:   intPtr(1872),
@@ -375,6 +391,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_nguyen_du",
 			Name:        "Nguyễn Du",
+			Era:         "Phong_Kien",
 			Dynasty:     "Nguyễn",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(1765),
@@ -395,6 +412,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_ba_trieu",
 			Name:        "Bà Triệu",
+			Era:         "Bac_Thuoc",
 			Dynasty:     "Ngô",
 			Rarity:      "Hiếm",
 			BirthYear:   intPtr(225),
@@ -415,6 +433,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_vo_thi_sau",
 			Name:        "Võ Thị Sáu",
+			Era:         "Can_Dai",
 			Dynasty:     "Cận đại",
 			Rarity:      "Thường",
 			BirthYear:   intPtr(1933),
@@ -435,6 +454,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 		{
 			ID:          "char_ho_chi_minh",
 			Name:        "Hồ Chí Minh",
+			Era:         "Can_Dai",
 			Dynasty:     "Cận đại",
 			Rarity:      "Huyền thoại",
 			BirthYear:   intPtr(1890),

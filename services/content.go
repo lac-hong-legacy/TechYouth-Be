@@ -40,50 +40,74 @@ func (svc *ContentService) GetTimeline() (*dto.TimelineCollectionResponse, error
 		return nil, err
 	}
 
-	eras := make([]dto.TimelineEraResponse, len(timelines))
+	// Group timelines by era
+	eraMap := make(map[string][]model.Timeline)
+	for _, timeline := range timelines {
+		eraMap[timeline.Era] = append(eraMap[timeline.Era], timeline)
+	}
 
-	for i, timeline := range timelines {
-		// Get characters for this timeline/era
-		var characterIDs []string
-		if timeline.CharacterIds != nil {
-			if err := json.Unmarshal(timeline.CharacterIds, &characterIDs); err != nil {
-				log.Printf("Failed to unmarshal character IDs for timeline %s: %v", timeline.Era, err)
-				characterIDs = []string{}
+	var eras []dto.TimelineEraResponse
+
+	// Process each era
+	for eraName, eraTimelines := range eraMap {
+		var dynasties []dto.TimelineDynastyResponse
+		var allEraCharacters []model.Character
+		eraUnlocked := true
+
+		// Process each dynasty within the era
+		for _, timeline := range eraTimelines {
+			// Get characters for this dynasty
+			var characterIDs []string
+			if timeline.CharacterIds != nil {
+				if err := json.Unmarshal(timeline.CharacterIds, &characterIDs); err != nil {
+					log.Printf("Failed to unmarshal character IDs for timeline %s: %v", timeline.Dynasty, err)
+					characterIDs = []string{}
+				}
+			}
+
+			// Fetch characters by IDs
+			characters := []model.Character{}
+			for _, charID := range characterIDs {
+				char, err := svc.sqlSvc.GetCharacter(charID)
+				if err != nil {
+					log.Printf("Failed to get character %s: %v", charID, err)
+					continue
+				}
+				characters = append(characters, *char)
+			}
+
+			characterResponses := make([]dto.CharacterResponse, len(characters))
+			for j, char := range characters {
+				characterResponses[j] = svc.mapCharacterToResponse(&char)
+			}
+
+			// Create dynasty response
+			dynasty := dto.TimelineDynastyResponse{
+				Dynasty:    timeline.Dynasty, // Use actual dynasty name
+				StartYear:  timeline.StartYear,
+				EndYear:    timeline.EndYear,
+				Characters: characterResponses,
+				IsUnlocked: timeline.IsUnlocked,
+				Progress:   svc.calculateDynastyProgress(characters),
+			}
+
+			dynasties = append(dynasties, dynasty)
+			allEraCharacters = append(allEraCharacters, characters...)
+
+			if !timeline.IsUnlocked {
+				eraUnlocked = false
 			}
 		}
 
-		// Fetch characters by IDs
-		characters := []model.Character{}
-		for _, charID := range characterIDs {
-			char, err := svc.sqlSvc.GetCharacter(charID)
-			if err != nil {
-				log.Printf("Failed to get character %s: %v", charID, err)
-				continue
-			}
-			characters = append(characters, *char)
+		// Create era response
+		era := dto.TimelineEraResponse{
+			Era:        eraName,
+			Dynasties:  dynasties,
+			IsUnlocked: eraUnlocked,
+			Progress:   svc.calculateDynastyProgress(allEraCharacters),
 		}
 
-		characterResponses := make([]dto.CharacterResponse, len(characters))
-		for j, char := range characters {
-			characterResponses[j] = svc.mapCharacterToResponse(&char)
-		}
-
-		// Create era response (treating each timeline as an era)
-		eras[i] = dto.TimelineEraResponse{
-			Era: timeline.Era,
-			Dynasties: []dto.TimelineDynastyResponse{
-				{
-					Dynasty:    timeline.Era, // Use era name as dynasty for now
-					StartYear:  timeline.StartYear,
-					EndYear:    timeline.EndYear,
-					Characters: characterResponses,
-					IsUnlocked: timeline.IsUnlocked,
-					Progress:   svc.calculateDynastyProgress(characters),
-				},
-			},
-			IsUnlocked: timeline.IsUnlocked,
-			Progress:   svc.calculateDynastyProgress(characters),
-		}
+		eras = append(eras, era)
 	}
 
 	return &dto.TimelineCollectionResponse{
@@ -178,6 +202,7 @@ func (svc *ContentService) mapCharacterToResponse(char *model.Character) dto.Cha
 	return dto.CharacterResponse{
 		ID:           char.ID,
 		Name:         char.Name,
+		Era:          char.Era,
 		Dynasty:      char.Dynasty,
 		Rarity:       char.Rarity,
 		BirthYear:    char.BirthYear,
@@ -256,7 +281,7 @@ func (svc *ContentService) mapLessonToResponse(lesson *model.Lesson) dto.LessonR
 // ==================== SEARCH METHODS ====================
 
 func (svc *ContentService) SearchContent(req dto.SearchRequest) (*dto.SearchResponse, error) {
-	characters, err := svc.sqlSvc.SearchCharacters(req.Query, req.Dynasty, req.Rarity, req.Limit)
+	characters, err := svc.sqlSvc.SearchCharacters(req.Query, req.Era, req.Dynasty, req.Rarity, req.Limit)
 	if err != nil {
 		return nil, err
 	}
