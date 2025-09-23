@@ -718,26 +718,28 @@ paths:
       summary: Get Timeline
       tags:
       - content
-  /api/v1/guest/progress/{sessionId}:
-    get:
+  /api/v1/guest/session:
+    post:
       consumes:
       - application/json
-      description: This endpoint retrieves the progress of a guest session
+      description: This endpoint creates a new guest session or retrieves an existing
+        one based on device ID
       parameters:
-      - description: Session ID
-        in: path
-        name: sessionId
+      - description: Create session request
+        in: body
+        name: createSessionRequest
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/dto.CreateSessionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
-      summary: Get Guest Progress
+      summary: Create or Get Guest Session
       tags:
       - guest
-  /api/v1/guest/progress/{sessionId}/add-hearts:
+  /api/v1/guest/session/{sessionId}/hearts/add:
     post:
       consumes:
       - application/json
@@ -756,32 +758,27 @@ paths:
       summary: Add Hearts from Ad
       tags:
       - guest
-  /api/v1/guest/progress/{sessionId}/complete:
+  /api/v1/guest/session/{sessionId}/hearts/lose:
     post:
       consumes:
       - application/json
-      description: This endpoint marks a lesson as completed for a guest session
+      description: This endpoint deducts a heart from a guest session when a lesson
+        is failed
       parameters:
       - description: Session ID
         in: path
         name: sessionId
         required: true
         type: string
-      - description: Complete lesson request
-        in: body
-        name: completeLessonRequest
-        required: true
-        schema:
-          $ref: '#/definitions/dto.CompleteLessonRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
-      summary: Complete Lesson
+      summary: Lose Heart
       tags:
       - guest
-  /api/v1/guest/progress/{sessionId}/lesson/{lessonId}/access:
+  /api/v1/guest/session/{sessionId}/lesson/{lessonId}/access:
     get:
       consumes:
       - application/json
@@ -812,12 +809,36 @@ paths:
       summary: Check Lesson Access
       tags:
       - guest
-  /api/v1/guest/progress/{sessionId}/lose-heart:
+  /api/v1/guest/session/{sessionId}/lesson/complete:
     post:
       consumes:
       - application/json
-      description: This endpoint deducts a heart from a guest session when a lesson
-        is failed
+      description: This endpoint marks a lesson as completed for a guest session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Complete lesson request
+        in: body
+        name: completeLessonRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CompleteLessonRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Complete Lesson
+      tags:
+      - guest
+  /api/v1/guest/session/{sessionId}/progress:
+    get:
+      consumes:
+      - application/json
+      description: This endpoint retrieves the progress of a guest session
       parameters:
       - description: Session ID
         in: path
@@ -829,28 +850,7 @@ paths:
       responses:
         "200":
           description: OK
-      summary: Lose Heart
-      tags:
-      - guest
-  /api/v1/guest/session:
-    post:
-      consumes:
-      - application/json
-      description: This endpoint creates a new guest session or retrieves an existing
-        one based on device ID
-      parameters:
-      - description: Create session request
-        in: body
-        name: createSessionRequest
-        required: true
-        schema:
-          $ref: '#/definitions/dto.CreateSessionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      summary: Create or Get Guest Session
+      summary: Get Guest Progress
       tags:
       - guest
   /api/v1/leaderboard/all-time:

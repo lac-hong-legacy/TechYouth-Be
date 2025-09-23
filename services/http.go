@@ -100,11 +100,11 @@ func (svc *HttpService) Start() error {
 	guest := v1.Group("/guest")
 	{
 		guest.POST("/session", svc.CreateSession)
-		guest.GET("/progress/:sessionId", svc.GetProgress)
-		guest.GET("/progress/:sessionId/lesson/:lessonId/access", svc.CheckLessonAccess)
-		guest.POST("/progress/:sessionId/complete", svc.CompleteLesson)
-		guest.POST("/progress/:sessionId/add-hearts", svc.AddHeartsFromAd)
-		guest.POST("/progress/:sessionId/lose-heart", svc.LoseHeart)
+		guest.GET("/session/:sessionId/progress", svc.GetProgress)
+		guest.GET("/session/:sessionId/lesson/:lessonId/access", svc.CheckLessonAccess)
+		guest.POST("/session/:sessionId/lesson/complete", svc.CompleteLesson)
+		guest.POST("/session/:sessionId/hearts/add", svc.AddHeartsFromAd)
+		guest.POST("/session/:sessionId/hearts/lose", svc.LoseHeart)
 	}
 
 	content := v1.Group("/content")
@@ -148,6 +148,12 @@ func (svc *HttpService) Start() error {
 		leaderboard.GET("/weekly", svc.GetWeeklyLeaderboard)
 		leaderboard.GET("/monthly", svc.GetMonthlyLeaderboard)
 		leaderboard.GET("/all-time", svc.GetAllTimeLeaderboard)
+	}
+
+	admin := v1.Group("/admin")
+	{
+		admin.POST("/characters", svc.CreateCharacter)
+		admin.POST("/lessons", svc.CreateLesson)
 	}
 
 	r.NoRoute(func(c *gin.Context) {
@@ -312,7 +318,7 @@ func (svc *HttpService) CreateSession(c *gin.Context) {
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200
-// @Router /api/v1/guest/progress/{sessionId} [get]
+// @Router /api/v1/guest/session/{sessionId}/progress [get]
 func (svc *HttpService) GetProgress(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 
@@ -333,7 +339,7 @@ func (svc *HttpService) GetProgress(c *gin.Context) {
 // @Param sessionId path string true "Session ID"
 // @Param lessonId path string true "Lesson ID"
 // @Success 200 {object} shared.Response{data=dto.LessonAccessResponse}
-// @Router /api/v1/guest/progress/{sessionId}/lesson/{lessonId}/access [get]
+// @Router /api/v1/guest/session/{sessionId}/lesson/{lessonId}/access [get]
 func (svc *HttpService) CheckLessonAccess(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	lessonID := c.Param("lessonId")
@@ -360,7 +366,7 @@ func (svc *HttpService) CheckLessonAccess(c *gin.Context) {
 // @Param sessionId path string true "Session ID"
 // @Param completeLessonRequest body dto.CompleteLessonRequest true "Complete lesson request"
 // @Success 200
-// @Router /api/v1/guest/progress/{sessionId}/complete [post]
+// @Router /api/v1/guest/session/{sessionId}/lesson/complete [post]
 func (svc *HttpService) CompleteLesson(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 
@@ -392,7 +398,7 @@ func (svc *HttpService) CompleteLesson(c *gin.Context) {
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200
-// @Router /api/v1/guest/progress/{sessionId}/add-hearts [post]
+// @Router /api/v1/guest/session/{sessionId}/hearts/add [post]
 func (svc *HttpService) AddHeartsFromAd(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 
@@ -418,7 +424,7 @@ func (svc *HttpService) AddHeartsFromAd(c *gin.Context) {
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200
-// @Router /api/v1/guest/progress/{sessionId}/lose-heart [post]
+// @Router /api/v1/guest/session/{sessionId}/hearts/lose [post]
 func (svc *HttpService) LoseHeart(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 

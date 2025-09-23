@@ -452,9 +452,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/guest/progress/{sessionId}": {
-            "get": {
-                "description": "This endpoint retrieves the progress of a guest session",
+        "/api/v1/guest/session": {
+            "post": {
+                "description": "This endpoint creates a new guest session or retrieves an existing one based on device ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -464,14 +464,16 @@ const docTemplate = `{
                 "tags": [
                     "guest"
                 ],
-                "summary": "Get Guest Progress",
+                "summary": "Create or Get Guest Session",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "sessionId",
-                        "in": "path",
-                        "required": true
+                        "description": "Create session request",
+                        "name": "createSessionRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateSessionRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -481,7 +483,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/guest/progress/{sessionId}/add-hearts": {
+        "/api/v1/guest/session/{sessionId}/hearts/add": {
             "post": {
                 "description": "This endpoint adds hearts to a guest session when an ad is watched",
                 "consumes": [
@@ -510,7 +512,36 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/guest/progress/{sessionId}/complete": {
+        "/api/v1/guest/session/{sessionId}/hearts/lose": {
+            "post": {
+                "description": "This endpoint deducts a heart from a guest session when a lesson is failed",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "guest"
+                ],
+                "summary": "Lose Heart",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/guest/session/{sessionId}/lesson/complete": {
             "post": {
                 "description": "This endpoint marks a lesson as completed for a guest session",
                 "consumes": [
@@ -548,7 +579,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/guest/progress/{sessionId}/lesson/{lessonId}/access": {
+        "/api/v1/guest/session/{sessionId}/lesson/{lessonId}/access": {
             "get": {
                 "description": "This endpoint checks if a guest session can access a specific lesson",
                 "consumes": [
@@ -599,9 +630,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/guest/progress/{sessionId}/lose-heart": {
-            "post": {
-                "description": "This endpoint deducts a heart from a guest session when a lesson is failed",
+        "/api/v1/guest/session/{sessionId}/progress": {
+            "get": {
+                "description": "This endpoint retrieves the progress of a guest session",
                 "consumes": [
                     "application/json"
                 ],
@@ -611,7 +642,7 @@ const docTemplate = `{
                 "tags": [
                     "guest"
                 ],
-                "summary": "Lose Heart",
+                "summary": "Get Guest Progress",
                 "parameters": [
                     {
                         "type": "string",
@@ -619,37 +650,6 @@ const docTemplate = `{
                         "name": "sessionId",
                         "in": "path",
                         "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
-        "/api/v1/guest/session": {
-            "post": {
-                "description": "This endpoint creates a new guest session or retrieves an existing one based on device ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "guest"
-                ],
-                "summary": "Create or Get Guest Session",
-                "parameters": [
-                    {
-                        "description": "Create session request",
-                        "name": "createSessionRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.CreateSessionRequest"
-                        }
                     }
                 ],
                 "responses": {
