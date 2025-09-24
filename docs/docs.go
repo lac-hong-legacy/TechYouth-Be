@@ -126,6 +126,359 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/lessons/{lessonId}/media": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get all media assets for a lesson (Admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get Lesson Media (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LessonMediaResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/lessons/{lessonId}/media/batch": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Upload multiple media files for a lesson at once (Admin only)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Batch Upload Media (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Video file",
+                        "name": "video",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Subtitle file",
+                        "name": "subtitle",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.BatchMediaUploadResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/lessons/{lessonId}/subtitle": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Upload subtitle file for lesson video (Admin only)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Upload Lesson Subtitle (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Subtitle file (VTT, SRT)",
+                        "name": "subtitle",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.MediaUploadResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/lessons/{lessonId}/video": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Upload MP4 video file for lesson storytelling (Admin only)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Upload Lesson Video (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Video file (MP4, MOV, AVI)",
+                        "name": "video",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.MediaUploadResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/media/assets/{assetId}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Delete a media asset and its physical file (Admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Delete Media Asset (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Media Asset ID",
+                        "name": "assetId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/media/statistics": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get statistics about media assets and usage (Admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get Media Statistics (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/content/characters": {
             "get": {
                 "description": "Get list of historical characters with filtering options",
@@ -1656,6 +2009,26 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.BatchMediaUploadResponse": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "lesson_id": {
+                    "type": "string"
+                },
+                "uploaded_files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MediaUploadResponse"
+                    }
+                }
+            }
+        },
         "dto.CharacterCollectionResponse": {
             "type": "object",
             "properties": {
@@ -1890,6 +2263,21 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.LessonMediaResponse": {
+            "type": "object",
+            "properties": {
+                "lesson_id": {
+                    "type": "string"
+                },
+                "media": {
+                    "description": "key: video, subtitle, thumbnail",
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/dto.MediaAssetResponse"
+                    }
+                }
+            }
+        },
         "dto.LessonResponse": {
             "type": "object",
             "properties": {
@@ -1943,6 +2331,50 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "access_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.MediaAssetResponse": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "description": "seconds",
+                    "type": "integer"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.MediaUploadResponse": {
+            "type": "object",
+            "properties": {
+                "file_name": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "file_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }

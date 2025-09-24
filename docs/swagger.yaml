@@ -24,6 +24,19 @@ definitions:
         description: '"ad", "purchase", "daily_reset"'
         type: string
     type: object
+  dto.BatchMediaUploadResponse:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      lesson_id:
+        type: string
+      uploaded_files:
+        items:
+          $ref: '#/definitions/dto.MediaUploadResponse'
+        type: array
+    type: object
   dto.CharacterCollectionResponse:
     properties:
       characters:
@@ -177,6 +190,16 @@ definitions:
       reason:
         type: string
     type: object
+  dto.LessonMediaResponse:
+    properties:
+      lesson_id:
+        type: string
+      media:
+        additionalProperties:
+          $ref: '#/definitions/dto.MediaAssetResponse'
+        description: 'key: video, subtitle, thumbnail'
+        type: object
+    type: object
   dto.LessonResponse:
     properties:
       character:
@@ -212,6 +235,35 @@ definitions:
   dto.LoginResponse:
     properties:
       access_token:
+        type: string
+    type: object
+  dto.MediaAssetResponse:
+    properties:
+      duration:
+        description: seconds
+        type: integer
+      file_size:
+        type: integer
+      height:
+        type: integer
+      id:
+        type: string
+      url:
+        type: string
+      width:
+        type: integer
+    type: object
+  dto.MediaUploadResponse:
+    properties:
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      file_type:
+        type: string
+      id:
+        type: string
+      url:
         type: string
     type: object
   dto.QuestionResponse:
@@ -525,6 +577,218 @@ paths:
       security:
       - Bearer: []
       summary: Create Lesson (Admin)
+      tags:
+      - admin
+  /api/v1/admin/lessons/{lessonId}/media:
+    get:
+      description: Get all media assets for a lesson (Admin only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LessonMediaResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Get Lesson Media (Admin)
+      tags:
+      - admin
+  /api/v1/admin/lessons/{lessonId}/media/batch:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload multiple media files for a lesson at once (Admin only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      - description: Video file
+        in: formData
+        name: video
+        type: file
+      - description: Subtitle file
+        in: formData
+        name: subtitle
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.BatchMediaUploadResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Batch Upload Media (Admin)
+      tags:
+      - admin
+  /api/v1/admin/lessons/{lessonId}/subtitle:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload subtitle file for lesson video (Admin only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      - description: Subtitle file (VTT, SRT)
+        in: formData
+        name: subtitle
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MediaUploadResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Upload Lesson Subtitle (Admin)
+      tags:
+      - admin
+  /api/v1/admin/lessons/{lessonId}/video:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload MP4 video file for lesson storytelling (Admin only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      - description: Video file (MP4, MOV, AVI)
+        in: formData
+        name: video
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MediaUploadResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Upload Lesson Video (Admin)
+      tags:
+      - admin
+  /api/v1/admin/media/assets/{assetId}:
+    delete:
+      description: Delete a media asset and its physical file (Admin only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Media Asset ID
+        in: path
+        name: assetId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      security:
+      - Bearer: []
+      summary: Delete Media Asset (Admin)
+      tags:
+      - admin
+  /api/v1/admin/media/statistics:
+    get:
+      description: Get statistics about media assets and usage (Admin only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      security:
+      - Bearer: []
+      summary: Get Media Statistics (Admin)
       tags:
       - admin
   /api/v1/content/characters:
