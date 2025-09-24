@@ -21,6 +21,7 @@ func main() {
 		&services.AuthService{},
 		&services.GuestService{},
 		&services.ContentService{},
+		&services.MediaService{},
 		&services.UserService{},
 		&services.HttpService{},
 	)

@@ -26,18 +26,28 @@ type Character struct {
 
 // Lesson represents individual learning content
 type Lesson struct {
-	ID           string          `json:"id" gorm:"primaryKey"`
-	CharacterID  string          `json:"character_id" gorm:"not null"`
-	Title        string          `json:"title" gorm:"not null"`
-	Order        int             `json:"order" gorm:"not null"` // Lesson order within character
-	Story        string          `json:"story" gorm:"type:text"`
-	VoiceOverURL string          `json:"voice_over_url"`
-	Questions    json.RawMessage `json:"questions" gorm:"type:text"` // JSON array of questions
-	XPReward     int             `json:"xp_reward" gorm:"default:50"`
-	MinScore     int             `json:"min_score" gorm:"default:60"` // Minimum score to pass
-	IsActive     bool            `json:"is_active" gorm:"default:true"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	ID          string `json:"id" gorm:"primaryKey"`
+	CharacterID string `json:"character_id" gorm:"not null"`
+	Title       string `json:"title" gorm:"not null"`
+	Order       int    `json:"order" gorm:"not null"` // Lesson order within character
+	Story       string `json:"story" gorm:"type:text"`
+
+	// Media Content
+	VideoURL      string `json:"video_url"`      // Storytelling video with embedded voice-over (MP4)
+	SubtitleURL   string `json:"subtitle_url"`   // Subtitle file (VTT/SRT)
+	ThumbnailURL  string `json:"thumbnail_url"`  // Video thumbnail
+	VideoDuration int    `json:"video_duration"` // Duration in seconds
+
+	// Content Settings
+	CanSkipAfter int  `json:"can_skip_after" gorm:"default:5"` // Seconds before skip allowed
+	HasSubtitles bool `json:"has_subtitles" gorm:"default:true"`
+
+	Questions json.RawMessage `json:"questions" gorm:"type:text"` // JSON array of questions
+	XPReward  int             `json:"xp_reward" gorm:"default:50"`
+	MinScore  int             `json:"min_score" gorm:"default:60"` // Minimum score to pass
+	IsActive  bool            `json:"is_active" gorm:"default:true"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
 
 	// Relationship
 	Character Character `json:"character" gorm:"foreignKey:CharacterID"`
@@ -145,4 +155,37 @@ type Spirit struct {
 	ImageURL  string    `json:"image_url"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// MediaAsset represents uploaded media files
+type MediaAsset struct {
+	ID           string    `json:"id" gorm:"primaryKey"`
+	FileName     string    `json:"file_name" gorm:"not null"`
+	OriginalName string    `json:"original_name"`
+	FileType     string    `json:"file_type"` // video, image, subtitle
+	MimeType     string    `json:"mime_type"`
+	FileSize     int64     `json:"file_size"` // bytes
+	Duration     int       `json:"duration"`  // seconds (for video)
+	Width        int       `json:"width"`     // pixels (for video/image)
+	Height       int       `json:"height"`    // pixels (for video/image)
+	URL          string    `json:"url"`
+	CDNUrl       string    `json:"cdn_url"`
+	StoragePath  string    `json:"storage_path"`
+	IsProcessed  bool      `json:"is_processed" gorm:"default:false"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// LessonMedia links lessons to their media assets
+type LessonMedia struct {
+	ID           string    `json:"id" gorm:"primaryKey"`
+	LessonID     string    `json:"lesson_id" gorm:"not null"`
+	MediaAssetID string    `json:"media_asset_id" gorm:"not null"`
+	MediaType    string    `json:"media_type"` // video, subtitle, thumbnail
+	IsActive     bool      `json:"is_active" gorm:"default:true"`
+	CreatedAt    time.Time `json:"created_at"`
+
+	// Relationships
+	Lesson     Lesson     `json:"lesson" gorm:"foreignKey:LessonID"`
+	MediaAsset MediaAsset `json:"media_asset" gorm:"foreignKey:MediaAssetID"`
 }

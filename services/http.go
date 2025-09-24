@@ -28,6 +28,7 @@ type HttpService struct {
 	guestSvc   *GuestService
 	contentSvc *ContentService
 	userSvc    *UserService
+	mediaSvc   *MediaService
 	sqliteSvc  *SqliteService
 
 	internalPassword string
@@ -63,6 +64,7 @@ func (svc *HttpService) Start() error {
 	svc.guestSvc = svc.Service(GUEST_SVC).(*GuestService)
 	svc.userSvc = svc.Service(USER_SVC).(*UserService)
 	svc.contentSvc = svc.Service(CONTENT_SVC).(*ContentService)
+	svc.mediaSvc = svc.Service(MEDIA_SVC).(*MediaService)
 	svc.sqliteSvc = svc.Service(SQLITE_SVC).(*SqliteService)
 
 	// Set Gin mode
@@ -150,11 +152,24 @@ func (svc *HttpService) Start() error {
 		leaderboard.GET("/all-time", svc.GetAllTimeLeaderboard)
 	}
 
-	admin := v1.Group("/admin")
+	// Admin endpoints
+	admin := v1.Group("/admin").Use(svc.authSvc.RequiredAdminAuth())
 	{
+		// Character & Lesson Management
 		admin.POST("/characters", svc.CreateCharacter)
 		admin.POST("/lessons", svc.CreateLesson)
+
+		// Media Management (Admin Only)
+		admin.POST("/lessons/:lessonId/video", svc.UploadLessonVideo)
+		admin.POST("/lessons/:lessonId/subtitle", svc.UploadLessonSubtitle)
+		admin.GET("/lessons/:lessonId/media", svc.GetLessonMedia)
+		admin.DELETE("/media/assets/:assetId", svc.DeleteMediaAsset)
+		admin.POST("/lessons/:lessonId/media/batch", svc.BatchUploadMedia)
+		admin.GET("/media/statistics", svc.GetMediaStatistics)
 	}
+
+	// Static file serving for uploaded media
+	r.Static("/uploads", "./uploads")
 
 	r.NoRoute(func(c *gin.Context) {
 		svc.HandleError(c, errors.New("page not found"))
@@ -1022,6 +1037,173 @@ func (svc *HttpService) ShareAchievement(c *gin.Context) {
 	}
 
 	shared.ResponseJSON(c, http.StatusOK, "Success", shareData)
+}
+
+// ==================== MEDIA ENDPOINTS ====================
+
+// @Summary Upload Lesson Video (Admin)
+// @Description Upload MP4 video file for lesson storytelling (Admin only)
+// @Tags admin
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Param video formData file true "Video file (MP4, MOV, AVI)"
+// @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/video [post]
+func (svc *HttpService) UploadLessonVideo(c *gin.Context) {
+	lessonID := c.Param("lessonId")
+
+	file, err := c.FormFile("video")
+	if err != nil {
+		svc.HandleError(c, shared.NewBadRequestError(err, "No video file provided"))
+		return
+	}
+
+	response, err := svc.mediaSvc.UploadLessonVideo(lessonID, file)
+	if err != nil {
+		svc.HandleError(c, err)
+		return
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, "Video uploaded successfully", response)
+}
+
+// @Summary Upload Lesson Subtitle (Admin)
+// @Description Upload subtitle file for lesson video (Admin only)
+// @Tags admin
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Param subtitle formData file true "Subtitle file (VTT, SRT)"
+// @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/subtitle [post]
+func (svc *HttpService) UploadLessonSubtitle(c *gin.Context) {
+	lessonID := c.Param("lessonId")
+
+	file, err := c.FormFile("subtitle")
+	if err != nil {
+		svc.HandleError(c, shared.NewBadRequestError(err, "No subtitle file provided"))
+		return
+	}
+
+	response, err := svc.mediaSvc.UploadLessonSubtitle(lessonID, file)
+	if err != nil {
+		svc.HandleError(c, err)
+		return
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, "Subtitle uploaded successfully", response)
+}
+
+// @Summary Get Lesson Media (Admin)
+// @Description Get all media assets for a lesson (Admin only)
+// @Tags admin
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Success 200 {object} shared.Response{data=dto.LessonMediaResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/media [get]
+func (svc *HttpService) GetLessonMedia(c *gin.Context) {
+	lessonID := c.Param("lessonId")
+
+	media, err := svc.mediaSvc.GetLessonMedia(lessonID)
+	if err != nil {
+		svc.HandleError(c, err)
+		return
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, "Success", media)
+}
+
+// @Summary Delete Media Asset (Admin)
+// @Description Delete a media asset and its physical file (Admin only)
+// @Tags admin
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param assetId path string true "Media Asset ID"
+// @Success 200 {object} shared.Response{data=string}
+// @Router /api/v1/admin/media/assets/{assetId} [delete]
+func (svc *HttpService) DeleteMediaAsset(c *gin.Context) {
+	assetID := c.Param("assetId")
+
+	err := svc.mediaSvc.DeleteMediaAsset(assetID)
+	if err != nil {
+		svc.HandleError(c, err)
+		return
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, "Media asset deleted successfully", "deleted")
+}
+
+// @Summary Batch Upload Media (Admin)
+// @Description Upload multiple media files for a lesson at once (Admin only)
+// @Tags admin
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Param video formData file false "Video file"
+// @Param subtitle formData file false "Subtitle file"
+// @Success 200 {object} shared.Response{data=dto.BatchMediaUploadResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/media/batch [post]
+func (svc *HttpService) BatchUploadMedia(c *gin.Context) {
+	lessonID := c.Param("lessonId")
+
+	response := &dto.BatchMediaUploadResponse{
+		LessonID:      lessonID,
+		UploadedFiles: []dto.MediaUploadResponse{},
+		Errors:        []string{},
+	}
+
+	// Try to upload video
+	if videoFile, err := c.FormFile("video"); err == nil {
+		if uploadResp, err := svc.mediaSvc.UploadLessonVideo(lessonID, videoFile); err == nil {
+			response.UploadedFiles = append(response.UploadedFiles, *uploadResp)
+		} else {
+			response.Errors = append(response.Errors, fmt.Sprintf("Video upload failed: %v", err))
+		}
+	}
+
+	// Try to upload subtitle
+	if subtitleFile, err := c.FormFile("subtitle"); err == nil {
+		if uploadResp, err := svc.mediaSvc.UploadLessonSubtitle(lessonID, subtitleFile); err == nil {
+			response.UploadedFiles = append(response.UploadedFiles, *uploadResp)
+		} else {
+			response.Errors = append(response.Errors, fmt.Sprintf("Subtitle upload failed: %v", err))
+		}
+	}
+
+	if len(response.UploadedFiles) == 0 && len(response.Errors) > 0 {
+		svc.HandleError(c, shared.NewBadRequestError(nil, "All uploads failed"))
+		return
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, "Batch upload completed", response)
+}
+
+// @Summary Get Media Statistics (Admin)
+// @Description Get statistics about media assets and usage (Admin only)
+// @Tags admin
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Success 200 {object} shared.Response{data=map[string]interface{}}
+// @Router /api/v1/admin/media/statistics [get]
+func (svc *HttpService) GetMediaStatistics(c *gin.Context) {
+	stats, err := svc.sqliteSvc.GetMediaStatistics()
+	if err != nil {
+		svc.HandleError(c, err)
+		return
+	}
+
+	shared.ResponseJSON(c, http.StatusOK, "Success", stats)
 }
 
 // ==================== ADMIN ENDPOINTS (Optional) ====================

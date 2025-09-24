@@ -265,16 +265,15 @@ func (svc *ContentService) mapLessonToResponse(lesson *model.Lesson) dto.LessonR
 	}
 
 	return dto.LessonResponse{
-		ID:           lesson.ID,
-		CharacterID:  lesson.CharacterID,
-		Title:        lesson.Title,
-		Order:        lesson.Order,
-		Story:        lesson.Story,
-		VoiceOverURL: lesson.VoiceOverURL,
-		Questions:    questions,
-		XPReward:     lesson.XPReward,
-		MinScore:     lesson.MinScore,
-		Character:    svc.mapCharacterToResponse(&lesson.Character),
+		ID:          lesson.ID,
+		CharacterID: lesson.CharacterID,
+		Title:       lesson.Title,
+		Order:       lesson.Order,
+		Story:       lesson.Story,
+		Questions:   questions,
+		XPReward:    lesson.XPReward,
+		MinScore:    lesson.MinScore,
+		Character:   svc.mapCharacterToResponse(&lesson.Character),
 	}
 }
 

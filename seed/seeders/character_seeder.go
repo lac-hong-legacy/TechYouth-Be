@@ -68,7 +68,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 				"Tạo nền tảng cho văn hóa Việt Nam",
 				"Thống nhất các bộ lạc Lạc Việt",
 			}),
-			ImageURL:   "/assets/characters/hung_vuong.jpg",
+			ImageURL:   "", // To be uploaded via admin panel
 			IsUnlocked: false,
 			CreatedAt:  now,
 			UpdatedAt:  now,
@@ -89,7 +89,7 @@ func (s *CharacterSeeder) getHistoricalCharacters() []model.Character {
 				"Thúc đẩy Phật giáo và giáo dục",
 				"Thống nhất và củng cố Việt Nam",
 			}),
-			ImageURL:   "/assets/characters/ly_thai_to.jpg",
+			ImageURL:   "", // To be uploaded via admin panel
 			IsUnlocked: false,
 			CreatedAt:  now,
 			UpdatedAt:  now,

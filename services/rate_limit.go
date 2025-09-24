@@ -405,10 +405,6 @@ func getDeviceIDFromRequest(c *gin.Context) string {
 	return c.GetHeader("X-Device-ID")
 }
 
-func generateID() string {
-	return fmt.Sprintf("rl_%d", time.Now().UnixNano())
-}
-
 // Admin handlers for rate limit management
 func (svc *RateLimitService) GetRateLimitStats() gin.HandlerFunc {
 	return func(c *gin.Context) {

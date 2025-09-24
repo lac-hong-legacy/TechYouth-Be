@@ -20,28 +20,35 @@ func NewMainSeeder(db *gorm.DB) *MainSeeder {
 func (s *MainSeeder) SeedAll() error {
 	log.Println("Starting database seeding...")
 
-	// 1. Seed timelines first (no dependencies)
+	// 1. Seed admin user first
+	adminSeeder := NewAdminSeeder(s.db)
+	if err := adminSeeder.SeedAdmin(); err != nil {
+		log.Printf("Admin seeding failed: %v", err)
+		return err
+	}
+
+	// 2. Seed timelines (no dependencies)
 	timelineSeeder := NewTimelineSeeder(s.db)
 	if err := timelineSeeder.SeedTimelines(); err != nil {
 		log.Printf("Timeline seeding failed: %v", err)
 		return err
 	}
 
-	// 2. Seed characters (depends on timelines)
+	// 3. Seed characters (depends on timelines)
 	characterSeeder := NewCharacterSeeder(s.db)
 	if err := characterSeeder.SeedCharacters(); err != nil {
 		log.Printf("Character seeding failed: %v", err)
 		return err
 	}
 
-	// 3. Seed lessons (depends on characters)
+	// 4. Seed lessons (depends on characters)
 	lessonSeeder := NewLessonSeeder(s.db)
 	if err := lessonSeeder.SeedLessons(); err != nil {
 		log.Printf("Lesson seeding failed: %v", err)
 		return err
 	}
 
-	// 4. Seed achievements (optional)
+	// 5. Seed achievements (optional)
 	if err := s.seedAchievements(); err != nil {
 		log.Printf("Achievement seeding failed: %v", err)
 		return err

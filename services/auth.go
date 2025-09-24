@@ -90,3 +90,53 @@ func (svc *AuthService) RequiredAuth() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RequiredAdminAuth middleware for admin-only endpoints
+func (svc *AuthService) RequiredAdminAuth() gin.HandlerFunc {
+	return gin.HandlerFunc(func(c *gin.Context) {
+		// First check if user is authenticated
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Authorization header required")
+			c.Abort()
+			return
+		}
+
+		token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader)
+		if err != nil {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid authorization header")
+			c.Abort()
+			return
+		}
+
+		userID, err := svc.jwtSvc.VerifyJWTToken(token)
+		if err != nil {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid or expired token")
+			c.Abort()
+			return
+		}
+
+		if userID == "" {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid user ID in token")
+			c.Abort()
+			return
+		}
+
+		// Check if user is admin
+		user, err := svc.sqlSvc.GetUser(userID)
+		if err != nil {
+			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "User not found")
+			c.Abort()
+			return
+		}
+
+		if user.Role != "admin" {
+			shared.ResponseJSON(c, http.StatusForbidden, "Forbidden", "Admin access required")
+			c.Abort()
+			return
+		}
+
+		c.Set(shared.UserID, userID)
+		c.Next()
+	})
+}
