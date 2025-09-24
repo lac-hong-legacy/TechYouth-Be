@@ -34,16 +34,24 @@ type QuestionResponse struct {
 }
 
 type LessonResponse struct {
-	ID           string             `json:"id"`
-	CharacterID  string             `json:"character_id"`
-	Title        string             `json:"title"`
-	Order        int                `json:"order"`
-	Story        string             `json:"story"`
-	VoiceOverURL string             `json:"voice_over_url"`
-	Questions    []QuestionResponse `json:"questions"`
-	XPReward     int                `json:"xp_reward"`
-	MinScore     int                `json:"min_score"`
-	Character    CharacterResponse  `json:"character"`
+	ID          string `json:"id"`
+	CharacterID string `json:"character_id"`
+	Title       string `json:"title"`
+	Order       int    `json:"order"`
+	Story       string `json:"story"`
+
+	// Media Content
+	VideoURL      string `json:"video_url"` // Video with embedded voice-over
+	SubtitleURL   string `json:"subtitle_url"`
+	ThumbnailURL  string `json:"thumbnail_url"`
+	VideoDuration int    `json:"video_duration"`
+	CanSkipAfter  int    `json:"can_skip_after"`
+	HasSubtitles  bool   `json:"has_subtitles"`
+
+	Questions []QuestionResponse `json:"questions"`
+	XPReward  int                `json:"xp_reward"`
+	MinScore  int                `json:"min_score"`
+	Character CharacterResponse  `json:"character"`
 }
 
 type LessonAccessRequest struct {

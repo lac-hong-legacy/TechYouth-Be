@@ -2357,11 +2357,17 @@ const docTemplate = `{
         "dto.LessonResponse": {
             "type": "object",
             "properties": {
+                "can_skip_after": {
+                    "type": "integer"
+                },
                 "character": {
                     "$ref": "#/definitions/dto.CharacterResponse"
                 },
                 "character_id": {
                     "type": "string"
+                },
+                "has_subtitles": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -2381,10 +2387,20 @@ const docTemplate = `{
                 "story": {
                     "type": "string"
                 },
+                "subtitle_url": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 },
-                "voice_over_url": {
+                "video_duration": {
+                    "type": "integer"
+                },
+                "video_url": {
+                    "description": "Media Content",
                     "type": "string"
                 },
                 "xp_reward": {

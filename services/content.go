@@ -270,10 +270,19 @@ func (svc *ContentService) mapLessonToResponse(lesson *model.Lesson) dto.LessonR
 		Title:       lesson.Title,
 		Order:       lesson.Order,
 		Story:       lesson.Story,
-		Questions:   questions,
-		XPReward:    lesson.XPReward,
-		MinScore:    lesson.MinScore,
-		Character:   svc.mapCharacterToResponse(&lesson.Character),
+
+		// Media Content
+		VideoURL:      lesson.VideoURL,
+		SubtitleURL:   lesson.SubtitleURL,
+		ThumbnailURL:  lesson.ThumbnailURL,
+		VideoDuration: lesson.VideoDuration,
+		CanSkipAfter:  lesson.CanSkipAfter,
+		HasSubtitles:  lesson.HasSubtitles,
+
+		Questions: questions,
+		XPReward:  lesson.XPReward,
+		MinScore:  lesson.MinScore,
+		Character: svc.mapCharacterToResponse(&lesson.Character),
 	}
 }
 

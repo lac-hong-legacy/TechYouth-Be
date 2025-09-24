@@ -380,7 +380,12 @@ Get all lessons for a specific character.
       "title": "The Rise of Lý Thái Tổ",
       "order": 1,
       "story": "Lesson story content...",
-      "voice_over_url": "https://example.com/audio.mp3",
+      "video_url": "https://example.com/video.mp4",
+      "subtitle_url": "https://example.com/subtitle.vtt",
+      "thumbnail_url": "https://example.com/thumbnail.jpg",
+      "video_duration": 95,
+      "can_skip_after": 5,
+      "has_subtitles": true,
       "questions": [
         {
           "id": "question-uuid",
@@ -418,7 +423,12 @@ Get detailed lesson content including questions.
     "title": "Lesson Title",
     "order": 1,
     "story": "Lesson story content...",
-    "voice_over_url": "https://example.com/audio.mp3",
+    "video_url": "https://example.com/video.mp4",
+    "subtitle_url": "https://example.com/subtitle.vtt",
+    "thumbnail_url": "https://example.com/thumbnail.jpg",
+    "video_duration": 95,
+    "can_skip_after": 5,
+    "has_subtitles": true,
     "questions": [
       {
         "id": "question-uuid",
@@ -962,7 +972,12 @@ Authorization: Bearer <admin_token>
   "title": "Lesson Title",
   "order": 1,
   "story": "Lesson story content",
-  "voice_over_url": "https://example.com/audio.mp3",
+  "video_url": "https://example.com/video.mp4",
+  "subtitle_url": "https://example.com/subtitle.vtt", 
+  "thumbnail_url": "https://example.com/thumbnail.jpg",
+  "video_duration": 95,
+  "can_skip_after": 5,
+  "has_subtitles": true,
   "questions": [],
   "xp_reward": 100,
   "min_score": 70
