@@ -383,3 +383,11 @@ func (svc *ContentService) isAnswerCorrect(question model.Question, userAnswer i
 
 	return false
 }
+
+func (svc *ContentService) GetEras() ([]string, error) {
+	return []string{"Bac_Thuoc", "Doc_Lap", "Phong_Kien", "Can_Dai"}, nil
+}
+
+func (svc *ContentService) GetDynasties() ([]string, error) {
+	return []string{"Văn Lang", "Âu Lạc", "Bắc Thuộc", "Ngô", "Cận Đại", "Đinh - Tiền Lê", "Lý", "Trần", "Hồ", "Nguyễn", "Minh Chiếm Đóng", "Hậu Lê", "Mạc", "Tây Sơn"}, nil
+}

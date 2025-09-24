@@ -116,6 +116,8 @@ func (svc *HttpService) Start() error {
 	content.Get("/lessons/:lessonId", svc.GetLesson)
 	content.Post("/lessons/validate", svc.ValidateLessonAnswers)
 	content.Get("/search", svc.SearchContent)
+	content.Get("/eras", svc.GetEras)
+	content.Get("/dynasties", svc.GetDynasties)
 
 	user := v1.Group("/user", svc.authSvc.RequiredAuth())
 	// Profile management
@@ -1198,4 +1200,34 @@ func (svc *HttpService) isAdmin(c *fiber.Ctx) bool {
 		return false
 	}
 	return true
+}
+
+// @Summary Get Eras
+// @Description Get all eras
+// @Tags content
+// @Accept json
+// @Produce json
+// @Success 200 {object} shared.Response{data=[]string}
+// @Router /api/v1/content/eras [get]
+func (svc *HttpService) GetEras(c *fiber.Ctx) error {
+	eras, err := svc.contentSvc.GetEras()
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", eras)
+}
+
+// @Summary Get Dynasties
+// @Description Get all dynasties
+// @Tags content
+// @Accept json
+// @Produce json
+// @Success 200 {object} shared.Response{data=[]string}
+// @Router /api/v1/content/dynasties [get]
+func (svc *HttpService) GetDynasties(c *fiber.Ctx) error {
+	dynasties, err := svc.contentSvc.GetDynasties()
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", dynasties)
 }

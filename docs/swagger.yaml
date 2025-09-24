@@ -874,6 +874,50 @@ paths:
       summary: Get Character Lessons
       tags:
       - content
+  /api/v1/content/dynasties:
+    get:
+      consumes:
+      - application/json
+      description: Get all dynasties
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+      summary: Get Dynasties
+      tags:
+      - content
+  /api/v1/content/eras:
+    get:
+      consumes:
+      - application/json
+      description: Get all eras
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+      summary: Get Eras
+      tags:
+      - content
   /api/v1/content/lessons/{lessonId}:
     get:
       consumes:
