@@ -2,9 +2,8 @@ package services
 
 import (
 	"errors"
-	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"github.com/lac-hong-legacy/TechYouth-Be/dto"
 	"github.com/lac-hong-legacy/TechYouth-Be/shared"
 
@@ -63,80 +62,62 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest) (*dto.LoginResponse
 	}, nil
 }
 
-func (svc *AuthService) RequiredAuth() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
+func (svc *AuthService) RequiredAuth() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		authHeader := c.Get("Authorization")
 		token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader)
 		if err != nil {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", err.Error())
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", err.Error())
 		}
 
 		userID, err := svc.jwtSvc.VerifyJWTToken(token)
 		if err != nil {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid JWT token")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", "Invalid JWT token")
 		}
 
 		if userID == "" {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid user ID in token")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", "Invalid user ID in token")
 		}
 
-		c.Set(shared.UserID, userID)
-		c.Next()
+		c.Locals(shared.UserID, userID)
+		return c.Next()
 	}
 }
 
 // RequiredAdminAuth middleware for admin-only endpoints
-func (svc *AuthService) RequiredAdminAuth() gin.HandlerFunc {
-	return gin.HandlerFunc(func(c *gin.Context) {
+func (svc *AuthService) RequiredAdminAuth() fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		// First check if user is authenticated
-		authHeader := c.GetHeader("Authorization")
+		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Authorization header required")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", "Authorization header required")
 		}
 
 		token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader)
 		if err != nil {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid authorization header")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", "Invalid authorization header")
 		}
 
 		userID, err := svc.jwtSvc.VerifyJWTToken(token)
 		if err != nil {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid or expired token")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", "Invalid or expired token")
 		}
 
 		if userID == "" {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid user ID in token")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", "Invalid user ID in token")
 		}
 
 		// Check if user is admin
 		user, err := svc.sqlSvc.GetUser(userID)
 		if err != nil {
-			shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "User not found")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusUnauthorized, "Unauthorized", "User not found")
 		}
 
 		if user.Role != "admin" {
-			shared.ResponseJSON(c, http.StatusForbidden, "Forbidden", "Admin access required")
-			c.Abort()
-			return
+			return shared.ResponseJSON(c, fiber.StatusForbidden, "Forbidden", "Admin access required")
 		}
 
-		c.Set(shared.UserID, userID)
-		c.Next()
-	})
+		c.Locals(shared.UserID, userID)
+		return c.Next()
+	}
 }

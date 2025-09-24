@@ -1,21 +1,20 @@
 package services
 
 import (
-	context2 "context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/alphabatem/common/context"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/swagger"
 	docs "github.com/lac-hong-legacy/TechYouth-Be/docs"
 	"github.com/lac-hong-legacy/TechYouth-Be/dto"
 	"github.com/lac-hong-legacy/TechYouth-Be/model"
-	swaggerfiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/lac-hong-legacy/TechYouth-Be/shared"
 )
@@ -33,8 +32,8 @@ type HttpService struct {
 
 	internalPassword string
 
-	port   int
-	server *http.Server
+	port int
+	app  *fiber.App
 }
 
 const HTTP_SVC = "http_svc"
@@ -67,125 +66,112 @@ func (svc *HttpService) Start() error {
 	svc.mediaSvc = svc.Service(MEDIA_SVC).(*MediaService)
 	svc.sqliteSvc = svc.Service(SQLITE_SVC).(*SqliteService)
 
-	// Set Gin mode
-	if os.Getenv("GIN_MODE") == "release" {
-		gin.SetMode(gin.ReleaseMode)
+	// Create Fiber app
+	config := fiber.Config{
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			return svc.HandleError(c, err)
+		},
 	}
 
-	if os.Getenv("LOG_LEVEL") == "INFO" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	r := gin.New()
+	svc.app = fiber.New(config)
 	docs.SwaggerInfo.BasePath = ""
-	r.Use(gin.Recovery())
+
+	// Add middleware
+	svc.app.Use(recover.New())
 
 	if os.Getenv("LOG_LEVEL") == "TRACE" {
-		r.Use(gin.Logger())
+		svc.app.Use(logger.New())
 	}
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
-	config.AllowCredentials = true
-	config.AddAllowHeaders("Authorization")
-	r.Use(cors.New(config))
+
+	svc.app.Use(cors.New(cors.Config{
+		AllowOrigins:     "*",
+		AllowCredentials: true,
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
+	}))
 
 	//Validation endpoints
-	r.GET("/ping", svc.ping)
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	svc.app.Get("/ping", svc.ping)
+	svc.app.Get("/swagger/*", swagger.HandlerDefault)
 
-	v1 := r.Group("/api/v1")
+	v1 := svc.app.Group("/api/v1")
 
-	v1.POST("/register", svc.Register)
-	v1.POST("/login", svc.Login)
-	v1.GET("/username/check/:username", svc.CheckUsernameAvailability)
+	v1.Post("/register", svc.Register)
+	v1.Post("/login", svc.Login)
+	v1.Get("/username/check/:username", svc.CheckUsernameAvailability)
 
 	guest := v1.Group("/guest")
-	{
-		guest.POST("/session", svc.CreateSession)
-		guest.GET("/session/:sessionId/progress", svc.GetProgress)
-		guest.GET("/session/:sessionId/lesson/:lessonId/access", svc.CheckLessonAccess)
-		guest.POST("/session/:sessionId/lesson/complete", svc.CompleteLesson)
-		guest.POST("/session/:sessionId/hearts/add", svc.AddHeartsFromAd)
-		guest.POST("/session/:sessionId/hearts/lose", svc.LoseHeart)
-	}
+	guest.Post("/session", svc.CreateSession)
+	guest.Get("/session/:sessionId/progress", svc.GetProgress)
+	guest.Get("/session/:sessionId/lesson/:lessonId/access", svc.CheckLessonAccess)
+	guest.Post("/session/:sessionId/lesson/complete", svc.CompleteLesson)
+	guest.Post("/session/:sessionId/hearts/add", svc.AddHeartsFromAd)
+	guest.Post("/session/:sessionId/hearts/lose", svc.LoseHeart)
 
 	content := v1.Group("/content")
-	{
-		content.GET("/timeline", svc.GetTimeline)
-		content.GET("/characters", svc.GetCharacters)
-		content.GET("/characters/:characterId", svc.GetCharacter)
-		content.GET("/characters/:characterId/lessons", svc.GetCharacterLessons)
-		content.GET("/lessons/:lessonId", svc.GetLesson)
-		content.POST("/lessons/validate", svc.ValidateLessonAnswers)
-		content.GET("/search", svc.SearchContent)
-	}
+	content.Get("/timeline", svc.GetTimeline)
+	content.Get("/characters", svc.GetCharacters)
+	content.Get("/characters/:characterId", svc.GetCharacter)
+	content.Get("/characters/:characterId/lessons", svc.GetCharacterLessons)
+	content.Get("/lessons/:lessonId", svc.GetLesson)
+	content.Post("/lessons/validate", svc.ValidateLessonAnswers)
+	content.Get("/search", svc.SearchContent)
 
-	user := v1.Group("/user").Use(svc.authSvc.RequiredAuth())
-	{
-		// Profile management
-		user.GET("/profile", svc.GetUserProfile)
-		user.PUT("/profile", svc.UpdateUserProfile)
-		user.POST("/initialize", svc.InitializeUserProfile)
+	user := v1.Group("/user", svc.authSvc.RequiredAuth())
+	// Profile management
+	user.Get("/profile", svc.GetUserProfile)
+	user.Put("/profile", svc.UpdateUserProfile)
+	user.Post("/initialize", svc.InitializeUserProfile)
 
-		// Progress and game state
-		user.GET("/progress", svc.GetUserProgress)
-		user.GET("/stats", svc.GetUserStats)
-		user.GET("/collection", svc.GetUserCollection)
+	// Progress and game state
+	user.Get("/progress", svc.GetUserProgress)
+	user.Get("/stats", svc.GetUserStats)
+	user.Get("/collection", svc.GetUserCollection)
 
-		// Lesson management
-		user.GET("/lesson/:lessonId/access", svc.CheckUserLessonAccess)
-		user.POST("/lesson/complete", svc.CompleteUserLesson)
+	// Lesson management
+	user.Get("/lesson/:lessonId/access", svc.CheckUserLessonAccess)
+	user.Post("/lesson/complete", svc.CompleteUserLesson)
 
-		// Hearts management
-		user.GET("/hearts", svc.GetHeartStatus)
-		user.POST("/hearts/add", svc.AddUserHearts)
-		user.POST("/hearts/lose", svc.LoseUserHeart)
+	// Hearts management
+	user.Get("/hearts", svc.GetHeartStatus)
+	user.Post("/hearts/add", svc.AddUserHearts)
+	user.Post("/hearts/lose", svc.LoseUserHeart)
 
-		// Social features
-		user.POST("/share", svc.ShareAchievement)
-	}
+	// Social features
+	user.Post("/share", svc.ShareAchievement)
 
 	leaderboard := v1.Group("/leaderboard")
-	{
-		leaderboard.GET("/weekly", svc.GetWeeklyLeaderboard)
-		leaderboard.GET("/monthly", svc.GetMonthlyLeaderboard)
-		leaderboard.GET("/all-time", svc.GetAllTimeLeaderboard)
-	}
+	leaderboard.Get("/weekly", svc.GetWeeklyLeaderboard)
+	leaderboard.Get("/monthly", svc.GetMonthlyLeaderboard)
+	leaderboard.Get("/all-time", svc.GetAllTimeLeaderboard)
 
 	// Admin endpoints
-	admin := v1.Group("/admin").Use(svc.authSvc.RequiredAdminAuth())
-	{
-		// Character & Lesson Management
-		admin.POST("/characters", svc.CreateCharacter)
-		admin.POST("/lessons", svc.CreateLesson)
+	admin := v1.Group("/admin", svc.authSvc.RequiredAdminAuth())
+	// Character & Lesson Management
+	admin.Post("/characters", svc.CreateCharacter)
+	admin.Post("/lessons", svc.CreateLesson)
 
-		// Media Management (Admin Only)
-		admin.POST("/lessons/:lessonId/video", svc.UploadLessonVideo)
-		admin.POST("/lessons/:lessonId/subtitle", svc.UploadLessonSubtitle)
-		admin.GET("/lessons/:lessonId/media", svc.GetLessonMedia)
-		admin.DELETE("/media/assets/:assetId", svc.DeleteMediaAsset)
-		admin.POST("/lessons/:lessonId/media/batch", svc.BatchUploadMedia)
-		admin.GET("/media/statistics", svc.GetMediaStatistics)
-	}
+	// Media Management (Admin Only)
+	admin.Post("/lessons/:lessonId/video", svc.UploadLessonVideo)
+	admin.Post("/lessons/:lessonId/subtitle", svc.UploadLessonSubtitle)
+	admin.Get("/lessons/:lessonId/media", svc.GetLessonMedia)
+	admin.Delete("/media/assets/:assetId", svc.DeleteMediaAsset)
+	admin.Post("/lessons/:lessonId/media/batch", svc.BatchUploadMedia)
+	admin.Get("/media/statistics", svc.GetMediaStatistics)
 
 	// Static file serving for uploaded media
-	r.Static("/uploads", "./uploads")
+	svc.app.Static("/uploads", "./uploads")
 
-	r.NoRoute(func(c *gin.Context) {
-		svc.HandleError(c, errors.New("page not found"))
+	// 404 handler
+	svc.app.Use(func(c *fiber.Ctx) error {
+		return svc.HandleError(c, errors.New("page not found"))
 	})
 
-	svc.server = &http.Server{
-		Addr:    fmt.Sprintf(":%v", svc.port),
-		Handler: r,
-	}
-
-	return svc.server.ListenAndServe()
+	return svc.app.Listen(fmt.Sprintf(":%v", svc.port))
 }
 
 func (svc *HttpService) Shutdown() {
-	ctx := context2.Background()
-	_ = svc.server.Shutdown(ctx)
+	_ = svc.app.Shutdown()
 }
 
 // @Summary Ping
@@ -195,24 +181,22 @@ func (svc *HttpService) Shutdown() {
 // @Produce json
 // @Success 200 {object} shared.Response{data=string}
 // @Router /ping [get]
-func (svc *HttpService) ping(c *gin.Context) {
-	c.Header("Cache-Control", "max-age=10")
+func (svc *HttpService) ping(c *fiber.Ctx) error {
+	c.Set("Cache-Control", "max-age=10")
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", "pong")
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", "pong")
 }
 
-func (svc *HttpService) HandleError(c *gin.Context, err error) bool {
+func (svc *HttpService) HandleError(c *fiber.Ctx, err error) error {
 	if err == nil {
-		return false
+		return nil
 	}
 
 	if appErr, ok := shared.GetAppError(err); ok {
-		shared.ResponseJSON(c, appErr.StatusCode, appErr.Message, appErr.Data)
-		return true
+		return shared.ResponseJSON(c, appErr.StatusCode, appErr.Message, appErr.Data)
 	}
 
-	shared.ResponseInternalError(c, err)
-	return true
+	return shared.ResponseInternalError(c, err)
 }
 
 // @Summary Register
@@ -223,20 +207,18 @@ func (svc *HttpService) HandleError(c *gin.Context, err error) bool {
 // @Param registerRequest body dto.RegisterRequest true "Register request"
 // @Success 200 {object} shared.Response{data=dto.RegisterResponse}
 // @Router /api/v1/register [post]
-func (svc *HttpService) Register(c *gin.Context) {
+func (svc *HttpService) Register(c *fiber.Ctx) error {
 	var registerRequest dto.RegisterRequest
-	if err := c.ShouldBindJSON(&registerRequest); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&registerRequest); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	registerResponse, err := svc.authSvc.Register(registerRequest)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", registerResponse)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", registerResponse)
 }
 
 // @Summary Login
@@ -247,20 +229,18 @@ func (svc *HttpService) Register(c *gin.Context) {
 // @Param loginRequest body dto.LoginRequest true "Login request"
 // @Success 200 {object} shared.Response{data=dto.LoginResponse}
 // @Router /api/v1/login [post]
-func (svc *HttpService) Login(c *gin.Context) {
+func (svc *HttpService) Login(c *fiber.Ctx) error {
 	var loginRequest dto.LoginRequest
-	if err := c.ShouldBindJSON(&loginRequest); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&loginRequest); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	loginResponse, err := svc.authSvc.Login(loginRequest)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", loginResponse)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", loginResponse)
 }
 
 // @Summary Check Username Availability
@@ -270,16 +250,15 @@ func (svc *HttpService) Login(c *gin.Context) {
 // @Param username path string true "Username to check"
 // @Success 200 {object} shared.Response{data=map[string]interface{}}
 // @Router /api/v1/username/check/{username} [get]
-func (svc *HttpService) CheckUsernameAvailability(c *gin.Context) {
-	username := c.Param("username")
+func (svc *HttpService) CheckUsernameAvailability(c *fiber.Ctx) error {
+	username := c.Params("username")
 
 	available, err := svc.userSvc.CheckUsernameAvailability(username)
 	if err != nil {
-		shared.ResponseJSON(c, http.StatusBadRequest, "Invalid username", map[string]interface{}{
+		return shared.ResponseJSON(c, fiber.StatusBadRequest, "Invalid username", map[string]interface{}{
 			"available": false,
 			"error":     err.Error(),
 		})
-		return
 	}
 
 	message := "Username is available"
@@ -287,7 +266,7 @@ func (svc *HttpService) CheckUsernameAvailability(c *gin.Context) {
 		message = "Username is already taken"
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, message, map[string]interface{}{
+	return shared.ResponseJSON(c, fiber.StatusOK, message, map[string]interface{}{
 		"available": available,
 		"username":  username,
 	})
@@ -301,26 +280,23 @@ func (svc *HttpService) CheckUsernameAvailability(c *gin.Context) {
 // @Param createSessionRequest body dto.CreateSessionRequest true "Create session request"
 // @Success 200
 // @Router /api/v1/guest/session [post]
-func (svc *HttpService) CreateSession(c *gin.Context) {
+func (svc *HttpService) CreateSession(c *fiber.Ctx) error {
 	var req dto.CreateSessionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	session, err := svc.guestSvc.CreateOrGetSession(req.DeviceID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
 	progress, err := svc.sqliteSvc.GetProgress(session.ID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", dto.CreateSessionResponse{
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", dto.CreateSessionResponse{
 		Session:  session,
 		Progress: progress,
 	})
@@ -334,16 +310,15 @@ func (svc *HttpService) CreateSession(c *gin.Context) {
 // @Param sessionId path string true "Session ID"
 // @Success 200
 // @Router /api/v1/guest/session/{sessionId}/progress [get]
-func (svc *HttpService) GetProgress(c *gin.Context) {
-	sessionID := c.Param("sessionId")
+func (svc *HttpService) GetProgress(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
 
 	progress, err := svc.sqliteSvc.GetProgress(sessionID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", progress)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", progress)
 }
 
 // @Summary Check Lesson Access
@@ -355,14 +330,13 @@ func (svc *HttpService) GetProgress(c *gin.Context) {
 // @Param lessonId path string true "Lesson ID"
 // @Success 200 {object} shared.Response{data=dto.LessonAccessResponse}
 // @Router /api/v1/guest/session/{sessionId}/lesson/{lessonId}/access [get]
-func (svc *HttpService) CheckLessonAccess(c *gin.Context) {
-	sessionID := c.Param("sessionId")
-	lessonID := c.Param("lessonId")
+func (svc *HttpService) CheckLessonAccess(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
+	lessonID := c.Params("lessonId")
 
 	canAccess, reason, err := svc.guestSvc.CanAccessLesson(sessionID, lessonID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
 	res := dto.LessonAccessResponse{
@@ -370,7 +344,7 @@ func (svc *HttpService) CheckLessonAccess(c *gin.Context) {
 		Reason:    reason,
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", res)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", res)
 }
 
 // @Summary Complete Lesson
@@ -382,28 +356,25 @@ func (svc *HttpService) CheckLessonAccess(c *gin.Context) {
 // @Param completeLessonRequest body dto.CompleteLessonRequest true "Complete lesson request"
 // @Success 200
 // @Router /api/v1/guest/session/{sessionId}/lesson/complete [post]
-func (svc *HttpService) CompleteLesson(c *gin.Context) {
-	sessionID := c.Param("sessionId")
+func (svc *HttpService) CompleteLesson(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
 
 	var req dto.CompleteLessonRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	err := svc.guestSvc.CompleteLesson(sessionID, req.LessonID, req.Score, req.TimeSpent)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
 	progress, err := svc.sqliteSvc.GetProgress(sessionID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", progress)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", progress)
 }
 
 // @Summary Add Hearts from Ad
@@ -414,22 +385,20 @@ func (svc *HttpService) CompleteLesson(c *gin.Context) {
 // @Param sessionId path string true "Session ID"
 // @Success 200
 // @Router /api/v1/guest/session/{sessionId}/hearts/add [post]
-func (svc *HttpService) AddHeartsFromAd(c *gin.Context) {
-	sessionID := c.Param("sessionId")
+func (svc *HttpService) AddHeartsFromAd(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
 
 	err := svc.guestSvc.AddHeartsFromAd(sessionID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
 	progress, err := svc.sqliteSvc.GetProgress(sessionID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", progress)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", progress)
 }
 
 // @Summary Lose Heart
@@ -440,22 +409,20 @@ func (svc *HttpService) AddHeartsFromAd(c *gin.Context) {
 // @Param sessionId path string true "Session ID"
 // @Success 200
 // @Router /api/v1/guest/session/{sessionId}/hearts/lose [post]
-func (svc *HttpService) LoseHeart(c *gin.Context) {
-	sessionID := c.Param("sessionId")
+func (svc *HttpService) LoseHeart(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
 
 	err := svc.guestSvc.LoseHeart(sessionID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
 	progress, err := svc.sqliteSvc.GetProgress(sessionID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", progress)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", progress)
 }
 
 // ==================== CONTENT ENDPOINTS ====================
@@ -467,14 +434,13 @@ func (svc *HttpService) LoseHeart(c *gin.Context) {
 // @Produce json
 // @Success 200 {object} shared.Response{data=dto.TimelineCollectionResponse}
 // @Router /api/v1/content/timeline [get]
-func (svc *HttpService) GetTimeline(c *gin.Context) {
+func (svc *HttpService) GetTimeline(c *fiber.Ctx) error {
 	timeline, err := svc.contentSvc.GetTimeline()
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", timeline)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", timeline)
 }
 
 // @Summary Get Characters
@@ -486,17 +452,16 @@ func (svc *HttpService) GetTimeline(c *gin.Context) {
 // @Param rarity query string false "Filter by rarity"
 // @Success 200 {object} shared.Response{data=dto.CharacterCollectionResponse}
 // @Router /api/v1/content/characters [get]
-func (svc *HttpService) GetCharacters(c *gin.Context) {
+func (svc *HttpService) GetCharacters(c *fiber.Ctx) error {
 	dynasty := c.Query("dynasty")
 	rarity := c.Query("rarity")
 
 	characters, err := svc.contentSvc.GetCharacters(dynasty, rarity)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", characters)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", characters)
 }
 
 // @Summary Get Character
@@ -507,16 +472,15 @@ func (svc *HttpService) GetCharacters(c *gin.Context) {
 // @Param characterId path string true "Character ID"
 // @Success 200 {object} shared.Response{data=dto.CharacterResponse}
 // @Router /api/v1/content/characters/{characterId} [get]
-func (svc *HttpService) GetCharacter(c *gin.Context) {
-	characterID := c.Param("characterId")
+func (svc *HttpService) GetCharacter(c *fiber.Ctx) error {
+	characterID := c.Params("characterId")
 
 	character, err := svc.contentSvc.GetCharacterDetails(characterID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", character)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", character)
 }
 
 // @Summary Get Character Lessons
@@ -527,16 +491,15 @@ func (svc *HttpService) GetCharacter(c *gin.Context) {
 // @Param characterId path string true "Character ID"
 // @Success 200 {object} shared.Response{data=[]dto.LessonResponse}
 // @Router /api/v1/content/characters/{characterId}/lessons [get]
-func (svc *HttpService) GetCharacterLessons(c *gin.Context) {
-	characterID := c.Param("characterId")
+func (svc *HttpService) GetCharacterLessons(c *fiber.Ctx) error {
+	characterID := c.Params("characterId")
 
 	lessons, err := svc.contentSvc.GetCharacterLessons(characterID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", lessons)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", lessons)
 }
 
 // @Summary Get Lesson
@@ -547,16 +510,15 @@ func (svc *HttpService) GetCharacterLessons(c *gin.Context) {
 // @Param lessonId path string true "Lesson ID"
 // @Success 200 {object} shared.Response{data=dto.LessonResponse}
 // @Router /api/v1/content/lessons/{lessonId} [get]
-func (svc *HttpService) GetLesson(c *gin.Context) {
-	lessonID := c.Param("lessonId")
+func (svc *HttpService) GetLesson(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
 
 	lesson, err := svc.contentSvc.GetLessonContent(lessonID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", lesson)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", lesson)
 }
 
 // @Summary Validate Lesson Answers
@@ -567,20 +529,18 @@ func (svc *HttpService) GetLesson(c *gin.Context) {
 // @Param validateRequest body dto.ValidateLessonRequest true "Validation request"
 // @Success 200 {object} shared.Response{data=dto.ValidateLessonResponse}
 // @Router /api/v1/content/lessons/validate [post]
-func (svc *HttpService) ValidateLessonAnswers(c *gin.Context) {
+func (svc *HttpService) ValidateLessonAnswers(c *fiber.Ctx) error {
 	var req dto.ValidateLessonRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	result, err := svc.contentSvc.ValidateLessonAnswers(req.LessonID, req.UserAnswers)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Validation completed", result)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Validation completed", result)
 }
 
 // @Summary Search Content
@@ -594,11 +554,10 @@ func (svc *HttpService) ValidateLessonAnswers(c *gin.Context) {
 // @Param limit query int false "Limit results"
 // @Success 200 {object} shared.Response{data=dto.SearchResponse}
 // @Router /api/v1/content/search [get]
-func (svc *HttpService) SearchContent(c *gin.Context) {
+func (svc *HttpService) SearchContent(c *fiber.Ctx) error {
 	var req dto.SearchRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid query parameters"))
-		return
+	if err := c.QueryParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid query parameters"))
 	}
 
 	if req.Limit == 0 {
@@ -607,11 +566,10 @@ func (svc *HttpService) SearchContent(c *gin.Context) {
 
 	results, err := svc.contentSvc.SearchContent(req)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", results)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", results)
 }
 
 // ==================== USER PROFILE ENDPOINTS ====================
@@ -625,16 +583,15 @@ func (svc *HttpService) SearchContent(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
 // @Router /api/v1/user/profile [get]
-func (svc *HttpService) GetUserProfile(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) GetUserProfile(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	profile, err := svc.userSvc.GetUserProfile(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", profile)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", profile)
 }
 
 // @Summary Update User Profile
@@ -647,22 +604,20 @@ func (svc *HttpService) GetUserProfile(c *gin.Context) {
 // @Param updateProfileRequest body dto.UpdateProfileRequest true "Update profile request"
 // @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
 // @Router /api/v1/user/profile [put]
-func (svc *HttpService) UpdateUserProfile(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) UpdateUserProfile(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	var req dto.UpdateProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	profile, err := svc.userSvc.UpdateUserProfile(userID, req)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", profile)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", profile)
 }
 
 // @Summary Initialize User Profile
@@ -675,34 +630,30 @@ func (svc *HttpService) UpdateUserProfile(c *gin.Context) {
 // @Param birthYear body map[string]int true "Birth year for zodiac"
 // @Success 200 {object} shared.Response{data=dto.UserProgressResponse}
 // @Router /api/v1/user/initialize [post]
-func (svc *HttpService) InitializeUserProfile(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) InitializeUserProfile(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	var req map[string]int
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	birthYear, exists := req["birth_year"]
 	if !exists || birthYear < 1900 || birthYear > 2020 {
-		svc.HandleError(c, shared.NewBadRequestError(nil, "Valid birth year is required"))
-		return
+		return svc.HandleError(c, shared.NewBadRequestError(nil, "Valid birth year is required"))
 	}
 
 	err := svc.userSvc.InitializeUserProfile(userID, birthYear)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
 	progress, err := svc.userSvc.GetUserProgress(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", progress)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", progress)
 }
 
 // ==================== USER PROGRESS ENDPOINTS ====================
@@ -716,16 +667,15 @@ func (svc *HttpService) InitializeUserProfile(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.UserProgressResponse}
 // @Router /api/v1/user/progress [get]
-func (svc *HttpService) GetUserProgress(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) GetUserProgress(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	progress, err := svc.userSvc.GetUserProgress(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", progress)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", progress)
 }
 
 // @Summary Get User Stats
@@ -737,16 +687,15 @@ func (svc *HttpService) GetUserProgress(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.UserStatsResponse}
 // @Router /api/v1/user/stats [get]
-func (svc *HttpService) GetUserStats(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) GetUserStats(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	stats, err := svc.userSvc.GetUserStats(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", stats)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", stats)
 }
 
 // @Summary Get User Collection
@@ -759,19 +708,18 @@ func (svc *HttpService) GetUserStats(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.CollectionResponse}
 // @Router /api/v1/user/collection [get]
-func (svc *HttpService) GetUserCollection(c *gin.Context) {
+func (svc *HttpService) GetUserCollection(c *fiber.Ctx) error {
 	userID := c.Query("userId")
 	if userID == "" {
-		userID = c.GetString(shared.UserID)
+		userID = c.Locals(shared.UserID).(string)
 	}
 
 	collection, err := svc.userSvc.GetUserCollection(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", collection)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", collection)
 }
 
 // ==================== USER LESSON ENDPOINTS ====================
@@ -786,17 +734,16 @@ func (svc *HttpService) GetUserCollection(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.LessonAccessResponse}
 // @Router /api/v1/user/lesson/{lessonId}/access [get]
-func (svc *HttpService) CheckUserLessonAccess(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
-	lessonID := c.Param("lessonId")
+func (svc *HttpService) CheckUserLessonAccess(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+	lessonID := c.Params("lessonId")
 
 	access, err := svc.userSvc.CheckLessonAccess(userID, lessonID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", access)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", access)
 }
 
 // @Summary Complete User Lesson
@@ -809,28 +756,25 @@ func (svc *HttpService) CheckUserLessonAccess(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.CompleteLessonResponse}
 // @Router /api/v1/user/lesson/complete [post]
-func (svc *HttpService) CompleteUserLesson(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) CompleteUserLesson(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	var req dto.CompleteLessonRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	err := svc.userSvc.CompleteLesson(userID, req.LessonID, req.Score, req.TimeSpent)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
 	result, err := svc.userSvc.GetUserProgress(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", result)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", result)
 }
 
 // ==================== HEARTS MANAGEMENT ENDPOINTS ====================
@@ -844,16 +788,15 @@ func (svc *HttpService) CompleteUserLesson(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.HeartStatusResponse}
 // @Router /api/v1/user/hearts [get]
-func (svc *HttpService) GetHeartStatus(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) GetHeartStatus(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	status, err := svc.userSvc.GetHeartStatus(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", status)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", status)
 }
 
 // @Summary Add User Hearts
@@ -866,22 +809,20 @@ func (svc *HttpService) GetHeartStatus(c *gin.Context) {
 // @Param addHeartsRequest body dto.AddHeartsRequest true "Add hearts request"
 // @Success 200 {object} shared.Response{data=dto.HeartStatusResponse}
 // @Router /api/v1/user/hearts/add [post]
-func (svc *HttpService) AddUserHearts(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) AddUserHearts(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	var req dto.AddHeartsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	status, err := svc.userSvc.AddHearts(userID, req.Source, req.Amount)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", status)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", status)
 }
 
 // @Summary Lose User Heart
@@ -893,16 +834,15 @@ func (svc *HttpService) AddUserHearts(c *gin.Context) {
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Success 200 {object} shared.Response{data=dto.HeartStatusResponse}
 // @Router /api/v1/user/hearts/lose [post]
-func (svc *HttpService) LoseUserHeart(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) LoseUserHeart(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	status, err := svc.userSvc.LoseHeart(userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", status)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", status)
 }
 
 // ==================== LEADERBOARD ENDPOINTS ====================
@@ -915,7 +855,7 @@ func (svc *HttpService) LoseUserHeart(c *gin.Context) {
 // @Param limit query int false "Limit results (default 50)"
 // @Success 200 {object} shared.Response{data=dto.LeaderboardResponse}
 // @Router /api/v1/leaderboard/weekly [get]
-func (svc *HttpService) GetWeeklyLeaderboard(c *gin.Context) {
+func (svc *HttpService) GetWeeklyLeaderboard(c *fiber.Ctx) error {
 	limit := 50
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
@@ -924,7 +864,7 @@ func (svc *HttpService) GetWeeklyLeaderboard(c *gin.Context) {
 	}
 
 	var userID string
-	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+	if authHeader := c.Get("Authorization"); authHeader != "" {
 		if token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader); err == nil {
 			if uid, err := svc.jwtSvc.VerifyJWTToken(token); err == nil {
 				userID = uid
@@ -934,11 +874,10 @@ func (svc *HttpService) GetWeeklyLeaderboard(c *gin.Context) {
 
 	leaderboard, err := svc.userSvc.GetWeeklyLeaderboard(limit, userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", leaderboard)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", leaderboard)
 }
 
 // @Summary Get Monthly Leaderboard
@@ -949,7 +888,7 @@ func (svc *HttpService) GetWeeklyLeaderboard(c *gin.Context) {
 // @Param limit query int false "Limit results (default 50)"
 // @Success 200 {object} shared.Response{data=dto.LeaderboardResponse}
 // @Router /api/v1/leaderboard/monthly [get]
-func (svc *HttpService) GetMonthlyLeaderboard(c *gin.Context) {
+func (svc *HttpService) GetMonthlyLeaderboard(c *fiber.Ctx) error {
 	limit := 50
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
@@ -958,7 +897,7 @@ func (svc *HttpService) GetMonthlyLeaderboard(c *gin.Context) {
 	}
 
 	var userID string
-	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+	if authHeader := c.Get("Authorization"); authHeader != "" {
 		if token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader); err == nil {
 			if uid, err := svc.jwtSvc.VerifyJWTToken(token); err == nil {
 				userID = uid
@@ -968,11 +907,10 @@ func (svc *HttpService) GetMonthlyLeaderboard(c *gin.Context) {
 
 	leaderboard, err := svc.userSvc.GetMonthlyLeaderboard(limit, userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", leaderboard)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", leaderboard)
 }
 
 // @Summary Get All Time Leaderboard
@@ -983,7 +921,7 @@ func (svc *HttpService) GetMonthlyLeaderboard(c *gin.Context) {
 // @Param limit query int false "Limit results (default 50)"
 // @Success 200 {object} shared.Response{data=dto.LeaderboardResponse}
 // @Router /api/v1/leaderboard/all-time [get]
-func (svc *HttpService) GetAllTimeLeaderboard(c *gin.Context) {
+func (svc *HttpService) GetAllTimeLeaderboard(c *fiber.Ctx) error {
 	limit := 50
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
@@ -992,7 +930,7 @@ func (svc *HttpService) GetAllTimeLeaderboard(c *gin.Context) {
 	}
 
 	var userID string
-	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+	if authHeader := c.Get("Authorization"); authHeader != "" {
 		if token, err := svc.jwtSvc.ExtractTokenFromHeader(authHeader); err == nil {
 			if uid, err := svc.jwtSvc.VerifyJWTToken(token); err == nil {
 				userID = uid
@@ -1002,11 +940,10 @@ func (svc *HttpService) GetAllTimeLeaderboard(c *gin.Context) {
 
 	leaderboard, err := svc.userSvc.GetAllTimeLeaderboard(limit, userID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", leaderboard)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", leaderboard)
 }
 
 // ==================== SOCIAL ENDPOINTS ====================
@@ -1021,22 +958,20 @@ func (svc *HttpService) GetAllTimeLeaderboard(c *gin.Context) {
 // @Param shareRequest body dto.ShareRequest true "Share request"
 // @Success 200 {object} shared.Response{data=dto.ShareResponse}
 // @Router /api/v1/user/share [post]
-func (svc *HttpService) ShareAchievement(c *gin.Context) {
-	userID := c.GetString(shared.UserID)
+func (svc *HttpService) ShareAchievement(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
 
 	var req dto.ShareRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
 	shareData, err := svc.userSvc.CreateShareContent(userID, req)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", shareData)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", shareData)
 }
 
 // ==================== MEDIA ENDPOINTS ====================
@@ -1052,22 +987,20 @@ func (svc *HttpService) ShareAchievement(c *gin.Context) {
 // @Param video formData file true "Video file (MP4, MOV, AVI)"
 // @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
 // @Router /api/v1/admin/lessons/{lessonId}/video [post]
-func (svc *HttpService) UploadLessonVideo(c *gin.Context) {
-	lessonID := c.Param("lessonId")
+func (svc *HttpService) UploadLessonVideo(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
 
 	file, err := c.FormFile("video")
 	if err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "No video file provided"))
-		return
+		return svc.HandleError(c, shared.NewBadRequestError(err, "No video file provided"))
 	}
 
 	response, err := svc.mediaSvc.UploadLessonVideo(lessonID, file)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Video uploaded successfully", response)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Video uploaded successfully", response)
 }
 
 // @Summary Upload Lesson Subtitle (Admin)
@@ -1081,22 +1014,20 @@ func (svc *HttpService) UploadLessonVideo(c *gin.Context) {
 // @Param subtitle formData file true "Subtitle file (VTT, SRT)"
 // @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
 // @Router /api/v1/admin/lessons/{lessonId}/subtitle [post]
-func (svc *HttpService) UploadLessonSubtitle(c *gin.Context) {
-	lessonID := c.Param("lessonId")
+func (svc *HttpService) UploadLessonSubtitle(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
 
 	file, err := c.FormFile("subtitle")
 	if err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "No subtitle file provided"))
-		return
+		return svc.HandleError(c, shared.NewBadRequestError(err, "No subtitle file provided"))
 	}
 
 	response, err := svc.mediaSvc.UploadLessonSubtitle(lessonID, file)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Subtitle uploaded successfully", response)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Subtitle uploaded successfully", response)
 }
 
 // @Summary Get Lesson Media (Admin)
@@ -1108,16 +1039,15 @@ func (svc *HttpService) UploadLessonSubtitle(c *gin.Context) {
 // @Param lessonId path string true "Lesson ID"
 // @Success 200 {object} shared.Response{data=dto.LessonMediaResponse}
 // @Router /api/v1/admin/lessons/{lessonId}/media [get]
-func (svc *HttpService) GetLessonMedia(c *gin.Context) {
-	lessonID := c.Param("lessonId")
+func (svc *HttpService) GetLessonMedia(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
 
 	media, err := svc.mediaSvc.GetLessonMedia(lessonID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", media)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", media)
 }
 
 // @Summary Delete Media Asset (Admin)
@@ -1129,16 +1059,15 @@ func (svc *HttpService) GetLessonMedia(c *gin.Context) {
 // @Param assetId path string true "Media Asset ID"
 // @Success 200 {object} shared.Response{data=string}
 // @Router /api/v1/admin/media/assets/{assetId} [delete]
-func (svc *HttpService) DeleteMediaAsset(c *gin.Context) {
-	assetID := c.Param("assetId")
+func (svc *HttpService) DeleteMediaAsset(c *fiber.Ctx) error {
+	assetID := c.Params("assetId")
 
 	err := svc.mediaSvc.DeleteMediaAsset(assetID)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Media asset deleted successfully", "deleted")
+	return shared.ResponseJSON(c, fiber.StatusOK, "Media asset deleted successfully", "deleted")
 }
 
 // @Summary Batch Upload Media (Admin)
@@ -1153,8 +1082,8 @@ func (svc *HttpService) DeleteMediaAsset(c *gin.Context) {
 // @Param subtitle formData file false "Subtitle file"
 // @Success 200 {object} shared.Response{data=dto.BatchMediaUploadResponse}
 // @Router /api/v1/admin/lessons/{lessonId}/media/batch [post]
-func (svc *HttpService) BatchUploadMedia(c *gin.Context) {
-	lessonID := c.Param("lessonId")
+func (svc *HttpService) BatchUploadMedia(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
 
 	response := &dto.BatchMediaUploadResponse{
 		LessonID:      lessonID,
@@ -1181,11 +1110,10 @@ func (svc *HttpService) BatchUploadMedia(c *gin.Context) {
 	}
 
 	if len(response.UploadedFiles) == 0 && len(response.Errors) > 0 {
-		svc.HandleError(c, shared.NewBadRequestError(nil, "All uploads failed"))
-		return
+		return svc.HandleError(c, shared.NewBadRequestError(nil, "All uploads failed"))
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Batch upload completed", response)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Batch upload completed", response)
 }
 
 // @Summary Get Media Statistics (Admin)
@@ -1196,14 +1124,13 @@ func (svc *HttpService) BatchUploadMedia(c *gin.Context) {
 // @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
 // @Success 200 {object} shared.Response{data=map[string]interface{}}
 // @Router /api/v1/admin/media/statistics [get]
-func (svc *HttpService) GetMediaStatistics(c *gin.Context) {
+func (svc *HttpService) GetMediaStatistics(c *fiber.Ctx) error {
 	stats, err := svc.sqliteSvc.GetMediaStatistics()
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusOK, "Success", stats)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", stats)
 }
 
 // ==================== ADMIN ENDPOINTS (Optional) ====================
@@ -1217,25 +1144,23 @@ func (svc *HttpService) GetMediaStatistics(c *gin.Context) {
 // @Param character body model.Character true "Character data"
 // @Success 201 {object} shared.Response{data=dto.CharacterResponse}
 // @Router /api/v1/admin/characters [post]
-func (svc *HttpService) CreateCharacter(c *gin.Context) {
+func (svc *HttpService) CreateCharacter(c *fiber.Ctx) error {
 	isAdmin := svc.isAdmin(c)
 	if !isAdmin {
-		return
+		return nil
 	}
 
 	var character model.Character
-	if err := c.ShouldBindJSON(&character); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid character data"))
-		return
+	if err := c.BodyParser(&character); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid character data"))
 	}
 
 	created, err := svc.contentSvc.CreateCharacter(&character)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusCreated, "Character created successfully", created)
+	return shared.ResponseJSON(c, fiber.StatusCreated, "Character created successfully", created)
 }
 
 // @Summary Create Lesson (Admin)
@@ -1248,29 +1173,27 @@ func (svc *HttpService) CreateCharacter(c *gin.Context) {
 // @Param lesson body model.Lesson true "Lesson data"
 // @Success 201 {object} shared.Response{data=dto.LessonResponse}
 // @Router /api/v1/admin/lessons [post]
-func (svc *HttpService) CreateLesson(c *gin.Context) {
+func (svc *HttpService) CreateLesson(c *fiber.Ctx) error {
 	isAdmin := svc.isAdmin(c)
 	if !isAdmin {
-		return
+		return nil
 	}
 
 	var lesson model.Lesson
-	if err := c.ShouldBindJSON(&lesson); err != nil {
-		svc.HandleError(c, shared.NewBadRequestError(err, "Invalid lesson data"))
-		return
+	if err := c.BodyParser(&lesson); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid lesson data"))
 	}
 
 	created, err := svc.contentSvc.CreateLesson(&lesson)
 	if err != nil {
-		svc.HandleError(c, err)
-		return
+		return svc.HandleError(c, err)
 	}
 
-	shared.ResponseJSON(c, http.StatusCreated, "Lesson created successfully", created)
+	return shared.ResponseJSON(c, fiber.StatusCreated, "Lesson created successfully", created)
 }
 
-func (svc *HttpService) isAdmin(c *gin.Context) bool {
-	if c.GetHeader("X-Internal-Password") != svc.internalPassword {
+func (svc *HttpService) isAdmin(c *fiber.Ctx) bool {
+	if c.Get("X-Internal-Password") != svc.internalPassword {
 		svc.HandleError(c, shared.NewUnauthorizedError(nil, "Admin access required"))
 		return false
 	}

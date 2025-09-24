@@ -1,33 +1,14 @@
 package shared
 
 import (
-	"net/http"
-
 	"github.com/bytedance/sonic"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 type Response struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
-}
-
-type SonicJSON struct {
-	Data interface{}
-}
-
-func (r SonicJSON) Render(w http.ResponseWriter) error {
-	jsonBytes, err := jsonAPI.Marshal(r.Data)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(jsonBytes)
-	return err
-}
-
-func (r SonicJSON) WriteContentType(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 }
 
 var jsonAPI = sonic.Config{
@@ -54,81 +35,83 @@ func mustMarshal(v interface{}) []byte {
 	return b
 }
 
-func ResponseJSON(c *gin.Context, httpCode int, message string, data interface{}) {
+func ResponseJSON(c *fiber.Ctx, httpCode int, message string, data interface{}) error {
 	if data == nil {
 		switch httpCode {
 		case 200:
 			if message == "Success" {
-				c.Data(httpCode, "application/json", successResponse)
-				return
+				c.Set("Content-Type", "application/json")
+				return c.Status(httpCode).Send(successResponse)
 			}
 		case 201:
 			if message == "Created" {
-				c.Data(httpCode, "application/json", createdResponse)
-				return
+				c.Set("Content-Type", "application/json")
+				return c.Status(httpCode).Send(createdResponse)
 			}
 		case 400:
 			if message == "Bad Request" {
-				c.Data(httpCode, "application/json", badRequestResponse)
-				return
+				c.Set("Content-Type", "application/json")
+				return c.Status(httpCode).Send(badRequestResponse)
 			}
 		case 404:
 			if message == "Not Found" {
-				c.Data(httpCode, "application/json", notFoundResponse)
-				return
+				c.Set("Content-Type", "application/json")
+				return c.Status(httpCode).Send(notFoundResponse)
 			}
 		case 401:
 			if message == "Unauthorized" {
-				c.Data(httpCode, "application/json", unauthorizedResponse)
-				return
+				c.Set("Content-Type", "application/json")
+				return c.Status(httpCode).Send(unauthorizedResponse)
 			}
 		case 403:
 			if message == "Forbidden" {
-				c.Data(httpCode, "application/json", forbiddenResponse)
-				return
+				c.Set("Content-Type", "application/json")
+				return c.Status(httpCode).Send(forbiddenResponse)
 			}
 		case 500:
 			if message == "Internal Server Error" {
-				c.Data(httpCode, "application/json", internalErrorResponse)
-				return
+				c.Set("Content-Type", "application/json")
+				return c.Status(httpCode).Send(internalErrorResponse)
 			}
 		}
 	}
 
-	c.Render(httpCode, SonicJSON{Data: Response{
+	response := Response{
 		Code:    httpCode,
 		Message: message,
 		Data:    data,
-	}})
+	}
+
+	return c.Status(httpCode).JSON(response)
 }
 
-func ResponseOK(c *gin.Context, data interface{}) {
-	ResponseJSON(c, 200, "Success", data)
+func ResponseOK(c *fiber.Ctx, data interface{}) error {
+	return ResponseJSON(c, 200, "Success", data)
 }
 
-func ResponseNotFound(c *gin.Context) {
-	ResponseJSON(c, 404, "Not Found", nil)
+func ResponseNotFound(c *fiber.Ctx) error {
+	return ResponseJSON(c, 404, "Not Found", nil)
 }
 
-func ResponseUnauthorized(c *gin.Context) {
-	ResponseJSON(c, 401, "Unauthorized", nil)
+func ResponseUnauthorized(c *fiber.Ctx) error {
+	return ResponseJSON(c, 401, "Unauthorized", nil)
 }
 
-func ResponseBadRequest(c *gin.Context, message string) {
+func ResponseBadRequest(c *fiber.Ctx, message string) error {
 	if message == "" {
 		message = "Bad Request"
 	}
-	ResponseJSON(c, 400, message, nil)
+	return ResponseJSON(c, 400, message, nil)
 }
 
-func ResponseForbidden(c *gin.Context) {
-	ResponseJSON(c, 403, "Forbidden", nil)
+func ResponseForbidden(c *fiber.Ctx) error {
+	return ResponseJSON(c, 403, "Forbidden", nil)
 }
 
-func ResponseCreated(c *gin.Context, data interface{}) {
-	ResponseJSON(c, 201, "Created", data)
+func ResponseCreated(c *fiber.Ctx, data interface{}) error {
+	return ResponseJSON(c, 201, "Created", data)
 }
 
-func ResponseInternalError(c *gin.Context, err error) {
-	ResponseJSON(c, 500, "Internal Server Error", err)
+func ResponseInternalError(c *fiber.Ctx, err error) error {
+	return ResponseJSON(c, 500, "Internal Server Error", err)
 }
