@@ -79,6 +79,36 @@ definitions:
       rarity:
         type: string
     type: object
+  dto.CheckLessonStatusRequest:
+    properties:
+      lesson_id:
+        type: string
+    required:
+    - lesson_id
+    type: object
+  dto.CheckLessonStatusResponse:
+    properties:
+      can_still_pass:
+        type: boolean
+      earned_points:
+        type: integer
+      min_score:
+        type: integer
+      passed:
+        type: boolean
+      points_needed:
+        type: integer
+      questions_answered:
+        type: integer
+      questions_total:
+        type: integer
+      remaining_points:
+        type: integer
+      score:
+        type: integer
+      total_points:
+        type: integer
+    type: object
   dto.CollectionResponse:
     properties:
       achievements:
@@ -356,6 +386,37 @@ definitions:
       xp:
         type: integer
       xp_to_next:
+        type: integer
+    type: object
+  dto.SubmitQuestionAnswerRequest:
+    properties:
+      answer: {}
+      lesson_id:
+        type: string
+      question_id:
+        type: string
+    required:
+    - answer
+    - lesson_id
+    - question_id
+    type: object
+  dto.SubmitQuestionAnswerResponse:
+    properties:
+      can_still_pass:
+        type: boolean
+      correct:
+        type: boolean
+      current_score:
+        type: integer
+      earned_points:
+        type: integer
+      passed:
+        type: boolean
+      points:
+        type: integer
+      points_needed:
+        type: integer
+      total_points:
         type: integer
     type: object
   dto.TimelineCollectionResponse:
@@ -953,6 +1014,76 @@ paths:
                   $ref: '#/definitions/dto.LessonResponse'
               type: object
       summary: Get Lesson
+      tags:
+      - content
+  /api/v1/content/lessons/questions/answer:
+    post:
+      consumes:
+      - application/json
+      description: Submit answer for individual question in a lesson
+      parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Question answer request
+        in: body
+        name: submitRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SubmitQuestionAnswerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SubmitQuestionAnswerResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Submit Question Answer
+      tags:
+      - content
+  /api/v1/content/lessons/status:
+    post:
+      consumes:
+      - application/json
+      description: Check current lesson completion status and score
+      parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson status request
+        in: body
+        name: statusRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CheckLessonStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CheckLessonStatusResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Check Lesson Status
       tags:
       - content
   /api/v1/content/lessons/validate:

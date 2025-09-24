@@ -143,6 +143,23 @@ type UserLessonAttempt struct {
 	Lesson Lesson `json:"lesson" gorm:"foreignKey:LessonID"`
 }
 
+// UserQuestionAnswer tracks individual question answers for progressive lesson completion
+type UserQuestionAnswer struct {
+	ID         string    `json:"id" gorm:"primaryKey"`
+	UserID     string    `json:"user_id" gorm:"not null"`
+	LessonID   string    `json:"lesson_id" gorm:"not null"`
+	QuestionID string    `json:"question_id" gorm:"not null"`
+	Answer     string    `json:"answer" gorm:"type:text"` // JSON string of the answer
+	IsCorrect  bool      `json:"is_correct" gorm:"not null"`
+	Points     int       `json:"points" gorm:"not null"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+
+	// Relationships
+	User   User   `json:"user" gorm:"foreignKey:UserID"`
+	Lesson Lesson `json:"lesson" gorm:"foreignKey:LessonID"`
+}
+
 // Spirit/Linh Thu system
 type Spirit struct {
 	ID        string    `json:"id" gorm:"primaryKey"`

@@ -76,6 +76,40 @@ type ValidateLessonResponse struct {
 	MinScore    int  `json:"min_score"`
 }
 
+type SubmitQuestionAnswerRequest struct {
+	LessonID   string      `json:"lesson_id" binding:"required"`
+	QuestionID string      `json:"question_id" binding:"required"`
+	Answer     interface{} `json:"answer" binding:"required"`
+}
+
+type SubmitQuestionAnswerResponse struct {
+	Correct      bool `json:"correct"`
+	Points       int  `json:"points"`
+	TotalPoints  int  `json:"total_points"`
+	EarnedPoints int  `json:"earned_points"`
+	CurrentScore int  `json:"current_score"`
+	Passed       bool `json:"passed"`
+	CanStillPass bool `json:"can_still_pass"`
+	PointsNeeded int  `json:"points_needed"`
+}
+
+type CheckLessonStatusRequest struct {
+	LessonID string `json:"lesson_id" binding:"required"`
+}
+
+type CheckLessonStatusResponse struct {
+	Score             int  `json:"score"`
+	Passed            bool `json:"passed"`
+	TotalPoints       int  `json:"total_points"`
+	EarnedPoints      int  `json:"earned_points"`
+	MinScore          int  `json:"min_score"`
+	QuestionsTotal    int  `json:"questions_total"`
+	QuestionsAnswered int  `json:"questions_answered"`
+	CanStillPass      bool `json:"can_still_pass"`
+	PointsNeeded      int  `json:"points_needed"`
+	RemainingPoints   int  `json:"remaining_points"`
+}
+
 type CompleteLessonResponse struct {
 	XPGained        int    `json:"xp_gained"`
 	NewLevel        int    `json:"new_level"`

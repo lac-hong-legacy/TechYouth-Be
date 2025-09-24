@@ -75,6 +75,7 @@ func (ds *SqliteService) Start() (err error) {
 		&model.Achievement{},
 		&model.UserAchievement{},
 		&model.UserLessonAttempt{},
+		&model.UserQuestionAnswer{},
 
 		// Media models
 		&model.MediaAsset{},
@@ -954,6 +955,61 @@ func (ds *SqliteService) DeactivateLessonMediaByType(lessonID, mediaType string)
 	if err := ds.db.Model(&model.LessonMedia{}).
 		Where("lesson_id = ? AND media_type = ?", lessonID, mediaType).
 		Update("is_active", false).Error; err != nil {
+		return ds.HandleError(err)
+	}
+	return nil
+}
+
+// ==================== USER QUESTION ANSWER METHODS ====================
+
+func (ds *SqliteService) SaveUserQuestionAnswer(answer *model.UserQuestionAnswer) error {
+	if answer.ID == "" {
+		answer.ID = uuid.New().String()
+	}
+	answer.CreatedAt = time.Now()
+	answer.UpdatedAt = time.Now()
+
+	// Check if answer already exists for this user/lesson/question
+	var existing model.UserQuestionAnswer
+	err := ds.db.Where("user_id = ? AND lesson_id = ? AND question_id = ?",
+		answer.UserID, answer.LessonID, answer.QuestionID).First(&existing).Error
+
+	if err == nil {
+		// Update existing answer
+		existing.Answer = answer.Answer
+		existing.IsCorrect = answer.IsCorrect
+		existing.Points = answer.Points
+		existing.UpdatedAt = time.Now()
+		return ds.db.Save(&existing).Error
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Create new answer
+		return ds.db.Create(answer).Error
+	}
+
+	return ds.HandleError(err)
+}
+
+func (ds *SqliteService) GetUserQuestionAnswers(userID, lessonID string) ([]model.UserQuestionAnswer, error) {
+	var answers []model.UserQuestionAnswer
+	if err := ds.db.Where("user_id = ? AND lesson_id = ?", userID, lessonID).
+		Find(&answers).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return answers, nil
+}
+
+func (ds *SqliteService) GetUserQuestionAnswer(userID, lessonID, questionID string) (*model.UserQuestionAnswer, error) {
+	var answer model.UserQuestionAnswer
+	if err := ds.db.Where("user_id = ? AND lesson_id = ? AND question_id = ?",
+		userID, lessonID, questionID).First(&answer).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &answer, nil
+}
+
+func (ds *SqliteService) DeleteUserQuestionAnswers(userID, lessonID string) error {
+	if err := ds.db.Where("user_id = ? AND lesson_id = ?", userID, lessonID).
+		Delete(&model.UserQuestionAnswer{}).Error; err != nil {
 		return ds.HandleError(err)
 	}
 	return nil

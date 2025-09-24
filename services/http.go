@@ -115,6 +115,8 @@ func (svc *HttpService) Start() error {
 	content.Get("/characters/:characterId/lessons", svc.GetCharacterLessons)
 	content.Get("/lessons/:lessonId", svc.GetLesson)
 	content.Post("/lessons/validate", svc.ValidateLessonAnswers)
+	content.Post("/lessons/questions/answer", svc.authSvc.RequiredAuth(), svc.SubmitQuestionAnswer)
+	content.Post("/lessons/status", svc.authSvc.RequiredAuth(), svc.CheckLessonStatus)
 	content.Get("/search", svc.SearchContent)
 	content.Get("/eras", svc.GetEras)
 	content.Get("/dynasties", svc.GetDynasties)
@@ -572,6 +574,58 @@ func (svc *HttpService) SearchContent(c *fiber.Ctx) error {
 	}
 
 	return shared.ResponseJSON(c, fiber.StatusOK, "Success", results)
+}
+
+// @Summary Submit Question Answer
+// @Description Submit answer for individual question in a lesson
+// @Tags content
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
+// @Param submitRequest body dto.SubmitQuestionAnswerRequest true "Question answer request"
+// @Success 200 {object} shared.Response{data=dto.SubmitQuestionAnswerResponse}
+// @Router /api/v1/content/lessons/questions/answer [post]
+func (svc *HttpService) SubmitQuestionAnswer(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	var req dto.SubmitQuestionAnswerRequest
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	result, err := svc.contentSvc.SubmitQuestionAnswer(userID, req.LessonID, req.QuestionID, req.Answer)
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, fiber.StatusOK, "Answer submitted", result)
+}
+
+// @Summary Check Lesson Status
+// @Description Check current lesson completion status and score
+// @Tags content
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
+// @Param statusRequest body dto.CheckLessonStatusRequest true "Lesson status request"
+// @Success 200 {object} shared.Response{data=dto.CheckLessonStatusResponse}
+// @Router /api/v1/content/lessons/status [post]
+func (svc *HttpService) CheckLessonStatus(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	var req dto.CheckLessonStatusRequest
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	result, err := svc.contentSvc.CheckLessonStatus(userID, req.LessonID)
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, fiber.StatusOK, "Lesson status retrieved", result)
 }
 
 // ==================== USER PROFILE ENDPOINTS ====================

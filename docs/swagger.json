@@ -684,6 +684,124 @@
                 }
             }
         },
+        "/api/v1/content/lessons/questions/answer": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Submit answer for individual question in a lesson",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Submit Question Answer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Question answer request",
+                        "name": "submitRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SubmitQuestionAnswerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.SubmitQuestionAnswerResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content/lessons/status": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Check current lesson completion status and score",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "content"
+                ],
+                "summary": "Check Lesson Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Lesson status request",
+                        "name": "statusRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CheckLessonStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CheckLessonStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/content/lessons/validate": {
             "post": {
                 "description": "Validate user answers for a lesson and return score",
@@ -2158,6 +2276,52 @@
                 }
             }
         },
+        "dto.CheckLessonStatusRequest": {
+            "type": "object",
+            "required": [
+                "lesson_id"
+            ],
+            "properties": {
+                "lesson_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CheckLessonStatusResponse": {
+            "type": "object",
+            "properties": {
+                "can_still_pass": {
+                    "type": "boolean"
+                },
+                "earned_points": {
+                    "type": "integer"
+                },
+                "min_score": {
+                    "type": "integer"
+                },
+                "passed": {
+                    "type": "boolean"
+                },
+                "points_needed": {
+                    "type": "integer"
+                },
+                "questions_answered": {
+                    "type": "integer"
+                },
+                "questions_total": {
+                    "type": "integer"
+                },
+                "remaining_points": {
+                    "type": "integer"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "total_points": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.CollectionResponse": {
             "type": "object",
             "properties": {
@@ -2580,6 +2744,52 @@
                     "type": "integer"
                 },
                 "xp_to_next": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.SubmitQuestionAnswerRequest": {
+            "type": "object",
+            "required": [
+                "answer",
+                "lesson_id",
+                "question_id"
+            ],
+            "properties": {
+                "answer": {},
+                "lesson_id": {
+                    "type": "string"
+                },
+                "question_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SubmitQuestionAnswerResponse": {
+            "type": "object",
+            "properties": {
+                "can_still_pass": {
+                    "type": "boolean"
+                },
+                "correct": {
+                    "type": "boolean"
+                },
+                "current_score": {
+                    "type": "integer"
+                },
+                "earned_points": {
+                    "type": "integer"
+                },
+                "passed": {
+                    "type": "boolean"
+                },
+                "points": {
+                    "type": "integer"
+                },
+                "points_needed": {
+                    "type": "integer"
+                },
+                "total_points": {
                     "type": "integer"
                 }
             }

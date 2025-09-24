@@ -375,6 +375,13 @@ func (svc *ContentService) ValidateLessonAnswers(lessonID string, userAnswers ma
 func (svc *ContentService) isAnswerCorrect(question model.Question, userAnswer interface{}) bool {
 	switch question.Type {
 	case "multiple_choice":
+		// Convert both to strings for comparison
+		correctAnswer, ok1 := question.Answer.(string)
+		userAnswerStr, ok2 := userAnswer.(string)
+		if ok1 && ok2 {
+			return strings.EqualFold(strings.TrimSpace(correctAnswer), strings.TrimSpace(userAnswerStr))
+		}
+		// Fallback to direct comparison
 		return question.Answer == userAnswer
 	case "fill_blank":
 		// Case-insensitive string comparison
@@ -399,4 +406,213 @@ func (svc *ContentService) GetEras() ([]string, error) {
 
 func (svc *ContentService) GetDynasties() ([]string, error) {
 	return []string{"Văn Lang", "Âu Lạc", "Bắc Thuộc", "Ngô", "Cận Đại", "Đinh - Tiền Lê", "Lý", "Trần", "Hồ", "Nguyễn", "Minh Chiếm Đóng", "Hậu Lê", "Mạc", "Tây Sơn"}, nil
+}
+
+// ==================== INDIVIDUAL QUESTION ANSWER METHODS ====================
+
+func (svc *ContentService) SubmitQuestionAnswer(userID, lessonID, questionID string, answer interface{}) (*dto.SubmitQuestionAnswerResponse, error) {
+	// Get the lesson to validate the question
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	var questions []model.Question
+	if err := json.Unmarshal(lesson.Questions, &questions); err != nil {
+		return nil, fmt.Errorf("failed to parse lesson questions: %v", err)
+	}
+
+	// Find the specific question
+	var targetQuestion *model.Question
+	totalPoints := 0
+	for _, q := range questions {
+		totalPoints += q.Points
+		if q.ID == questionID {
+			targetQuestion = &q
+		}
+	}
+
+	if targetQuestion == nil {
+		return nil, fmt.Errorf("question not found: %s", questionID)
+	}
+
+	// Check if answer is correct
+	isCorrect := svc.isAnswerCorrect(*targetQuestion, answer)
+	points := 0
+	if isCorrect {
+		points = targetQuestion.Points
+	}
+
+	// Convert answer to JSON string for storage
+	answerJSON, err := json.Marshal(answer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal answer: %v", err)
+	}
+
+	// Save the answer
+	userAnswer := &model.UserQuestionAnswer{
+		UserID:     userID,
+		LessonID:   lessonID,
+		QuestionID: questionID,
+		Answer:     string(answerJSON),
+		IsCorrect:  isCorrect,
+		Points:     points,
+	}
+
+	if err := svc.sqlSvc.SaveUserQuestionAnswer(userAnswer); err != nil {
+		return nil, err
+	}
+
+	// Get updated lesson status after this answer
+	status, err := svc.CheckLessonStatus(userID, lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.SubmitQuestionAnswerResponse{
+		Correct:      isCorrect,
+		Points:       points,
+		TotalPoints:  totalPoints,
+		EarnedPoints: status.EarnedPoints,
+		CurrentScore: status.Score,
+		Passed:       status.Passed,
+		CanStillPass: status.CanStillPass,
+		PointsNeeded: status.PointsNeeded,
+	}, nil
+}
+
+func (svc *ContentService) CheckLessonStatus(userID, lessonID string) (*dto.CheckLessonStatusResponse, error) {
+	// Get the lesson
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	var questions []model.Question
+	if err := json.Unmarshal(lesson.Questions, &questions); err != nil {
+		return nil, fmt.Errorf("failed to parse lesson questions: %v", err)
+	}
+
+	// Get user's answers for this lesson
+	userAnswers, err := svc.sqlSvc.GetUserQuestionAnswers(userID, lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate totals
+	totalPoints := 0
+	earnedPoints := 0
+	questionsAnswered := len(userAnswers)
+
+	// Create map of answered questions for quick lookup
+	answeredQuestions := make(map[string]bool)
+	for _, answer := range userAnswers {
+		answeredQuestions[answer.QuestionID] = true
+		if answer.IsCorrect {
+			earnedPoints += answer.Points
+		}
+	}
+
+	// Calculate remaining possible points
+	remainingPoints := 0
+	for _, question := range questions {
+		totalPoints += question.Points
+		if !answeredQuestions[question.ID] {
+			remainingPoints += question.Points
+		}
+	}
+
+	// Calculate current score
+	score := 0
+	if totalPoints > 0 {
+		score = (earnedPoints * 100) / totalPoints
+	}
+
+	// Calculate minimum points needed to pass
+	minPointsToPass := (lesson.MinScore*totalPoints + 99) / 100 // Round up
+
+	// Check if user has already passed
+	passed := earnedPoints >= minPointsToPass
+
+	// Check if user can still pass (has enough remaining points)
+	canStillPass := (earnedPoints + remainingPoints) >= minPointsToPass
+
+	return &dto.CheckLessonStatusResponse{
+		Score:             score,
+		Passed:            passed,
+		TotalPoints:       totalPoints,
+		EarnedPoints:      earnedPoints,
+		MinScore:          lesson.MinScore,
+		QuestionsTotal:    len(questions),
+		QuestionsAnswered: questionsAnswered,
+		CanStillPass:      canStillPass,
+		PointsNeeded:      maxInt(0, minPointsToPass-earnedPoints),
+		RemainingPoints:   remainingPoints,
+	}, nil
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// GetNextBestQuestions suggests which questions to answer next for optimal progression
+func (svc *ContentService) GetNextBestQuestions(userID, lessonID string) ([]string, error) {
+	// Get the lesson
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	var questions []model.Question
+	if err := json.Unmarshal(lesson.Questions, &questions); err != nil {
+		return nil, fmt.Errorf("failed to parse lesson questions: %v", err)
+	}
+
+	// Get user's answers
+	userAnswers, err := svc.sqlSvc.GetUserQuestionAnswers(userID, lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create map of answered questions
+	answeredQuestions := make(map[string]bool)
+	for _, answer := range userAnswers {
+		answeredQuestions[answer.QuestionID] = true
+	}
+
+	// Find unanswered questions and sort by points (highest first)
+	type questionWithPoints struct {
+		ID     string
+		Points int
+	}
+
+	var unanswered []questionWithPoints
+	for _, question := range questions {
+		if !answeredQuestions[question.ID] {
+			unanswered = append(unanswered, questionWithPoints{
+				ID:     question.ID,
+				Points: question.Points,
+			})
+		}
+	}
+
+	// Sort by points descending (highest value questions first)
+	for i := 0; i < len(unanswered)-1; i++ {
+		for j := i + 1; j < len(unanswered); j++ {
+			if unanswered[i].Points < unanswered[j].Points {
+				unanswered[i], unanswered[j] = unanswered[j], unanswered[i]
+			}
+		}
+	}
+
+	// Return question IDs in order of priority
+	var result []string
+	for _, q := range unanswered {
+		result = append(result, q.ID)
+	}
+
+	return result, nil
 }
