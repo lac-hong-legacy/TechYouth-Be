@@ -61,11 +61,11 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Order:       1,
 			Story:       "Ngày xưa, trên những núi non sương mù của miền Bắc Việt Nam, sống Vua Rồng Lạc Long Quân và Mẹ Tiên Âu Cơ. Từ sự kết hợp của họ sinh ra 100 người con trai, và người con cả trở thành vua Hùng đầu tiên, sáng lập vương quốc cổ xưa Văn Lang...",
 
-			// Media Content (to be uploaded via Admin API)
-			VideoURL:      "", // Will be set when video is uploaded via admin
-			SubtitleURL:   "", // Will be set when subtitle is uploaded via admin
-			ThumbnailURL:  "", // Will be auto-generated or uploaded via admin
-			VideoDuration: 0,  // Will be set automatically when video is processed
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4", // Using video as placeholder
+			VideoDuration: 300,                                       // 5 minutes placeholder
 			CanSkipAfter:  5,
 			HasSubtitles:  false, // Will be set to true when subtitle is uploaded
 			Questions: createQuestions([]QuestionData{
@@ -122,6 +122,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Dân tộc Lạc Việt",
 			Order:       2,
 			Story:       "Các vua Hùng cai trị dân tộc Lạc Việt, những người thành thạo trong việc chế tạo đồng, trồng lúa và đóng thuyền. Họ đã tạo ra một xã hội tinh vi dọc theo vùng đồng bằng sông Hồng, đặt nền tảng cho nền văn minh Việt Nam...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_hv2_1",
@@ -178,6 +186,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Mối đe dọa từ quân Mông Cổ",
 			Order:       1,
 			Story:       "Vào thế kỷ 13, đế chế Mông Cổ hùng mạnh đã chinh phục Trung Quốc và đang hướng sự chú ý đến Đại Việt. Quân đội của Hốt Tất Liệt dường như không thể ngăn cản, nhưng Hoàng tử Trần Quốc Tuấn, được biết đến với tên Trần Hưng Đạo, sẽ chứng minh họ sai lầm...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_thd1_1",
@@ -231,6 +247,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Chiến thắng tại Bạch Đằng",
 			Order:       2,
 			Story:       "Sử dụng chiến thuật cổ xưa và kiến thức ưu việt về vùng nước địa phương, Trần Hưng Đạo đã cắm những cọc gỗ có đầu nhọn bằng sắt trong sông Bạch Đằng. Khi hạm đội Mông Cổ tấn công trong thủy triều cao, người Việt dụ họ tiến về phía trước, sau đó rút lui khi thủy triều xuống, để lại các tàu địch bị đâm thủng...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_thd2_1",
@@ -295,6 +319,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Sự chiếm đóng của nhà Minh",
 			Order:       1,
 			Story:       "Sau sự sụp đổ của triều đại Hồ, quân Minh Trung Quốc đã chiếm đóng Việt Nam trong 20 năm. Người dân phải chịu đựng sự cai trị khắc nghiệt và áp chế văn hóa. Nhưng trên những ngọn núi Thanh Hóa, một địa chủ tên Lê Lợi bắt đầu tập hợp những người yêu nước để kháng chiến...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_ll1_1",
@@ -356,6 +388,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Truyền thuyết Hoàn Kiếm",
 			Order:       2,
 			Story:       "Truyền thuyết kể rằng Lê Lợi đã nhận được một thanh kiếm thần từ Vua Rồng để đuổi quân xâm lược. Sau chiến thắng, khi đang chèo thuyền trên một hồ ở Thăng Long, một con rùa vàng nổi lên mặt nước và đòi lại thanh kiếm. Từ đó hồ được gọi là Hồ Hoàn Kiếm...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_ll2_1",
@@ -420,6 +460,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Hai chị em kháng chiến",
 			Order:       1,
 			Story:       "Năm 40 sau Công nguyên, khi các quan lại Hán Trung Quốc ngày càng áp bức, hai chị em quý tộc từ Mê Linh quyết định hành động. Trưng Trắc và Trưng Nhị, được huấn luyện võ thuật và chiến lược quân sự, không thể tiếp tục nhìn người dân của mình chịu đựng...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_hbt1_1",
@@ -492,6 +540,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Kết thúc một thiên niên kỷ",
 			Order:       1,
 			Story:       "Trong gần một thiên niên kỷ, Việt Nam đã nằm dưới sự cai trị của Trung Quốc. Nhưng vào năm 938 sau Công nguyên, một tướng lĩnh tên Ngô Quyền sẽ thay đổi tiến trình lịch sử mãi mãi tại sông Bạch Đằng...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_nq1_1",
@@ -555,6 +611,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Việc dời đô về Thăng Long",
 			Order:       1,
 			Story:       "Năm 1010, Hoàng đế Lý Thái Tổ đã đưa ra một quyết định trọng đại - di chuyển kinh đô từ Hoa Lư đến vị trí của Hà Nội ngày nay. Ngài đặt tên là Thăng Long, có nghĩa là 'Rồng Bay Lên', sau khi chứng kiến một con rồng vàng bay lên từ sông Hồng...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_ltt1_1",
@@ -627,6 +691,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Người thanh niên yêu nước",
 			Order:       1,
 			Story:       "Sinh ra với tên Nguyễn Sinh Cung vào năm 1890, vị lãnh tụ tương lai của Việt Nam lớn lên trong việc chứng kiến sự áp bức thuộc địa của Pháp. Khi còn trẻ, ông rời Việt Nam trên một tàu hơi nước của Pháp, bắt đầu cuộc hành trình đưa ông đi khắp thế giới và hình thành lý tưởng cách mạng...",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_hcm1_1",
@@ -697,6 +769,14 @@ func (s *LessonSeeder) getHistoricalLessons() []model.Lesson {
 			Title:       "Tuyên ngôn Độc lập",
 			Order:       2,
 			Story:       "Ngày 2 tháng 9 năm 1945, tại Quảng trường Ba Đình, Hồ Chí Minh đã đọc Tuyên ngôn Độc lập, thành lập nước Việt Nam Dân chủ Cộng hòa. Lời mở đầu của ông trích dẫn Tuyên ngôn Độc lập của Mỹ: 'Tất cả mọi người sinh ra đều bình đẳng...'",
+
+			// Media Content
+			VideoURL:      "/uploads/videos/lesson_hung_vuong_1.mp4",
+			SubtitleURL:   "",
+			ThumbnailURL:  "/uploads/videos/lesson_hung_vuong_1.mp4",
+			VideoDuration: 300,
+			CanSkipAfter:  5,
+			HasSubtitles:  false,
 			Questions: createQuestions([]QuestionData{
 				{
 					ID:       "q_hcm2_1",
