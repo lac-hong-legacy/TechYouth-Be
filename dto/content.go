@@ -163,3 +163,30 @@ type SearchResponse struct {
 	Characters []CharacterResponse `json:"characters"`
 	Total      int                 `json:"total"`
 }
+
+// Lesson Creation DTOs
+type CreateLessonRequest struct {
+	CharacterID   string                  `json:"character_id" binding:"required"`
+	Title         string                  `json:"title" binding:"required"`
+	Order         int                     `json:"order" binding:"required"`
+	Story         string                  `json:"story"`
+	VideoURL      string                  `json:"video_url"`
+	SubtitleURL   string                  `json:"subtitle_url"`
+	ThumbnailURL  string                  `json:"thumbnail_url"`
+	VideoDuration int                     `json:"video_duration"`
+	CanSkipAfter  int                     `json:"can_skip_after"`
+	HasSubtitles  bool                    `json:"has_subtitles"`
+	Questions     []CreateQuestionRequest `json:"questions"`
+	XPReward      int                     `json:"xp_reward"`
+	MinScore      int                     `json:"min_score"`
+}
+
+type CreateQuestionRequest struct {
+	ID       string                 `json:"id"`
+	Type     string                 `json:"type" binding:"required"`
+	Question string                 `json:"question" binding:"required"`
+	Options  []string               `json:"options,omitempty"`
+	Answer   interface{}            `json:"answer" binding:"required"`
+	Points   int                    `json:"points" binding:"required"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}

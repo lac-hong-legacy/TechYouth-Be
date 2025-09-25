@@ -153,7 +153,8 @@ func (svc *HttpService) Start() error {
 	admin := v1.Group("/admin", svc.authSvc.RequiredAdminAuth())
 	// Character & Lesson Management
 	admin.Post("/characters", svc.CreateCharacter)
-	admin.Post("/lessons", svc.CreateLesson)
+	// admin.Post("/lessons", svc.CreateLesson)
+	admin.Post("/lessons/new", svc.CreateLessonFromRequest)
 
 	// Media Management (Admin Only)
 	admin.Post("/lessons/:lessonId/video", svc.UploadLessonVideo)
@@ -1219,28 +1220,52 @@ func (svc *HttpService) CreateCharacter(c *fiber.Ctx) error {
 	return shared.ResponseJSON(c, fiber.StatusCreated, "Character created successfully", created)
 }
 
-// @Summary Create Lesson (Admin)
-// @Description Create a new lesson (admin only)
+// // @Summary Create Lesson (Admin)
+// // @Description Create a new lesson (admin only)
+// // @Tags admin
+// // @Accept json
+// // @Produce json
+// // @Security Bearer
+// // @Param X-Internal-Password header string true "Admin internal password"
+// // @Param lesson body model.Lesson true "Lesson data"
+// // @Success 201 {object} shared.Response{data=dto.LessonResponse}
+// // @Router /api/v1/admin/lessons [post]
+// func (svc *HttpService) CreateLesson(c *fiber.Ctx) error {
+// 	isAdmin := svc.isAdmin(c)
+// 	if !isAdmin {
+// 		return nil
+// 	}
+
+// 	var lesson model.Lesson
+// 	if err := c.BodyParser(&lesson); err != nil {
+// 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid lesson data"))
+// 	}
+
+// 	created, err := svc.contentSvc.CreateLesson(&lesson)
+// 	if err != nil {
+// 		return svc.HandleError(c, err)
+// 	}
+
+// 	return shared.ResponseJSON(c, fiber.StatusCreated, "Lesson created successfully", created)
+// }
+
+// @Summary Create Lesson from Request (Admin)
+// @Description Create a new lesson using structured request (admin only)
 // @Tags admin
 // @Accept json
 // @Produce json
 // @Security Bearer
-// @Param X-Internal-Password header string true "Admin internal password"
-// @Param lesson body model.Lesson true "Lesson data"
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonRequest body dto.CreateLessonRequest true "Lesson creation request"
 // @Success 201 {object} shared.Response{data=dto.LessonResponse}
-// @Router /api/v1/admin/lessons [post]
-func (svc *HttpService) CreateLesson(c *fiber.Ctx) error {
-	isAdmin := svc.isAdmin(c)
-	if !isAdmin {
-		return nil
+// @Router /api/v1/admin/lessons/new [post]
+func (svc *HttpService) CreateLessonFromRequest(c *fiber.Ctx) error {
+	var req dto.CreateLessonRequest
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid lesson request"))
 	}
 
-	var lesson model.Lesson
-	if err := c.BodyParser(&lesson); err != nil {
-		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid lesson data"))
-	}
-
-	created, err := svc.contentSvc.CreateLesson(&lesson)
+	created, err := svc.contentSvc.CreateLessonFromRequest(req)
 	if err != nil {
 		return svc.HandleError(c, err)
 	}

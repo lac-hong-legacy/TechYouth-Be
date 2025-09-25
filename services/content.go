@@ -327,6 +327,68 @@ func (svc *ContentService) CreateLesson(lesson *model.Lesson) (*dto.LessonRespon
 	return &response, nil
 }
 
+func (svc *ContentService) CreateLessonFromRequest(req dto.CreateLessonRequest) (*dto.LessonResponse, error) {
+	// Validate character exists
+	_, err := svc.sqlSvc.GetCharacter(req.CharacterID)
+	if err != nil {
+		return nil, fmt.Errorf("character not found: %v", err)
+	}
+
+	// Convert questions to JSON
+	var questionsJSON json.RawMessage
+	if len(req.Questions) > 0 {
+		questions := make([]model.Question, len(req.Questions))
+		for i, q := range req.Questions {
+			if q.ID == "" {
+				q.ID = fmt.Sprintf("q_%d", i+1)
+			}
+			questions[i] = model.Question{
+				ID:       q.ID,
+				Type:     q.Type,
+				Question: q.Question,
+				Options:  q.Options,
+				Answer:   q.Answer,
+				Points:   q.Points,
+				Metadata: q.Metadata,
+			}
+		}
+		questionsJSON, err = json.Marshal(questions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal questions: %v", err)
+		}
+	}
+
+	// Set defaults
+	if req.XPReward == 0 {
+		req.XPReward = 50
+	}
+	if req.MinScore == 0 {
+		req.MinScore = 60
+	}
+	if req.CanSkipAfter == 0 {
+		req.CanSkipAfter = 5
+	}
+
+	lesson := &model.Lesson{
+		CharacterID:   req.CharacterID,
+		Title:         req.Title,
+		Order:         req.Order,
+		Story:         req.Story,
+		VideoURL:      req.VideoURL,
+		SubtitleURL:   req.SubtitleURL,
+		ThumbnailURL:  req.ThumbnailURL,
+		VideoDuration: req.VideoDuration,
+		CanSkipAfter:  req.CanSkipAfter,
+		HasSubtitles:  req.HasSubtitles,
+		Questions:     questionsJSON,
+		XPReward:      req.XPReward,
+		MinScore:      req.MinScore,
+		IsActive:      true,
+	}
+
+	return svc.CreateLesson(lesson)
+}
+
 // ==================== VALIDATION METHODS ====================
 
 func (svc *ContentService) ValidateLessonAnswers(lessonID string, userAnswers map[string]interface{}) (*dto.ValidateLessonResponse, error) {

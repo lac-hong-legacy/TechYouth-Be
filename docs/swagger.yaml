@@ -163,6 +163,65 @@ definitions:
       xp_gained:
         type: integer
     type: object
+  dto.CreateLessonRequest:
+    properties:
+      can_skip_after:
+        type: integer
+      character_id:
+        type: string
+      has_subtitles:
+        type: boolean
+      min_score:
+        type: integer
+      order:
+        type: integer
+      questions:
+        items:
+          $ref: '#/definitions/dto.CreateQuestionRequest'
+        type: array
+      story:
+        type: string
+      subtitle_url:
+        type: string
+      thumbnail_url:
+        type: string
+      title:
+        type: string
+      video_duration:
+        type: integer
+      video_url:
+        type: string
+      xp_reward:
+        type: integer
+    required:
+    - character_id
+    - order
+    - title
+    type: object
+  dto.CreateQuestionRequest:
+    properties:
+      answer: {}
+      id:
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+      options:
+        items:
+          type: string
+        type: array
+      points:
+        type: integer
+      question:
+        type: string
+      type:
+        type: string
+    required:
+    - answer
+    - points
+    - question
+    - type
+    type: object
   dto.CreateSessionRequest:
     properties:
       device_id:
@@ -572,8 +631,6 @@ definitions:
     type: object
   model.Character:
     type: object
-  model.Lesson:
-    type: object
   shared.Response:
     properties:
       code:
@@ -615,40 +672,6 @@ paths:
                   $ref: '#/definitions/dto.CharacterResponse'
               type: object
       summary: Create Character (Admin)
-      tags:
-      - admin
-  /api/v1/admin/lessons:
-    post:
-      consumes:
-      - application/json
-      description: Create a new lesson (admin only)
-      parameters:
-      - description: Admin internal password
-        in: header
-        name: X-Internal-Password
-        required: true
-        type: string
-      - description: Lesson data
-        in: body
-        name: lesson
-        required: true
-        schema:
-          $ref: '#/definitions/model.Lesson'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/shared.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/dto.LessonResponse'
-              type: object
-      security:
-      - Bearer: []
-      summary: Create Lesson (Admin)
       tags:
       - admin
   /api/v1/admin/lessons/{lessonId}/media:
@@ -801,6 +824,41 @@ paths:
       security:
       - Bearer: []
       summary: Upload Lesson Video (Admin)
+      tags:
+      - admin
+  /api/v1/admin/lessons/new:
+    post:
+      consumes:
+      - application/json
+      description: Create a new lesson using structured request (admin only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson creation request
+        in: body
+        name: lessonRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateLessonRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LessonResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Create Lesson from Request (Admin)
       tags:
       - admin
   /api/v1/admin/media/assets/{assetId}:

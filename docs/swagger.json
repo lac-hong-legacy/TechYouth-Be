@@ -57,14 +57,14 @@
                 }
             }
         },
-        "/api/v1/admin/lessons": {
+        "/api/v1/admin/lessons/new": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Create a new lesson (admin only)",
+                "description": "Create a new lesson using structured request (admin only)",
                 "consumes": [
                     "application/json"
                 ],
@@ -74,22 +74,23 @@
                 "tags": [
                     "admin"
                 ],
-                "summary": "Create Lesson (Admin)",
+                "summary": "Create Lesson from Request (Admin)",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Admin internal password",
-                        "name": "X-Internal-Password",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
                         "in": "header",
                         "required": true
                     },
                     {
-                        "description": "Lesson data",
-                        "name": "lesson",
+                        "description": "Lesson creation request",
+                        "name": "lessonRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.Lesson"
+                            "$ref": "#/definitions/dto.CreateLessonRequest"
                         }
                     }
                 ],
@@ -2404,6 +2405,92 @@
                 }
             }
         },
+        "dto.CreateLessonRequest": {
+            "type": "object",
+            "required": [
+                "character_id",
+                "order",
+                "title"
+            ],
+            "properties": {
+                "can_skip_after": {
+                    "type": "integer"
+                },
+                "character_id": {
+                    "type": "string"
+                },
+                "has_subtitles": {
+                    "type": "boolean"
+                },
+                "min_score": {
+                    "type": "integer"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CreateQuestionRequest"
+                    }
+                },
+                "story": {
+                    "type": "string"
+                },
+                "subtitle_url": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "video_duration": {
+                    "type": "integer"
+                },
+                "video_url": {
+                    "type": "string"
+                },
+                "xp_reward": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CreateQuestionRequest": {
+            "type": "object",
+            "required": [
+                "answer",
+                "points",
+                "question",
+                "type"
+            ],
+            "properties": {
+                "answer": {},
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "points": {
+                    "type": "integer"
+                },
+                "question": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateSessionRequest": {
             "type": "object",
             "required": [
@@ -3024,9 +3111,6 @@
             }
         },
         "model.Character": {
-            "type": "object"
-        },
-        "model.Lesson": {
             "type": "object"
         },
         "shared.Response": {
