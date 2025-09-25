@@ -51,7 +51,7 @@ func (svc *UserService) startHeartResetScheduler() {
 
 		svc.ResetDailyHearts()
 
-		ticker := time.NewTicker(24 * time.Hour)
+		ticker := time.NewTicker(1 * time.Minute)
 		for range ticker.C {
 			svc.ResetDailyHearts()
 		}
