@@ -194,10 +194,16 @@ func calculateXP(score int) int {
 }
 
 func calculateLevel(totalXP int) int {
-	if totalXP < 100 {
-		return 1
+	level := 1
+	requiredXP := 100 // Base XP for level 2
+
+	for totalXP >= requiredXP {
+		totalXP -= requiredXP
+		level++
+		requiredXP = int(float64(requiredXP) * 1.5) // Each level requires 1.5x more XP
 	}
-	return (totalXP / 100) + 1
+
+	return level
 }
 
 func (svc *GuestService) AddHeartsFromAd(sessionID string) error {

@@ -223,10 +223,16 @@ func (svc *UserService) calculateXP(score int) int {
 }
 
 func (svc *UserService) calculateLevel(totalXP int) int {
-	if totalXP < 100 {
-		return 1
+	level := 1
+	requiredXP := 100 // Base XP for level 2
+
+	for totalXP >= requiredXP {
+		totalXP -= requiredXP
+		level++
+		requiredXP = int(float64(requiredXP) * 1.5) // Each level requires 1.5x more XP
 	}
-	return (totalXP / 100) + 1
+
+	return level
 }
 
 func (svc *UserService) updateSpiritXP(userID string, xpGained int) error {
@@ -454,8 +460,28 @@ func (svc *UserService) GetUserProgress(userID string) (*dto.UserProgressRespons
 
 func (svc *UserService) calculateXPToNextLevel(currentXP int) int {
 	currentLevel := svc.calculateLevel(currentXP)
-	nextLevelXP := (currentLevel) * 100 // Next level requires currentLevel * 100 XP
-	return nextLevelXP - currentXP
+
+	// Calculate total XP needed for next level
+	totalXPForNextLevel := svc.getTotalXPForLevel(currentLevel + 1)
+
+	return totalXPForNextLevel - currentXP
+}
+
+// Helper function to get total XP required to reach a specific level
+func (svc *UserService) getTotalXPForLevel(targetLevel int) int {
+	if targetLevel <= 1 {
+		return 0
+	}
+
+	totalXP := 0
+	requiredXP := 100 // Base XP for level 2
+
+	for level := 2; level <= targetLevel; level++ {
+		totalXP += requiredXP
+		requiredXP = int(float64(requiredXP) * 1.5) // Each level requires 1.5x more XP
+	}
+
+	return totalXP
 }
 
 // ==================== LESSON ACCESS AND COMPLETION ====================
