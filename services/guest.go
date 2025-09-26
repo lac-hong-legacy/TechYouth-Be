@@ -42,9 +42,10 @@ func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSessio
 		}
 		return session, nil
 	}
+	id, _ := uuid.NewV7()
 
 	session = &model.GuestSession{
-		ID:           uuid.New().String(),
+		ID:           id.String(),
 		DeviceID:     deviceID,
 		SessionStart: time.Now(),
 		LastActivity: time.Now(),
@@ -60,7 +61,7 @@ func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSessio
 
 	// Create initial progress
 	progress := &model.GuestProgress{
-		ID:               uuid.New().String(),
+		ID:               id.String(),
 		GuestSessionID:   session.ID,
 		Hearts:           5,
 		MaxHearts:        5,
@@ -163,9 +164,10 @@ func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeS
 	// Update total play time
 	progress.TotalPlayTime += timeSpent / 60 // Convert seconds to minutes
 
+	id, _ := uuid.NewV7()
 	// Save lesson attempt
 	attempt := &model.GuestLessonAttempt{
-		ID:             uuid.New().String(),
+		ID:             id.String(),
 		GuestSessionID: sessionID,
 		LessonID:       lessonID,
 		IsCompleted:    true,

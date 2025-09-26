@@ -177,9 +177,10 @@ func (ds *SqliteService) CreateUser(user dto.RegisterRequest) (*model.User, erro
 	if _, err := ds.GetUserByUsername(user.Username); err == nil {
 		return nil, errors.New("username already exists")
 	}
+	id, _ := uuid.NewV7()
 
 	userModel := model.User{
-		ID:       uuid.New().String(),
+		ID:       id.String(),
 		Email:    user.Email,
 		Username: user.Username,
 		Password: user.Password,
@@ -200,7 +201,8 @@ func (ds *SqliteService) GetSessionByDeviceID(deviceID string) (*model.GuestSess
 }
 
 func (ds *SqliteService) CreateSession(session *model.GuestSession) (*model.GuestSession, error) {
-	session.ID = uuid.New().String()
+	id, _ := uuid.NewV7()
+	session.ID = id.String()
 	if err := ds.db.Create(session).Error; err != nil {
 		return nil, ds.HandleError(err)
 	}
@@ -223,7 +225,8 @@ func (ds *SqliteService) GetProgress(sessionID string) (*model.GuestProgress, er
 }
 
 func (ds *SqliteService) CreateProgress(progress *model.GuestProgress) (*model.GuestProgress, error) {
-	progress.ID = uuid.New().String()
+	id, _ := uuid.NewV7()
+	progress.ID = id.String()
 	if err := ds.db.Create(progress).Error; err != nil {
 		return nil, ds.HandleError(err)
 	}
@@ -238,7 +241,8 @@ func (ds *SqliteService) UpdateProgress(progress *model.GuestProgress) error {
 }
 
 func (ds *SqliteService) CreateLessonAttempt(attempt *model.GuestLessonAttempt) error {
-	attempt.ID = uuid.New().String()
+	id, _ := uuid.NewV7()
+	attempt.ID = id.String()
 	if err := ds.db.Create(attempt).Error; err != nil {
 		return ds.HandleError(err)
 	}
@@ -267,7 +271,8 @@ func (s *SqliteService) GetRateLimit(identifier, endpointType string) (*model.Ra
 func (s *SqliteService) SaveRateLimit(rateLimit *model.RateLimit) error {
 	// Generate ID if not set
 	if rateLimit.ID == "" {
-		rateLimit.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		rateLimit.ID = id.String()
 	}
 
 	// Set timestamps if not set
@@ -311,7 +316,8 @@ func (s *SqliteService) CleanupOldRecords() error {
 
 func (ds *SqliteService) CreateCharacter(character *model.Character) (*model.Character, error) {
 	if character.ID == "" {
-		character.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		character.ID = id.String()
 	}
 	character.CreatedAt = time.Now()
 	character.UpdatedAt = time.Now()
@@ -364,7 +370,8 @@ func (ds *SqliteService) UpdateCharacter(character *model.Character) error {
 
 func (ds *SqliteService) CreateLesson(lesson *model.Lesson) (*model.Lesson, error) {
 	if lesson.ID == "" {
-		lesson.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		lesson.ID = id.String()
 	}
 	lesson.CreatedAt = time.Now()
 	lesson.UpdatedAt = time.Now()
@@ -404,7 +411,8 @@ func (ds *SqliteService) UpdateLesson(lesson *model.Lesson) error {
 
 func (ds *SqliteService) CreateTimeline(timeline *model.Timeline) (*model.Timeline, error) {
 	if timeline.ID == "" {
-		timeline.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		timeline.ID = id.String()
 	}
 	timeline.CreatedAt = time.Now()
 	timeline.UpdatedAt = time.Now()
@@ -435,7 +443,8 @@ func (ds *SqliteService) GetTimelineByEra(era string) ([]model.Timeline, error) 
 
 func (ds *SqliteService) CreateUserProgress(progress *model.UserProgress) (*model.UserProgress, error) {
 	if progress.ID == "" {
-		progress.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		progress.ID = id.String()
 	}
 	progress.CreatedAt = time.Now()
 	progress.UpdatedAt = time.Now()
@@ -475,7 +484,8 @@ func (ds *SqliteService) GetUsersForHeartReset(since time.Time) ([]model.UserPro
 
 func (ds *SqliteService) CreateSpirit(spirit *model.Spirit) (*model.Spirit, error) {
 	if spirit.ID == "" {
-		spirit.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		spirit.ID = id.String()
 	}
 	spirit.CreatedAt = time.Now()
 	spirit.UpdatedAt = time.Now()
@@ -506,7 +516,8 @@ func (ds *SqliteService) UpdateSpirit(spirit *model.Spirit) error {
 
 func (ds *SqliteService) CreateAchievement(achievement *model.Achievement) (*model.Achievement, error) {
 	if achievement.ID == "" {
-		achievement.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		achievement.ID = id.String()
 	}
 	achievement.CreatedAt = time.Now()
 	achievement.UpdatedAt = time.Now()
@@ -527,7 +538,8 @@ func (ds *SqliteService) GetActiveAchievements() ([]model.Achievement, error) {
 
 func (ds *SqliteService) CreateUserAchievement(userAchievement *model.UserAchievement) error {
 	if userAchievement.ID == "" {
-		userAchievement.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		userAchievement.ID = id.String()
 	}
 	userAchievement.CreatedAt = time.Now()
 	userAchievement.UnlockedAt = time.Now()
@@ -786,7 +798,8 @@ func (ds *SqliteService) GetMultipleCharacters(characterIDs []string) ([]model.C
 // ==================== LESSON ATTEMPT TRACKING ====================
 
 func (ds *SqliteService) CreateUserLessonAttempt(attempt *model.UserLessonAttempt) error {
-	attempt.ID = uuid.New().String()
+	id, _ := uuid.NewV7()
+	attempt.ID = id.String()
 	attempt.CreatedAt = time.Now()
 	attempt.UpdatedAt = time.Now()
 
@@ -847,7 +860,8 @@ func (ds *SqliteService) GetLessonCompletionStats() (map[string]interface{}, err
 
 func (ds *SqliteService) CreateMediaAsset(asset *model.MediaAsset) error {
 	if asset.ID == "" {
-		asset.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		asset.ID = id.String()
 	}
 	asset.CreatedAt = time.Now()
 	asset.UpdatedAt = time.Now()
@@ -907,7 +921,8 @@ func (ds *SqliteService) GetUnprocessedMediaAssets() ([]model.MediaAsset, error)
 
 func (ds *SqliteService) CreateLessonMedia(lessonMedia *model.LessonMedia) error {
 	if lessonMedia.ID == "" {
-		lessonMedia.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		lessonMedia.ID = id.String()
 	}
 	lessonMedia.CreatedAt = time.Now()
 
@@ -964,7 +979,8 @@ func (ds *SqliteService) DeactivateLessonMediaByType(lessonID, mediaType string)
 
 func (ds *SqliteService) SaveUserQuestionAnswer(answer *model.UserQuestionAnswer) error {
 	if answer.ID == "" {
-		answer.ID = uuid.New().String()
+		id, _ := uuid.NewV7()
+		answer.ID = id.String()
 	}
 	answer.CreatedAt = time.Now()
 	answer.UpdatedAt = time.Now()
@@ -1123,7 +1139,8 @@ func (ds *SqliteService) BulkCreateMediaAssets(assets []model.MediaAsset) error 
 	now := time.Now()
 	for i := range assets {
 		if assets[i].ID == "" {
-			assets[i].ID = uuid.New().String()
+			id, _ := uuid.NewV7()
+			assets[i].ID = id.String()
 		}
 		assets[i].CreatedAt = now
 		assets[i].UpdatedAt = now
@@ -1144,7 +1161,8 @@ func (ds *SqliteService) BulkCreateLessonMedia(lessonMedia []model.LessonMedia) 
 	now := time.Now()
 	for i := range lessonMedia {
 		if lessonMedia[i].ID == "" {
-			lessonMedia[i].ID = uuid.New().String()
+			id, _ := uuid.NewV7()
+			lessonMedia[i].ID = id.String()
 		}
 		lessonMedia[i].CreatedAt = now
 	}

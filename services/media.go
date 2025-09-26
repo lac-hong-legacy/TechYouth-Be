@@ -121,10 +121,11 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 	if _, err := io.Copy(dst, src); err != nil {
 		return nil, shared.NewInternalError(err, "Failed to save file")
 	}
+	id, _ := uuid.NewV7()
 
 	// Create media asset record
 	mediaAsset := &model.MediaAsset{
-		ID:           uuid.New().String(),
+		ID:           id.String(),
 		FileName:     fileName,
 		OriginalName: file.Filename,
 		FileType:     fileType,
@@ -147,7 +148,7 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 	// Link to lesson if lessonID provided
 	if lessonID != "" {
 		lessonMedia := &model.LessonMedia{
-			ID:           uuid.New().String(),
+			ID:           id.String(),
 			LessonID:     lessonID,
 			MediaAssetID: mediaAsset.ID,
 			MediaType:    fileType,

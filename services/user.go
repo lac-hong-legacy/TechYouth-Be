@@ -61,8 +61,9 @@ func (svc *UserService) startHeartResetScheduler() {
 // Initialize user profile after registration
 func (svc *UserService) InitializeUserProfile(userID string, birthYear int) error {
 	// Create user progress
+	progressID, _ := uuid.NewV7()
 	progress := &model.UserProgress{
-		ID:                 uuid.New().String(),
+		ID:                 progressID.String(),
 		UserID:             userID,
 		Hearts:             5,
 		MaxHearts:          5,
@@ -84,8 +85,9 @@ func (svc *UserService) InitializeUserProfile(userID string, birthYear int) erro
 
 	// Create zodiac-based spirit
 	spiritType := svc.getZodiacAnimal(birthYear)
+	spiritID, _ := uuid.NewV7()
 	spirit := &model.Spirit{
-		ID:        uuid.New().String(),
+		ID:        spiritID.String(),
 		UserID:    userID,
 		Type:      spiritType,
 		Stage:     1,

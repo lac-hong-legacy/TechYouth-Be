@@ -34,10 +34,11 @@ func (s *AdminSeeder) SeedAdmin() error {
 	if err != nil {
 		return err
 	}
+	id, _ := uuid.NewV7()
 
 	// Create admin user
 	admin := model.User{
-		ID:        uuid.New().String(),
+		ID:        id.String(),
 		Email:     "admin@techyouth.com",
 		Username:  "admin",
 		Password:  string(hashedPassword),
