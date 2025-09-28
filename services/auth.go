@@ -132,6 +132,11 @@ func (svc *AuthService) generateSecureToken() (string, error) {
 }
 
 func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.RegisterResponse, error) {
+	_, err := svc.sqlSvc.GetUserByUsername(registerRequest.Username)
+	if err == nil {
+		return nil, shared.NewBadRequestError(errors.New("username taken"), "Username is already taken")
+	}
+
 	if err := svc.validatePassword(registerRequest.Password); err != nil {
 		return nil, shared.NewBadRequestError(err, err.Error())
 	}
