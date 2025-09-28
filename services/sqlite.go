@@ -1115,7 +1115,7 @@ func (ds *SqliteService) CreateUser(req dto.RegisterRequest, verificationToken s
 		ID:                 uuid.New().String(),
 		Username:           req.Username,
 		Email:              req.Email,
-		Password:           req.Password, // Already hashed in auth service
+		Password:           req.Password,
 		Role:               model.RoleUser,
 		IsActive:           true,
 		EmailVerified:      false,

@@ -173,7 +173,6 @@ func (svc *JWTService) VerifyJWTToken(jwtToken string) (string, error) {
 	return claims.UserID, nil
 }
 
-// Verify refresh token
 func (svc *JWTService) VerifyRefreshToken(refreshToken string) (string, error) {
 	token, err := jwt.ParseWithClaims(refreshToken, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return svc.getRefreshTokenKey(token)
@@ -192,17 +191,14 @@ func (svc *JWTService) VerifyRefreshToken(refreshToken string) (string, error) {
 		return "", errors.New("invalid refresh token claims")
 	}
 
-	// Verify token type
 	if claims.TokenType != "refresh" {
 		return "", errors.New("invalid token type")
 	}
 
-	// Check if token is blacklisted
 	if svc.isTokenBlacklisted(claims.ID) {
 		return "", errors.New("refresh token has been revoked")
 	}
 
-	// Validate expiration
 	if claims.ExpiresAt.Time.Before(time.Now()) {
 		return "", errors.New("refresh token has expired")
 	}
