@@ -219,23 +219,19 @@ type LoginNotificationEmailData struct {
 	Location  string
 }
 
-// Load email templates
 func (svc *EmailService) loadTemplates() error {
 	var err error
 
-	// Load verification email template
 	svc.templates["verification"], err = template.New("verification").Parse(verificationEmailHTML)
 	if err != nil {
 		return fmt.Errorf("failed to parse verification email template: %v", err)
 	}
 
-	// Load password reset email template
 	svc.templates["password_reset"], err = template.New("password_reset").Parse(passwordResetEmailHTML)
 	if err != nil {
 		return fmt.Errorf("failed to parse password reset email template: %v", err)
 	}
 
-	// Load login notification email template
 	svc.templates["login_notification"], err = template.New("login_notification").Parse(loginNotificationEmailHTML)
 	if err != nil {
 		return fmt.Errorf("failed to parse login notification email template: %v", err)
@@ -244,7 +240,6 @@ func (svc *EmailService) loadTemplates() error {
 	return nil
 }
 
-// Send verification email
 func (svc *EmailService) SendVerificationEmail(email, username, token string) error {
 	if svc.smtpHost == "" {
 		log.Warn("SMTP not configured, skipping verification email")
@@ -263,7 +258,6 @@ func (svc *EmailService) SendVerificationEmail(email, username, token string) er
 	return svc.sendTemplateEmail(email, subject, "verification", data)
 }
 
-// Send password reset email
 func (svc *EmailService) SendPasswordResetEmail(email, username, token string) error {
 	if svc.smtpHost == "" {
 		log.Warn("SMTP not configured, skipping password reset email")
@@ -282,7 +276,6 @@ func (svc *EmailService) SendPasswordResetEmail(email, username, token string) e
 	return svc.sendTemplateEmail(email, subject, "password_reset", data)
 }
 
-// Send login notification email
 func (svc *EmailService) SendLoginNotificationEmail(email, username, loginTime, ip, device, location string) error {
 	if svc.smtpHost == "" {
 		log.Warn("SMTP not configured, skipping login notification email")
@@ -302,7 +295,6 @@ func (svc *EmailService) SendLoginNotificationEmail(email, username, loginTime, 
 	return svc.sendTemplateEmail(email, subject, "login_notification", data)
 }
 
-// Send template email
 func (svc *EmailService) sendTemplateEmail(to, subject, templateName string, data interface{}) error {
 	tmpl, exists := svc.templates[templateName]
 	if !exists {
@@ -318,16 +310,13 @@ func (svc *EmailService) sendTemplateEmail(to, subject, templateName string, dat
 	return svc.sendEmail(to, subject, body.String())
 }
 
-// Send email using SMTP
 func (svc *EmailService) sendEmail(to, subject, body string) error {
 	if svc.smtpHost == "" {
 		return fmt.Errorf("SMTP not configured")
 	}
 
-	// Setup authentication
 	auth := smtp.PlainAuth("", svc.smtpUsername, svc.smtpPassword, svc.smtpHost)
 
-	// Compose message
 	msg := []byte(fmt.Sprintf(
 		"From: %s <%s>\r\n"+
 			"To: %s\r\n"+
@@ -338,62 +327,6 @@ func (svc *EmailService) sendEmail(to, subject, body string) error {
 			"%s",
 		svc.fromName, svc.fromEmail, to, subject, body))
 
-	// Send email
-	err := smtp.SendMail(
-		svc.smtpHost+":"+svc.smtpPort,
-		auth,
-		svc.fromEmail,
-		[]string{to},
-		msg,
-	)
-
-	if err != nil {
-		log.WithError(err).WithFields(log.Fields{"to": to, "subject": subject}).Error("Failed to send plain email")
-		return fmt.Errorf("failed to send email: %v", err)
-	}
-
-	log.WithFields(log.Fields{"to": to, "subject": subject}).Info("Plain email sent successfully")
-	return nil
-}
-
-// Test email configuration
-func (svc *EmailService) TestEmailConfig() error {
-	if svc.smtpHost == "" {
-		return fmt.Errorf("SMTP host not configured")
-	}
-
-	testEmail := svc.fromEmail
-	if testEmail == "" {
-		return fmt.Errorf("from email not configured")
-	}
-
-	subject := "Test Email Configuration - TechYouth"
-	body := "This is a test email to verify SMTP configuration."
-
-	return svc.SendPlainEmail(testEmail, subject, body)
-}
-
-// Send plain text email (for simple notifications)
-func (svc *EmailService) SendPlainEmail(to, subject, body string) error {
-	if svc.smtpHost == "" {
-		log.Warn("SMTP not configured, skipping email")
-		return nil
-	}
-
-	// Setup authentication
-	auth := smtp.PlainAuth("", svc.smtpUsername, svc.smtpPassword, svc.smtpHost)
-
-	// Compose message
-	msg := []byte(fmt.Sprintf(
-		"From: %s <%s>\r\n"+
-			"To: %s\r\n"+
-			"Subject: %s\r\n"+
-			"Content-Type: text/plain; charset=UTF-8\r\n"+
-			"\r\n"+
-			"%s",
-		svc.fromName, svc.fromEmail, to, subject, body))
-
-	// Send email
 	err := smtp.SendMail(
 		svc.smtpHost+":"+svc.smtpPort,
 		auth,
