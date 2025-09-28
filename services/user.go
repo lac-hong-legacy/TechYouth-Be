@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lac-hong-legacy/TechYouth-Be/dto"
 	"github.com/lac-hong-legacy/TechYouth-Be/model"
+	"github.com/lac-hong-legacy/TechYouth-Be/shared"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -324,50 +325,6 @@ func max(a, b int) int {
 
 // ==================== PROFILE METHODS ====================
 
-func (svc *UserService) GetUserProfile(userID string) (*dto.UserProfileResponse, error) {
-	user, err := svc.sqlSvc.GetUser(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dto.UserProfileResponse{
-		UserID:      user.ID,
-		Email:       user.Email,
-		Username:    user.Username,
-		JoinedAt:    user.CreatedAt,
-		LastLoginAt: user.LastLogin,
-	}, nil
-}
-
-func (svc *UserService) UpdateUserProfile(userID string, req dto.UpdateProfileRequest) (*dto.UserProfileResponse, error) {
-	user, err := svc.sqlSvc.GetUser(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update user fields if provided
-	if req.Username != "" && req.Username != user.Username {
-		// Check if username is already taken
-		if _, err := svc.sqlSvc.GetUserByUsername(req.Username); err == nil {
-			return nil, fmt.Errorf("username already exists")
-		}
-		user.Username = req.Username
-	}
-
-	if req.BirthYear > 0 {
-		// Update spirit if birth year changed
-		if err := svc.updateUserSpirit(userID, req.BirthYear); err != nil {
-			log.Printf("Failed to update user spirit: %v", err)
-		}
-	}
-
-	if err := svc.sqlSvc.UpdateUser(user); err != nil {
-		return nil, err
-	}
-
-	return svc.GetUserProfile(userID)
-}
-
 func (svc *UserService) updateUserSpirit(userID string, birthYear int) error {
 	spirit, err := svc.sqlSvc.GetUserSpirit(userID)
 	if err != nil {
@@ -599,56 +556,6 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// ==================== STATISTICS AND ANALYTICS ====================
-
-func (svc *UserService) GetUserStats(userID string) (*dto.UserStatsResponse, error) {
-	stats, err := svc.sqlSvc.GetUserStats(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to DTO
-	response := &dto.UserStatsResponse{
-		UserID:             userID,
-		Level:              stats["level"].(int),
-		XP:                 stats["xp"].(int),
-		Hearts:             stats["hearts"].(int),
-		Streak:             stats["streak"].(int),
-		TotalPlayTime:      stats["total_play_time"].(int),
-		CompletedLessons:   stats["completed_lessons"].(int),
-		UnlockedCharacters: stats["unlocked_characters"].(int),
-		Achievements:       stats["achievements"].(int),
-		Rank:               stats["rank"].(int),
-		SpiritStage:        stats["spirit_stage"].(int),
-		SpiritType:         stats["spirit_type"].(string),
-	}
-
-	// Add weekly and monthly stats
-	response.WeeklyStats = svc.getWeeklyStats(userID)
-	response.MonthlyStats = svc.getMonthlyStats(userID)
-
-	return response, nil
-}
-
-func (svc *UserService) getWeeklyStats(userID string) map[string]interface{} {
-	// TODO: Implement weekly statistics calculation
-	return map[string]interface{}{
-		"lessons_completed": 0,
-		"xp_gained":         0,
-		"time_played":       0,
-	}
-}
-
-func (svc *UserService) getMonthlyStats(userID string) map[string]interface{} {
-	// TODO: Implement monthly statistics calculation
-	return map[string]interface{}{
-		"lessons_completed": 0,
-		"xp_gained":         0,
-		"time_played":       0,
-		"streak_record":     0,
-	}
 }
 
 // ==================== COLLECTION METHODS ====================
@@ -911,4 +818,442 @@ func (svc *UserService) CheckUsernameAvailability(username string) (bool, error)
 	}
 
 	return true, nil // Username is available
+}
+
+// ==================== USER PROFILE METHODS ====================
+
+func (svc *UserService) GetUserProfile(userID string) (*dto.UserProfileResponse, error) {
+	user, err := svc.sqlSvc.GetUserProfile(userID)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get user profile")
+	}
+
+	stats, err := svc.sqlSvc.GetUserStats(userID)
+	if err != nil {
+		// Don't fail if stats can't be retrieved, just log it
+		log.WithError(err).WithField("userID", userID).Error("Failed to get user stats")
+		stats = &dto.UserStats{} // Empty stats
+	}
+
+	profile := &dto.UserProfileResponse{
+		ID:            user.ID,
+		Username:      user.Username,
+		Email:         user.Email,
+		Role:          user.Role,
+		EmailVerified: user.EmailVerified,
+		CreatedAt:     user.CreatedAt,
+		LastLoginAt:   user.LastLoginAt,
+		LastLoginIP:   user.LastLoginIP,
+		IsActive:      user.IsActive,
+		Stats:         *stats,
+	}
+
+	return profile, nil
+}
+
+func (svc *UserService) UpdateUserProfile(userID string, req dto.UpdateProfileRequest) (*dto.UserProfileResponse, error) {
+	// Validate updates
+	updates := make(map[string]interface{})
+
+	if req.Username != "" {
+		// Check if username is available (excluding current user)
+		var existingUser model.User
+		err := svc.sqlSvc.Db().Where("LOWER(username) = LOWER(?) AND id != ? AND deleted_at IS NULL",
+			req.Username, userID).First(&existingUser).Error
+
+		if err == nil {
+			return nil, shared.NewBadRequestError(fmt.Errorf("username taken"), "Username is already taken")
+		}
+
+		updates["username"] = req.Username
+	}
+
+	if req.Email != "" {
+		// Check if email is available (excluding current user)
+		var existingUser model.User
+		err := svc.sqlSvc.Db().Where("LOWER(email) = LOWER(?) AND id != ? AND deleted_at IS NULL",
+			req.Email, userID).First(&existingUser).Error
+
+		if err == nil {
+			return nil, shared.NewBadRequestError(fmt.Errorf("email taken"), "Email is already taken")
+		}
+
+		updates["email"] = req.Email
+		updates["email_verified"] = false // Reset verification if email changes
+	}
+
+	if len(updates) > 0 {
+		err := svc.sqlSvc.UpdateUserProfile(userID, updates)
+		if err != nil {
+			return nil, shared.NewInternalError(err, "Failed to update profile")
+		}
+	}
+
+	// Return updated profile
+	return svc.GetUserProfile(userID)
+}
+
+func (svc *UserService) IsEmailAvailable(email string) (bool, error) {
+	available, err := svc.sqlSvc.IsEmailAvailable(email)
+	if err != nil {
+		return false, shared.NewInternalError(err, "Failed to check email availability")
+	}
+	return available, nil
+}
+
+// ==================== SESSION MANAGEMENT ====================
+
+func (svc *UserService) GetUserSessions(userID, currentSessionID string) (*dto.SessionListResponse, error) {
+	sessions, err := svc.sqlSvc.GetUserSessions(userID)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get user sessions")
+	}
+
+	sessionInfos := make([]dto.UserSessionInfo, len(sessions))
+	for i, session := range sessions {
+		sessionInfos[i] = dto.UserSessionInfo{
+			ID:        session.ID,
+			DeviceID:  session.DeviceID,
+			IP:        session.IP,
+			UserAgent: session.UserAgent,
+			CreatedAt: session.CreatedAt,
+			LastUsed:  session.LastUsed,
+			IsActive:  session.IsActive,
+			IsCurrent: session.ID == currentSessionID,
+		}
+	}
+
+	return &dto.SessionListResponse{
+		Sessions: sessionInfos,
+		Total:    len(sessionInfos),
+	}, nil
+}
+
+func (svc *UserService) RevokeUserSession(userID, sessionID string) error {
+	err := svc.sqlSvc.DeactivateSession(sessionID, userID)
+	if err != nil {
+		return shared.NewInternalError(err, "Failed to revoke session")
+	}
+	return nil
+}
+
+// ==================== SECURITY SETTINGS ====================
+
+func (svc *UserService) GetSecuritySettings(userID string) (*dto.SecuritySettings, error) {
+	settings, err := svc.sqlSvc.GetSecuritySettings(userID)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get security settings")
+	}
+	return settings, nil
+}
+
+func (svc *UserService) UpdateSecuritySettings(userID string, req dto.UpdateSecuritySettingsRequest) (*dto.SecuritySettings, error) {
+	// Validate settings
+	if req.SessionTimeout != nil {
+		if *req.SessionTimeout < 15 || *req.SessionTimeout > 10080 { // 15 minutes to 7 days
+			return nil, shared.NewBadRequestError(fmt.Errorf("invalid session timeout"),
+				"Session timeout must be between 15 minutes and 7 days")
+		}
+	}
+
+	err := svc.sqlSvc.UpdateSecuritySettings(userID, req)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to update security settings")
+	}
+
+	// Return updated settings
+	return svc.GetSecuritySettings(userID)
+}
+
+// ==================== AUDIT LOGS ====================
+
+func (svc *UserService) GetUserAuditLogs(userID string, page, limit int) (*dto.AuditLogResponse, error) {
+	logs, total, err := svc.sqlSvc.GetUserAuditLogs(userID, page, limit)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get audit logs")
+	}
+
+	auditLogs := make([]dto.AuthAuditLog, len(logs))
+	for i, log := range logs {
+		auditLogs[i] = dto.AuthAuditLog{
+			ID:        log.ID,
+			UserID:    log.UserID,
+			Action:    log.Action,
+			IP:        log.IP,
+			UserAgent: log.UserAgent,
+			Timestamp: log.Timestamp,
+			Success:   log.Success,
+			Details:   log.Details,
+		}
+	}
+
+	return &dto.AuditLogResponse{
+		Logs:  auditLogs,
+		Total: int(total),
+		Page:  page,
+		Limit: limit,
+	}, nil
+}
+
+// ==================== ADMIN USER MANAGEMENT ====================
+
+func (svc *UserService) AdminGetUsers(page, limit int, search string) (*dto.AdminUserListResponse, error) {
+	users, total, err := svc.sqlSvc.AdminGetUsers(page, limit, search)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get users")
+	}
+
+	userInfos := make([]dto.AdminUserInfo, len(users))
+	for i, user := range users {
+		userInfos[i] = dto.AdminUserInfo{
+			ID:             user.ID,
+			Username:       user.Username,
+			Email:          user.Email,
+			Role:           user.Role,
+			EmailVerified:  user.EmailVerified,
+			IsActive:       user.IsActive,
+			CreatedAt:      user.CreatedAt,
+			LastLoginAt:    user.LastLoginAt,
+			FailedAttempts: user.FailedAttempts,
+			LockedUntil:    user.LockedUntil,
+		}
+	}
+
+	return &dto.AdminUserListResponse{
+		Users: userInfos,
+		Total: int(total),
+		Page:  page,
+		Limit: limit,
+	}, nil
+}
+
+func (svc *UserService) AdminUpdateUser(userID string, req dto.AdminUpdateUserRequest) (*dto.AdminUserInfo, error) {
+	updates := make(map[string]interface{})
+
+	if req.Role != nil {
+		// Validate role
+		validRoles := []string{model.RoleUser, model.RoleAdmin, model.RoleMod}
+		isValidRole := false
+		for _, role := range validRoles {
+			if *req.Role == role {
+				isValidRole = true
+				break
+			}
+		}
+		if !isValidRole {
+			return nil, shared.NewBadRequestError(fmt.Errorf("invalid role"), "Invalid role specified")
+		}
+		updates["role"] = *req.Role
+	}
+
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+
+	if len(updates) > 0 {
+		err := svc.sqlSvc.AdminUpdateUser(userID, updates)
+		if err != nil {
+			return nil, shared.NewInternalError(err, "Failed to update user")
+		}
+	}
+
+	// Get updated user info
+	user, err := svc.sqlSvc.GetUserByID(userID)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get updated user")
+	}
+
+	return &dto.AdminUserInfo{
+		ID:             user.ID,
+		Username:       user.Username,
+		Email:          user.Email,
+		Role:           user.Role,
+		EmailVerified:  user.EmailVerified,
+		IsActive:       user.IsActive,
+		CreatedAt:      user.CreatedAt,
+		LastLoginAt:    user.LastLoginAt,
+		FailedAttempts: user.FailedAttempts,
+		LockedUntil:    user.LockedUntil,
+	}, nil
+}
+
+func (svc *UserService) AdminDeleteUser(userID string) error {
+	err := svc.sqlSvc.AdminDeleteUser(userID)
+	if err != nil {
+		return shared.NewInternalError(err, "Failed to delete user")
+	}
+	return nil
+}
+
+// ==================== UTILITY METHODS ====================
+
+func (svc *UserService) GetUserInfo(userID string) (*dto.UserInfo, error) {
+	user, err := svc.sqlSvc.GetUserByID(userID)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get user info")
+	}
+
+	return &dto.UserInfo{
+		ID:            user.ID,
+		Username:      user.Username,
+		Email:         user.Email,
+		Role:          user.Role,
+		EmailVerified: user.EmailVerified,
+		CreatedAt:     user.CreatedAt,
+		LastLoginAt:   user.LastLoginAt,
+	}, nil
+}
+
+func (svc *UserService) ValidateUser(userID string) (*model.User, error) {
+	user, err := svc.sqlSvc.GetUserByID(userID)
+	if err != nil {
+		return nil, shared.NewUnauthorizedError(err, "User not found")
+	}
+
+	if !user.IsActive {
+		return nil, shared.NewUnauthorizedError(fmt.Errorf("account inactive"), "Account is inactive")
+	}
+
+	if user.DeletedAt != nil {
+		return nil, shared.NewUnauthorizedError(fmt.Errorf("account deleted"), "Account has been deleted")
+	}
+
+	return user, nil
+}
+
+// ==================== SEARCH AND FILTERING ====================
+
+func (svc *UserService) SearchUsers(query string, filters map[string]interface{}) ([]dto.UserInfo, error) {
+	// This is a basic search implementation
+	// You can enhance it based on your specific requirements
+
+	var users []model.User
+	dbQuery := svc.sqlSvc.Db().Model(&model.User{}).Where("deleted_at IS NULL")
+
+	if query != "" {
+		searchPattern := "%" + strings.ToLower(query) + "%"
+		dbQuery = dbQuery.Where("LOWER(username) LIKE ? OR LOWER(email) LIKE ?", searchPattern, searchPattern)
+	}
+
+	if role, ok := filters["role"].(string); ok && role != "" {
+		dbQuery = dbQuery.Where("role = ?", role)
+	}
+
+	if isActive, ok := filters["is_active"].(bool); ok {
+		dbQuery = dbQuery.Where("is_active = ?", isActive)
+	}
+
+	if emailVerified, ok := filters["email_verified"].(bool); ok {
+		dbQuery = dbQuery.Where("email_verified = ?", emailVerified)
+	}
+
+	err := dbQuery.Order("created_at DESC").Limit(100).Find(&users).Error
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to search users")
+	}
+
+	userInfos := make([]dto.UserInfo, len(users))
+	for i, user := range users {
+		userInfos[i] = dto.UserInfo{
+			ID:            user.ID,
+			Username:      user.Username,
+			Email:         user.Email,
+			Role:          user.Role,
+			EmailVerified: user.EmailVerified,
+			CreatedAt:     user.CreatedAt,
+			LastLoginAt:   user.LastLoginAt,
+		}
+	}
+
+	return userInfos, nil
+}
+
+// ==================== BULK OPERATIONS ====================
+
+func (svc *UserService) BulkUpdateUsers(userIDs []string, updates map[string]interface{}) error {
+	if len(userIDs) == 0 {
+		return shared.NewBadRequestError(fmt.Errorf("no users specified"), "No users specified for update")
+	}
+
+	err := svc.sqlSvc.Db().Model(&model.User{}).Where("id IN ?", userIDs).Updates(updates).Error
+	if err != nil {
+		return shared.NewInternalError(err, "Failed to bulk update users")
+	}
+
+	return nil
+}
+
+func (svc *UserService) BulkDeactivateUsers(userIDs []string) error {
+	updates := map[string]interface{}{
+		"is_active":  false,
+		"updated_at": time.Now(),
+	}
+	return svc.BulkUpdateUsers(userIDs, updates)
+}
+
+func (svc *UserService) BulkActivateUsers(userIDs []string) error {
+	updates := map[string]interface{}{
+		"is_active":  true,
+		"updated_at": time.Now(),
+	}
+	return svc.BulkUpdateUsers(userIDs, updates)
+}
+
+// ==================== USER STATISTICS ====================
+
+func (svc *UserService) GetUserStatistics() (map[string]interface{}, error) {
+	var totalUsers, activeUsers, verifiedUsers, adminUsers int64
+
+	// Total users
+	svc.sqlSvc.Db().Model(&model.User{}).Where("deleted_at IS NULL").Count(&totalUsers)
+
+	// Active users
+	svc.sqlSvc.Db().Model(&model.User{}).Where("deleted_at IS NULL AND is_active = ?", true).Count(&activeUsers)
+
+	// Verified users
+	svc.sqlSvc.Db().Model(&model.User{}).Where("deleted_at IS NULL AND email_verified = ?", true).Count(&verifiedUsers)
+
+	// Admin users
+	svc.sqlSvc.Db().Model(&model.User{}).Where("deleted_at IS NULL AND role = ?", model.RoleAdmin).Count(&adminUsers)
+
+	stats := map[string]interface{}{
+		"total_users":    totalUsers,
+		"active_users":   activeUsers,
+		"verified_users": verifiedUsers,
+		"admin_users":    adminUsers,
+		"verification_rate": func() float64 {
+			if totalUsers == 0 {
+				return 0
+			}
+			return float64(verifiedUsers) / float64(totalUsers) * 100
+		}(),
+	}
+
+	return stats, nil
+}
+
+// ==================== HELPER METHODS ====================
+
+func (svc *UserService) maskEmail(email string) string {
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return email
+	}
+
+	username := parts[0]
+	domain := parts[1]
+
+	if len(username) <= 2 {
+		return email
+	}
+
+	masked := username[:1] + strings.Repeat("*", len(username)-2) + username[len(username)-1:]
+	return masked + "@" + domain
+}
+
+func (svc *UserService) maskPhone(phone string) string {
+	if len(phone) < 4 {
+		return phone
+	}
+	return phone[:2] + strings.Repeat("*", len(phone)-4) + phone[len(phone)-2:]
 }

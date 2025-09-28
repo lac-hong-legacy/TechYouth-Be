@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lac-hong-legacy/TechYouth-Be/dto"
 	"github.com/lac-hong-legacy/TechYouth-Be/model"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/alphabatem/common/context"
 	log "github.com/sirupsen/logrus"
@@ -29,25 +29,20 @@ type SqliteService struct {
 
 const SQLITE_SVC = "sqlite_svc"
 
-// Id returns Service ID
 func (ds SqliteService) Id() string {
 	return SQLITE_SVC
 }
 
-// Db Access to raw SqliteService db
 func (ds SqliteService) Db() *gorm.DB {
 	return ds.db
 }
 
-// Configure the service
 func (ds *SqliteService) Configure(ctx *context.Context) error {
 	ds.database = os.Getenv("DB_NAME")
 
 	return ds.DefaultService.Configure(ctx)
 }
 
-// Start the service and open connection to the database
-// Migrate any tables that have changed since last runtime
 func (ds *SqliteService) Start() (err error) {
 	ds.db, err = gorm.Open(sqlite.Open(ds.database), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
@@ -57,6 +52,7 @@ func (ds *SqliteService) Start() (err error) {
 	}
 
 	models := []interface{}{
+		// Existing models
 		&model.User{},
 		&model.GuestSession{},
 		&model.GuestProgress{},
@@ -64,27 +60,36 @@ func (ds *SqliteService) Start() (err error) {
 		&model.RateLimit{},
 		&model.RateLimitConfig{},
 
-		// New content models
+		// Content models
 		&model.Character{},
 		&model.Lesson{},
 		&model.Timeline{},
 
-		// New user models
+		// User progress models
 		&model.UserProgress{},
 		&model.Spirit{},
 		&model.Achievement{},
 		&model.UserAchievement{},
 		&model.UserLessonAttempt{},
-		&model.UserQuestionAnswer{},
 
-		// Media models
-		&model.MediaAsset{},
-		&model.LessonMedia{},
+		// New authentication models
+		&model.UserSession{},
+		&model.AuthAuditLog{},
+		&model.PasswordResetToken{},
+		&model.BlacklistedToken{},
+		&model.TrustedDevice{},
+		&model.LoginAttempt{},
 	}
 
 	err = ds.db.AutoMigrate(models...)
 	if err != nil {
 		log.Printf("Failed to migrate database: %v", err)
+		return err
+	}
+
+	err = ds.seedInitialData()
+	if err != nil {
+		log.Printf("Failed to seed initial data: %v", err)
 		return err
 	}
 
@@ -167,29 +172,6 @@ func (ds *SqliteService) GetUserByEmailOrUsername(emailOrUsername string) (*mode
 		return nil, err
 	}
 	return &user, nil
-}
-
-func (ds *SqliteService) CreateUser(user dto.RegisterRequest) (*model.User, error) {
-	if _, err := ds.GetUserByEmail(user.Email); err == nil {
-		return nil, errors.New("email already exists")
-	}
-
-	if _, err := ds.GetUserByUsername(user.Username); err == nil {
-		return nil, errors.New("username already exists")
-	}
-	id, _ := uuid.NewV7()
-
-	userModel := model.User{
-		ID:       id.String(),
-		Email:    user.Email,
-		Username: user.Username,
-		Password: user.Password,
-	}
-
-	if err := ds.db.Create(&userModel).Error; err != nil {
-		return nil, err
-	}
-	return &userModel, nil
 }
 
 func (ds *SqliteService) GetSessionByDeviceID(deviceID string) (*model.GuestSession, error) {
@@ -639,55 +621,6 @@ func (ds *SqliteService) SearchCharacters(query string, era string, dynasty stri
 }
 
 // ==================== ANALYTICS METHODS ====================
-
-func (ds *SqliteService) GetUserStats(userID string) (map[string]interface{}, error) {
-	progress, err := ds.GetUserProgress(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	spirit, err := ds.GetUserSpirit(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	var completedLessons []string
-	if err := json.Unmarshal(progress.CompletedLessons, &completedLessons); err != nil {
-		return nil, err
-	}
-
-	var unlockedCharacters []string
-	if err := json.Unmarshal(progress.UnlockedCharacters, &unlockedCharacters); err != nil {
-		return nil, err
-	}
-
-	achievements, err := ds.GetUserAchievements(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	rank, err := ds.GetUserRank(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	stats := map[string]interface{}{
-		"user_id":             userID,
-		"level":               progress.Level,
-		"xp":                  progress.XP,
-		"hearts":              progress.Hearts,
-		"streak":              progress.Streak,
-		"total_play_time":     progress.TotalPlayTime,
-		"completed_lessons":   len(completedLessons),
-		"unlocked_characters": len(unlockedCharacters),
-		"achievements":        len(achievements),
-		"rank":                rank,
-		"spirit_stage":        spirit.Stage,
-		"spirit_type":         spirit.Type,
-	}
-
-	return stats, nil
-}
 
 func (ds *SqliteService) HasUserUnlockedAchievement(userID, achievementID string) (bool, error) {
 	var count int64
@@ -1170,5 +1103,655 @@ func (ds *SqliteService) BulkCreateLessonMedia(lessonMedia []model.LessonMedia) 
 	if err := ds.db.CreateInBatches(lessonMedia, 100).Error; err != nil {
 		return ds.HandleError(err)
 	}
+	return nil
+}
+
+// Add these methods to your existing SqliteService
+
+// ==================== ENHANCED USER METHODS ====================
+
+func (ds *SqliteService) CreateUser(req dto.RegisterRequest, verificationToken string) (*model.User, error) {
+	user := &model.User{
+		ID:                 uuid.New().String(),
+		Username:           req.Username,
+		Email:              req.Email,
+		Password:           req.Password, // Already hashed in auth service
+		Role:               model.RoleUser,
+		IsActive:           true,
+		EmailVerified:      false,
+		VerificationToken:  verificationToken,
+		FailedAttempts:     0,
+		LoginNotifications: true,
+		SessionTimeout:     1440, // 24 hours
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if err := ds.db.Create(user).Error; err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return user, nil
+}
+
+func (ds *SqliteService) GetUserByID(userID string) (*model.User, error) {
+	var user model.User
+	err := ds.db.Where("id = ?", userID).First(&user).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &user, nil
+}
+
+func (ds *SqliteService) GetUserByVerificationToken(token string) (*model.User, error) {
+	var user model.User
+	err := ds.db.Where("verification_token = ?", token).First(&user).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &user, nil
+}
+
+func (ds *SqliteService) UpdateUserPassword(userID, hashedPassword string) error {
+	now := time.Now()
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"password":             hashedPassword,
+		"last_password_change": &now,
+		"updated_at":           now,
+	}).Error
+}
+
+func (ds *SqliteService) UpdateLastLogin(userID, ip string) error {
+	now := time.Now()
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"last_login_at": &now,
+		"last_login_ip": ip,
+		"updated_at":    now,
+	}).Error
+}
+
+func (ds *SqliteService) IncrementFailedAttempts(userID string) error {
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"failed_attempts": gorm.Expr("failed_attempts + 1"),
+		"updated_at":      time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) ResetFailedAttempts(userID string) error {
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"failed_attempts": 0,
+		"locked_until":    nil,
+		"updated_at":      time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) LockAccount(userID string, lockUntil time.Time) error {
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"locked_until": &lockUntil,
+		"updated_at":   time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) VerifyUserEmail(userID string) error {
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"email_verified":     true,
+		"verification_token": nil,
+		"updated_at":         time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) UpdateVerificationToken(userID, token string) error {
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"verification_token": token,
+		"updated_at":         time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) IsUsernameAvailable(username string) (bool, error) {
+	var count int64
+	err := ds.db.Model(&model.User{}).Where("LOWER(username) = LOWER(?) AND deleted_at IS NULL", username).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count == 0, nil
+}
+
+func (ds *SqliteService) IsEmailAvailable(email string) (bool, error) {
+	var count int64
+	err := ds.db.Model(&model.User{}).Where("LOWER(email) = LOWER(?) AND deleted_at IS NULL", email).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count == 0, nil
+}
+
+// ==================== USER SESSION METHODS ====================
+
+func (ds *SqliteService) CreateUserSession(session dto.UserSession) (string, error) {
+	dbSession := &model.UserSession{
+		ID:        uuid.New().String(),
+		UserID:    session.UserID,
+		TokenHash: session.TokenHash,
+		DeviceID:  session.DeviceID,
+		IP:        session.IP,
+		UserAgent: session.UserAgent,
+		CreatedAt: session.CreatedAt,
+		LastUsed:  session.LastUsed,
+		IsActive:  session.IsActive,
+		ExpiresAt: session.CreatedAt.Add(7 * 24 * time.Hour), // 7 days
+	}
+
+	if err := ds.db.Create(dbSession).Error; err != nil {
+		return "", ds.HandleError(err)
+	}
+	return dbSession.ID, nil
+}
+
+func (ds *SqliteService) GetActiveSession(userID, tokenHash string) (*model.UserSession, error) {
+	var session model.UserSession
+	err := ds.db.Where("user_id = ? AND token_hash = ? AND is_active = ? AND expires_at > ?",
+		userID, tokenHash, true, time.Now()).First(&session).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &session, nil
+}
+
+func (ds *SqliteService) UpdateSessionLastUsed(sessionID string) error {
+	return ds.db.Model(&model.UserSession{}).Where("id = ?", sessionID).Update("last_used", time.Now()).Error
+}
+
+func (ds *SqliteService) UpdateSessionToken(sessionID, newTokenHash string) error {
+	return ds.db.Model(&model.UserSession{}).Where("id = ?", sessionID).Updates(map[string]interface{}{
+		"token_hash": newTokenHash,
+		"last_used":  time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) DeactivateSession(sessionID, userID string) error {
+	return ds.db.Model(&model.UserSession{}).Where("id = ? AND user_id = ?", sessionID, userID).Updates(map[string]interface{}{
+		"is_active": false,
+		"last_used": time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) DeactivateAllUserSessions(userID, exceptSessionID string) error {
+	query := ds.db.Model(&model.UserSession{}).Where("user_id = ?", userID)
+	if exceptSessionID != "" {
+		query = query.Where("id != ?", exceptSessionID)
+	}
+
+	return query.Updates(map[string]interface{}{
+		"is_active": false,
+		"last_used": time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) GetUserSessions(userID string) ([]model.UserSession, error) {
+	var sessions []model.UserSession
+	err := ds.db.Where("user_id = ? AND is_active = ?", userID, true).
+		Order("last_used DESC").Find(&sessions).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return sessions, nil
+}
+
+func (ds *SqliteService) CleanupExpiredSessions() error {
+	return ds.db.Model(&model.UserSession{}).
+		Where("expires_at < ?", time.Now()).
+		Update("is_active", false).Error
+}
+
+// ==================== PASSWORD RESET METHODS ====================
+
+func (ds *SqliteService) CreatePasswordResetToken(userID, token string, expiresAt time.Time) error {
+	resetToken := &model.PasswordResetToken{
+		ID:        uuid.New().String(),
+		UserID:    userID,
+		Token:     token,
+		ExpiresAt: expiresAt,
+		Used:      false,
+		CreatedAt: time.Now(),
+	}
+
+	return ds.db.Create(resetToken).Error
+}
+
+func (ds *SqliteService) GetPasswordResetToken(token string) (*model.PasswordResetToken, error) {
+	var resetToken model.PasswordResetToken
+	err := ds.db.Where("token = ? AND used = ?", token, false).First(&resetToken).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &resetToken, nil
+}
+
+func (ds *SqliteService) InvalidatePasswordResetToken(token string) error {
+	return ds.db.Model(&model.PasswordResetToken{}).Where("token = ?", token).Update("used", true).Error
+}
+
+func (ds *SqliteService) CleanupExpiredPasswordTokens() error {
+	return ds.db.Where("expires_at < ?", time.Now()).Delete(&model.PasswordResetToken{}).Error
+}
+
+// ==================== TOKEN BLACKLIST METHODS ====================
+
+func (ds *SqliteService) BlacklistToken(jti string, expiresAt time.Time) error {
+	blacklistedToken := &model.BlacklistedToken{
+		JTI:       jti,
+		ExpiresAt: expiresAt,
+		CreatedAt: time.Now(),
+	}
+
+	return ds.db.Create(blacklistedToken).Error
+}
+
+func (ds *SqliteService) IsTokenBlacklisted(jti string) bool {
+	var count int64
+	ds.db.Model(&model.BlacklistedToken{}).Where("jti = ? AND expires_at > ?", jti, time.Now()).Count(&count)
+	return count > 0
+}
+
+func (ds *SqliteService) CleanupExpiredBlacklistedTokens() error {
+	return ds.db.Where("expires_at < ?", time.Now()).Delete(&model.BlacklistedToken{}).Error
+}
+
+// ==================== AUDIT LOG METHODS ====================
+
+func (ds *SqliteService) CreateAuthAuditLog(log dto.AuthAuditLog) error {
+	auditLog := &model.AuthAuditLog{
+		ID:        uuid.New().String(),
+		UserID:    log.UserID,
+		Action:    log.Action,
+		IP:        log.IP,
+		UserAgent: log.UserAgent,
+		Timestamp: log.Timestamp,
+		Success:   log.Success,
+		Details:   log.Details,
+	}
+
+	return ds.db.Create(auditLog).Error
+}
+
+func (ds *SqliteService) GetUserAuditLogs(userID string, page, limit int) ([]model.AuthAuditLog, int64, error) {
+	var logs []model.AuthAuditLog
+	var total int64
+
+	// Get total count
+	ds.db.Model(&model.AuthAuditLog{}).Where("user_id = ?", userID).Count(&total)
+
+	// Get paginated results
+	offset := (page - 1) * limit
+	err := ds.db.Where("user_id = ?", userID).
+		Order("timestamp DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&logs).Error
+
+	if err != nil {
+		return nil, 0, ds.HandleError(err)
+	}
+
+	return logs, total, nil
+}
+
+func (ds *SqliteService) GetAuditLogs(page, limit int, userID, action string) ([]model.AuthAuditLog, int64, error) {
+	var logs []model.AuthAuditLog
+	var total int64
+
+	query := ds.db.Model(&model.AuthAuditLog{})
+
+	if userID != "" {
+		query = query.Where("user_id = ?", userID)
+	}
+	if action != "" {
+		query = query.Where("action = ?", action)
+	}
+
+	// Get total count
+	query.Count(&total)
+
+	// Get paginated results
+	offset := (page - 1) * limit
+	err := query.Order("timestamp DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&logs).Error
+
+	if err != nil {
+		return nil, 0, ds.HandleError(err)
+	}
+
+	return logs, total, nil
+}
+
+func (ds *SqliteService) CleanupOldAuditLogs(olderThan time.Time) error {
+	return ds.db.Where("timestamp < ?", olderThan).Delete(&model.AuthAuditLog{}).Error
+}
+
+// ==================== TRUSTED DEVICE METHODS ====================
+
+func (ds *SqliteService) CreateTrustedDevice(device *model.TrustedDevice) error {
+	device.ID = uuid.New().String()
+	device.CreatedAt = time.Now()
+	device.LastUsed = time.Now()
+
+	return ds.db.Create(device).Error
+}
+
+func (ds *SqliteService) GetTrustedDevice(userID, deviceID string) (*model.TrustedDevice, error) {
+	var device model.TrustedDevice
+	err := ds.db.Where("user_id = ? AND device_id = ?", userID, deviceID).First(&device).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &device, nil
+}
+
+func (ds *SqliteService) UpdateTrustedDevice(device *model.TrustedDevice) error {
+	device.LastUsed = time.Now()
+	return ds.db.Save(device).Error
+}
+
+func (ds *SqliteService) GetUserTrustedDevices(userID string) ([]model.TrustedDevice, error) {
+	var devices []model.TrustedDevice
+	err := ds.db.Where("user_id = ?", userID).Order("last_used DESC").Find(&devices).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return devices, nil
+}
+
+func (ds *SqliteService) RemoveTrustedDevice(userID, deviceID string) error {
+	return ds.db.Where("user_id = ? AND device_id = ?", userID, deviceID).Delete(&model.TrustedDevice{}).Error
+}
+
+// ==================== LOGIN ATTEMPT METHODS ====================
+
+func (ds *SqliteService) RecordLoginAttempt(ip, email, userAgent string, success bool) error {
+	attempt := &model.LoginAttempt{
+		ID:        uuid.New().String(),
+		IP:        ip,
+		Email:     email,
+		Success:   success,
+		Timestamp: time.Now(),
+		UserAgent: userAgent,
+	}
+
+	return ds.db.Create(attempt).Error
+}
+
+func (ds *SqliteService) GetRecentLoginAttempts(ip string, since time.Time) ([]model.LoginAttempt, error) {
+	var attempts []model.LoginAttempt
+	err := ds.db.Where("ip = ? AND timestamp > ?", ip, since).
+		Order("timestamp DESC").Find(&attempts).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return attempts, nil
+}
+
+func (ds *SqliteService) CleanupOldLoginAttempts(olderThan time.Time) error {
+	return ds.db.Where("timestamp < ?", olderThan).Delete(&model.LoginAttempt{}).Error
+}
+
+// ==================== ADMIN USER MANAGEMENT ====================
+
+func (ds *SqliteService) AdminGetUsers(page, limit int, search string) ([]model.User, int64, error) {
+	var users []model.User
+	var total int64
+
+	query := ds.db.Model(&model.User{}).Where("deleted_at IS NULL")
+
+	if search != "" {
+		searchPattern := "%" + strings.ToLower(search) + "%"
+		query = query.Where("LOWER(username) LIKE ? OR LOWER(email) LIKE ?", searchPattern, searchPattern)
+	}
+
+	// Get total count
+	query.Count(&total)
+
+	// Get paginated results
+	offset := (page - 1) * limit
+	err := query.Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, 0, ds.HandleError(err)
+	}
+
+	return users, total, nil
+}
+
+func (ds *SqliteService) AdminUpdateUser(userID string, updates map[string]interface{}) error {
+	updates["updated_at"] = time.Now()
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func (ds *SqliteService) AdminDeleteUser(userID string) error {
+	now := time.Now()
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"deleted_at": &now,
+		"is_active":  false,
+		"updated_at": now,
+	}).Error
+}
+
+// ==================== USER PROFILE & SECURITY METHODS ====================
+
+func (ds *SqliteService) GetUserProfile(userID string) (*model.User, error) {
+	var user model.User
+	err := ds.db.Where("id = ? AND deleted_at IS NULL", userID).First(&user).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &user, nil
+}
+
+func (ds *SqliteService) UpdateUserProfile(userID string, updates map[string]interface{}) error {
+	updates["updated_at"] = time.Now()
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func (ds *SqliteService) GetSecuritySettings(userID string) (*dto.SecuritySettings, error) {
+	var user model.User
+	err := ds.db.Where("id = ?", userID).First(&user).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+
+	settings := &dto.SecuritySettings{
+		TwoFactorEnabled:     user.TwoFactorEnabled,
+		BackupCodesGenerated: user.BackupCodes != "",
+		LastPasswordChange:   user.LastPasswordChange,
+		LoginNotifications:   user.LoginNotifications,
+		SessionTimeout:       user.SessionTimeout,
+	}
+
+	return settings, nil
+}
+
+func (ds *SqliteService) UpdateSecuritySettings(userID string, settings dto.UpdateSecuritySettingsRequest) error {
+	updates := make(map[string]interface{})
+	updates["updated_at"] = time.Now()
+
+	if settings.LoginNotifications != nil {
+		updates["login_notifications"] = *settings.LoginNotifications
+	}
+	if settings.SessionTimeout != nil {
+		updates["session_timeout"] = *settings.SessionTimeout
+	}
+
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+// ==================== CLEANUP AND MAINTENANCE ====================
+
+func (ds *SqliteService) CleanupExpiredData() error {
+	now := time.Now()
+
+	// Cleanup expired sessions
+	ds.CleanupExpiredSessions()
+
+	// Cleanup expired password reset tokens
+	ds.CleanupExpiredPasswordTokens()
+
+	// Cleanup expired blacklisted tokens
+	ds.CleanupExpiredBlacklistedTokens()
+
+	// Cleanup old login attempts (keep last 30 days)
+	ds.CleanupOldLoginAttempts(now.Add(-30 * 24 * time.Hour))
+
+	// Cleanup old audit logs (keep last 90 days)
+	ds.CleanupOldAuditLogs(now.Add(-90 * 24 * time.Hour))
+
+	return nil
+}
+
+// ==================== STATISTICS METHODS ====================
+
+func (ds *SqliteService) GetUserStats(userID string) (*dto.UserStats, error) {
+	var user model.User
+	err := ds.db.Where("id = ?", userID).First(&user).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+
+	// Count active sessions
+	var sessionCount int64
+	ds.db.Model(&model.UserSession{}).Where("user_id = ? AND is_active = ? AND expires_at > ?",
+		userID, true, time.Now()).Count(&sessionCount)
+
+	// Count total logins from audit logs
+	var loginCount int64
+	ds.db.Model(&model.AuthAuditLog{}).Where("user_id = ? AND action = ? AND success = ?",
+		userID, model.ActionLogin, true).Count(&loginCount)
+
+	stats := &dto.UserStats{
+		TotalLogins:        int(loginCount),
+		FailedAttempts:     user.FailedAttempts,
+		ActiveSessions:     int(sessionCount),
+		LastPasswordChange: user.LastPasswordChange,
+	}
+
+	return stats, nil
+}
+
+// Seed initial data for the enhanced auth system
+func (ds *SqliteService) seedInitialData() error {
+	// Create default admin user if it doesn't exist
+	err := ds.createDefaultAdmin()
+	if err != nil {
+		return err
+	}
+
+	// Create default rate limit configs
+	err = ds.createDefaultRateLimitConfigs()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Create default admin user
+func (ds *SqliteService) createDefaultAdmin() error {
+	var count int64
+	ds.db.Model(&model.User{}).Where("role = ?", model.RoleAdmin).Count(&count)
+
+	if count == 0 {
+		// Hash default password (CHANGE THIS IN PRODUCTION!)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), 12)
+		if err != nil {
+			return err
+		}
+
+		admin := &model.User{
+			ID:                 "admin-" + time.Now().Format("20060102150405"),
+			Username:           "admin",
+			Email:              "admin@techyouth.com",
+			Password:           string(hashedPassword),
+			Role:               model.RoleAdmin,
+			IsActive:           true,
+			EmailVerified:      true,
+			LoginNotifications: true,
+			SessionTimeout:     1440,
+			CreatedAt:          time.Now(),
+			UpdatedAt:          time.Now(),
+		}
+
+		err = ds.db.Create(admin).Error
+		if err != nil {
+			log.Printf("Failed to create admin user: %v", err)
+			return err
+		}
+
+		log.Println("Default admin user created - Username: admin, Password: admin123 (CHANGE THIS!)")
+	}
+
+	return nil
+}
+
+// Create default rate limit configurations
+func (ds *SqliteService) createDefaultRateLimitConfigs() error {
+	configs := []model.RateLimitConfig{
+		{
+			ID:           "login-config",
+			EndpointType: "login",
+			Limit:        10,
+			WindowSize:   900,  // 15 minutes
+			BlockTime:    1800, // 30 minutes
+		},
+		{
+			ID:           "register-config",
+			EndpointType: "register",
+			Limit:        5,
+			WindowSize:   900,  // 15 minutes
+			BlockTime:    3600, // 1 hour
+		},
+		{
+			ID:           "forgot-password-config",
+			EndpointType: "forgot_password",
+			Limit:        3,
+			WindowSize:   900,  // 15 minutes
+			BlockTime:    3600, // 1 hour
+		},
+		{
+			ID:           "reset-password-config",
+			EndpointType: "reset_password",
+			Limit:        5,
+			WindowSize:   900,  // 15 minutes
+			BlockTime:    1800, // 30 minutes
+		},
+		{
+			ID:           "refresh-config",
+			EndpointType: "refresh",
+			Limit:        20,
+			WindowSize:   900, // 15 minutes
+			BlockTime:    300, // 5 minutes
+		},
+		{
+			ID:           "resend-verification-config",
+			EndpointType: "resend_verification",
+			Limit:        3,
+			WindowSize:   300,  // 5 minutes
+			BlockTime:    1800, // 30 minutes
+		},
+	}
+
+	for _, config := range configs {
+		var existing model.RateLimitConfig
+		err := ds.db.Where("endpoint_type = ?", config.EndpointType).First(&existing).Error
+		if err != nil {
+			// Config doesn't exist, create it
+			err = ds.db.Create(&config).Error
+			if err != nil {
+				log.Printf("Failed to create rate limit config for %s: %v", config.EndpointType, err)
+			}
+		}
+	}
+
 	return nil
 }

@@ -20,12 +20,12 @@ func NewMainSeeder(db *gorm.DB) *MainSeeder {
 func (s *MainSeeder) SeedAll() error {
 	log.Println("Starting database seeding...")
 
-	// 1. Seed admin user first
-	adminSeeder := NewAdminSeeder(s.db)
-	if err := adminSeeder.SeedAdmin(); err != nil {
-		log.Printf("Admin seeding failed: %v", err)
-		return err
-	}
+	// // 1. Seed admin user first
+	// adminSeeder := NewAdminSeeder(s.db)
+	// if err := adminSeeder.SeedAdmin(); err != nil {
+	// 	log.Printf("Admin seeding failed: %v", err)
+	// 	return err
+	// }
 
 	// 2. Seed timelines (no dependencies)
 	timelineSeeder := NewTimelineSeeder(s.db)

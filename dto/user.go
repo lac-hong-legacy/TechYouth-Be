@@ -2,21 +2,6 @@ package dto
 
 import "time"
 
-// User Profile DTOs
-type UpdateProfileRequest struct {
-	Username  string `json:"username"`
-	BirthYear int    `json:"birth_year"`
-}
-
-type UserProfileResponse struct {
-	UserID      string    `json:"user_id"`
-	Email       string    `json:"email"`
-	Username    string    `json:"username,omitempty"`
-	BirthYear   int       `json:"birth_year,omitempty"`
-	JoinedAt    time.Time `json:"joined_at"`
-	LastLoginAt time.Time `json:"last_login_at"`
-}
-
 // Progress DTOs
 type UserProgressResponse struct {
 	UserID             string                `json:"user_id"`

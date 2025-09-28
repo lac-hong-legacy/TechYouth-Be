@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 
@@ -129,7 +130,6 @@ func (svc *HttpService) Start() error {
 
 	// Progress and game state
 	user.Get("/progress", svc.GetUserProgress)
-	user.Get("/stats", svc.GetUserStats)
 	user.Get("/collection", svc.GetUserCollection)
 
 	// Lesson management
@@ -150,7 +150,7 @@ func (svc *HttpService) Start() error {
 	leaderboard.Get("/all-time", svc.GetAllTimeLeaderboard)
 
 	// Admin endpoints
-	admin := v1.Group("/admin", svc.authSvc.RequiredAdminAuth())
+	admin := v1.Group("/admin", svc.authSvc.RequireRole("admin"))
 	// Character & Lesson Management
 	admin.Post("/characters", svc.CreateCharacter)
 	// admin.Post("/lessons", svc.CreateLesson)
@@ -204,48 +204,237 @@ func (svc *HttpService) HandleError(c *fiber.Ctx, err error) error {
 	return shared.ResponseInternalError(c, err)
 }
 
-// @Summary Register
-// @Description This endpoint registers a user
+// @Summary Register a new user
+// @Description Create a new user account with email verification
 // @Tags auth
-// @Accept  json
+// @Accept json
 // @Produce json
-// @Param registerRequest body dto.RegisterRequest true "Register request"
-// @Success 200 {object} shared.Response{data=dto.RegisterResponse}
+// @Param registerRequest body dto.RegisterRequest true "Registration details"
+// @Success 201 {object} dto.AuthResponse{data=dto.RegisterResponse}
 // @Router /api/v1/register [post]
-func (svc *HttpService) Register(c *fiber.Ctx) error {
-	var registerRequest dto.RegisterRequest
-	if err := c.BodyParser(&registerRequest); err != nil {
-		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+func (h *HttpService) Register(c *fiber.Ctx) error {
+	var req dto.RegisterRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, err)
 	}
 
-	registerResponse, err := svc.authSvc.Register(registerRequest)
+	resp, err := h.authSvc.Register(req)
 	if err != nil {
-		return svc.HandleError(c, err)
+		return h.HandleError(c, err)
 	}
 
-	return shared.ResponseJSON(c, fiber.StatusOK, "Success", registerResponse)
+	return shared.ResponseJSON(c, http.StatusCreated, "User registered successfully", resp)
 }
 
-// @Summary Login
-// @Description This endpoint logs in a user
+// @Summary Login user
+// @Description Authenticate user and return access token
 // @Tags auth
-// @Accept  json
+// @Accept json
 // @Produce json
-// @Param loginRequest body dto.LoginRequest true "Login request"
-// @Success 200 {object} shared.Response{data=dto.LoginResponse}
+// @Param loginRequest body dto.LoginRequest true "Login credentials"
+// @Success 200 {object} dto.AuthResponse{data=dto.LoginResponse}
 // @Router /api/v1/login [post]
-func (svc *HttpService) Login(c *fiber.Ctx) error {
-	var loginRequest dto.LoginRequest
-	if err := c.BodyParser(&loginRequest); err != nil {
-		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+func (h *HttpService) Login(c *fiber.Ctx) error {
+	var req dto.LoginRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, err)
 	}
 
-	loginResponse, err := svc.authSvc.Login(loginRequest)
+	clientIP := c.IP()
+	userAgent := c.Get("User-Agent")
+
+	resp, err := h.authSvc.Login(req, clientIP, userAgent)
 	if err != nil {
-		return svc.HandleError(c, err)
+		return h.HandleError(c, err)
 	}
 
-	return shared.ResponseJSON(c, fiber.StatusOK, "Success", loginResponse)
+	return shared.ResponseJSON(c, http.StatusOK, "Login successful", resp)
+}
+
+// @Summary Refresh access token
+// @Description Generate new access token using refresh token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param refreshRequest body dto.RefreshTokenRequest true "Refresh token"
+// @Success 200 {object} dto.AuthResponse{data=dto.LoginResponse}
+// @Router /api/v1/refresh [post]
+func (h *HttpService) RefreshToken(c *fiber.Ctx) error {
+	var req dto.RefreshTokenRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, err)
+	}
+
+	clientIP := c.IP()
+	userAgent := c.Get("User-Agent")
+
+	resp, err := h.authSvc.RefreshToken(req, clientIP, userAgent)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Token refreshed successfully", resp)
+}
+
+// @Summary Logout user
+// @Description Invalidate current session
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
+// @Param session_id path string true "Session ID"
+// @Success 200 {object} shared.Response{data=nil}
+// @Router /api/v1/logout [post]
+func (h *HttpService) Logout(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+	sessionID := c.Locals("session_id").(string)
+	clientIP := c.IP()
+	userAgent := c.Get("User-Agent")
+
+	err := h.authSvc.Logout(userID, sessionID, clientIP, userAgent)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Logged out successfully", nil)
+}
+
+// @Summary Logout from all devices
+// @Description Invalidate all sessions for the user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
+// @Param session_id path string true "Session ID"
+// @Success 200 {object} shared.Response{data=nil}
+// @Router /api/v1/logout-all [post]
+func (h *HttpService) LogoutAll(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+	sessionID := c.Locals("session_id").(string)
+	clientIP := c.IP()
+	userAgent := c.Get("User-Agent")
+
+	err := h.authSvc.LogoutAllDevices(userID, sessionID, clientIP, userAgent)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Logged out from all devices successfully", nil)
+}
+
+// @Summary Verify email
+// @Description Verify user email with verification token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param token query string true "Verification token"
+// @Success 200 {object} shared.Response{data=nil}
+// @Router /api/v1/verify-email [get]
+func (h *HttpService) VerifyEmail(c *fiber.Ctx) error {
+	token := c.Query("token")
+	if token == "" {
+		return h.HandleError(c, shared.NewBadRequestError(errors.New("verification token is required"), "Verification token is required"))
+	}
+
+	err := h.authSvc.VerifyEmail(token)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Email verified successfully", nil)
+}
+
+// @Summary Resend verification email
+// @Description Send a new verification email to user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param resendRequest body dto.ResendVerificationRequest true "Email address"
+// @Success 200 {object} shared.Response{data=nil}
+// @Router /api/v1/resend-verification [post]
+func (h *HttpService) ResendVerification(c *fiber.Ctx) error {
+	var req dto.ResendVerificationRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	err := h.authSvc.ResendVerificationEmail(req.Email)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Verification email sent successfully", nil)
+}
+
+// @Summary Request password reset
+// @Description Send password reset email to user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param forgotRequest body dto.ForgotPasswordRequest true "Email address"
+// @Success 200 {object} shared.Response{data=nil}
+// @Router /api/v1/forgot-password [post]
+func (h *HttpService) ForgotPassword(c *fiber.Ctx) error {
+	var req dto.ForgotPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	err := h.authSvc.ForgotPassword(req.Email)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Password reset email sent successfully", nil)
+}
+
+// @Summary Reset password
+// @Description Reset user password with reset token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param resetRequest body dto.ResetPasswordRequest true "Reset token and new password"
+// @Success 200 {object} shared.Response{data=nil}
+// @Router /api/v1/reset-password [post]
+func (h *HttpService) ResetPassword(c *fiber.Ctx) error {
+	var req dto.ResetPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	err := h.authSvc.ResetPassword(req)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Password reset successfully", nil)
+}
+
+// @Summary Change password
+// @Description Change user password (requires authentication)
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param changeRequest body dto.ChangePasswordRequest true "Current and new password"
+// @Success 200 {object} shared.Response{data=nil}
+// @Router /api/v1/change-password [post]
+func (h *HttpService) ChangePassword(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+
+	var req dto.ChangePasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	err := h.authSvc.ChangePassword(userID, req)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Password changed successfully", nil)
 }
 
 // @Summary Check Username Availability
@@ -275,6 +464,255 @@ func (svc *HttpService) CheckUsernameAvailability(c *fiber.Ctx) error {
 		"available": available,
 		"username":  username,
 	})
+}
+
+// Admin endpoints
+
+// @Summary Get all users (Admin)
+// @Description Get list of all users (admin only)
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(20)
+// @Param search query string false "Search term"
+// @Success 200 {object} dto.AuthResponse{data=dto.AdminUserListResponse}
+// @Router /api/v1/admin/users [get]
+func (h *HttpService) AdminGetUsers(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "20"))
+	search := c.Query("search")
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	users, err := h.userSvc.AdminGetUsers(page, limit, search)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, fiber.StatusOK, "Users retrieved successfully", users)
+}
+
+// @Summary Update user (Admin)
+// @Description Update user information (admin only)
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param userId path string true "User ID"
+// @Param updateRequest body dto.AdminUpdateUserRequest true "User update data"
+// @Success 200 {object} dto.AuthResponse{data=dto.AdminUserInfo}
+// @Router /api/v1/admin/users/{userId} [put]
+func (h *HttpService) AdminUpdateUser(c *fiber.Ctx) error {
+	userID := c.Params("userId")
+	if userID == "" {
+		return shared.ResponseJSON(c, http.StatusBadRequest, "User ID is required", nil)
+	}
+
+	var req dto.AdminUpdateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return shared.ResponseJSON(c, http.StatusBadRequest, "Invalid request", err.Error())
+	}
+
+	user, err := h.userSvc.AdminUpdateUser(userID, req)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "User updated successfully", user)
+}
+
+// @Summary Delete user (Admin)
+// @Description Soft delete user (admin only)
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param userId path string true "User ID"
+// @Success 200 {object} dto.AuthResponse
+// @Router /api/v1/admin/users/{userId} [delete]
+func (h *HttpService) AdminDeleteUser(c *fiber.Ctx) error {
+	userID := c.Params("userId")
+	if userID == "" {
+		return shared.ResponseJSON(c, http.StatusBadRequest, "User ID is required", nil)
+	}
+
+	err := h.userSvc.AdminDeleteUser(userID)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "User deleted successfully", nil)
+}
+
+// @Summary Get user profile
+// @Description Get current user profile information
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} dto.AuthResponse{data=dto.UserProfileResponse}
+// @Router /api/v1/user/profile [get]
+func (h *HttpService) GetProfile(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+
+	profile, err := h.userSvc.GetUserProfile(userID)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Profile retrieved successfully", profile)
+}
+
+// @Summary Update user profile
+// @Description Update current user profile information
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param updateRequest body dto.UpdateProfileRequest true "Profile update data"
+// @Success 200 {object} dto.AuthResponse{data=dto.UserProfileResponse}
+// @Router /api/v1/user/profile [put]
+func (h *HttpService) UpdateProfile(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+
+	var req dto.UpdateProfileRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	profile, err := h.userSvc.UpdateUserProfile(userID, req)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Profile updated successfully", profile)
+}
+
+// @Summary Get user sessions
+// @Description Get list of active user sessions
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} dto.AuthResponse{data=dto.SessionListResponse}
+// @Router /api/v1/user/sessions [get]
+func (h *HttpService) GetSessions(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+	currentSessionID := c.Locals("session_id").(string)
+
+	sessions, err := h.userSvc.GetUserSessions(userID, currentSessionID)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Sessions retrieved successfully", sessions)
+}
+
+// @Summary Revoke user session
+// @Description Revoke a specific user session
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} dto.AuthResponse{data=nil}
+// @Router /api/v1/user/sessions/{sessionId} [delete]
+func (h *HttpService) RevokeSession(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+	sessionID := c.Params("sessionId")
+
+	if sessionID == "" {
+		return shared.ResponseJSON(c, http.StatusBadRequest, "Session ID is required", nil)
+	}
+
+	err := h.userSvc.RevokeUserSession(userID, sessionID)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Session revoked successfully", nil)
+}
+
+// @Summary Get security settings
+// @Description Get user security settings
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} dto.AuthResponse{data=dto.SecuritySettings}
+// @Router /api/v1/user/security [get]
+func (h *HttpService) GetSecuritySettings(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+
+	settings, err := h.userSvc.GetSecuritySettings(userID)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Security settings retrieved successfully", settings)
+}
+
+// @Summary Update security settings
+// @Description Update user security settings
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param updateRequest body dto.UpdateSecuritySettingsRequest true "Security settings"
+// @Success 200 {object} dto.AuthResponse{data=dto.SecuritySettings}
+// @Router /api/v1/user/security [put]
+func (h *HttpService) UpdateSecuritySettings(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+
+	var req dto.UpdateSecuritySettingsRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	settings, err := h.userSvc.UpdateSecuritySettings(userID, req)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Security settings updated successfully", settings)
+}
+
+// @Summary Get audit logs
+// @Description Get user authentication audit logs
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(20)
+// @Success 200 {object} dto.AuthResponse{data=dto.AuditLogResponse}
+// @Router /api/v1/user/audit-logs [get]
+func (h *HttpService) GetAuditLogs(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "20"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	logs, err := h.userSvc.GetUserAuditLogs(userID, page, limit)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Audit logs retrieved successfully", logs)
 }
 
 // @Summary Create or Get Guest Session
@@ -733,26 +1171,6 @@ func (svc *HttpService) GetUserProgress(c *fiber.Ctx) error {
 	}
 
 	return shared.ResponseJSON(c, fiber.StatusOK, "Success", progress)
-}
-
-// @Summary Get User Stats
-// @Description Get detailed user statistics and analytics
-// @Tags user
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
-// @Success 200 {object} shared.Response{data=dto.UserStatsResponse}
-// @Router /api/v1/user/stats [get]
-func (svc *HttpService) GetUserStats(c *fiber.Ctx) error {
-	userID := c.Locals(shared.UserID).(string)
-
-	stats, err := svc.userSvc.GetUserStats(userID)
-	if err != nil {
-		return svc.HandleError(c, err)
-	}
-
-	return shared.ResponseJSON(c, fiber.StatusOK, "Success", stats)
 }
 
 // @Summary Get User Collection
