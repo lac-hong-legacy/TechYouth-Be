@@ -42,8 +42,12 @@ type AchievementResponse struct {
 
 // Leaderboard DTOs
 type LeaderboardRequest struct {
-	Period string `json:"period" form:"period"` // weekly, monthly, all_time
-	Limit  int    `json:"limit" form:"limit"`
+	Period string `json:"period" form:"period" validate:"omitempty,oneof=weekly monthly all_time"` // weekly, monthly, all_time
+	Limit  int    `json:"limit" form:"limit" validate:"omitempty,min=1,max=100"`
+}
+
+func (l LeaderboardRequest) Validate() error {
+	return GetValidator().Struct(l)
 }
 
 type LeaderboardResponse struct {
@@ -82,8 +86,12 @@ type UserStatsResponse struct {
 
 // Heart Management DTOs
 type AddHeartsRequest struct {
-	Source string `json:"source"` // "ad", "purchase", "daily_reset"
-	Amount int    `json:"amount"`
+	Source string `json:"source" validate:"required,oneof=ad purchase daily_reset"` // "ad", "purchase", "daily_reset"
+	Amount int    `json:"amount" validate:"required,min=1,max=10"`
+}
+
+func (a AddHeartsRequest) Validate() error {
+	return GetValidator().Struct(a)
 }
 
 type HeartStatusResponse struct {
@@ -111,9 +119,13 @@ type CollectionStatsResponse struct {
 
 // Social DTOs
 type ShareRequest struct {
-	Type    string `json:"type"` // "achievement", "character_unlock", "level_up"
-	Content string `json:"content"`
-	ItemID  string `json:"item_id"`
+	Type    string `json:"type" validate:"required,oneof=achievement character_unlock level_up"` // "achievement", "character_unlock", "level_up"
+	Content string `json:"content" validate:"required,min=1,max=500"`
+	ItemID  string `json:"item_id" validate:"required"`
+}
+
+func (s ShareRequest) Validate() error {
+	return GetValidator().Struct(s)
 }
 
 type ShareResponse struct {

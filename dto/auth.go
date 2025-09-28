@@ -5,42 +5,74 @@ import "time"
 // ==================== AUTHENTICATION REQUEST DTOs ====================
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
-	Username string `json:"username" binding:"required,min=3,max=30" example:"johndoe"`
-	Password string `json:"password" binding:"required,min=8" example:"SecurePass123!"`
+	Email    string `json:"email" validate:"required,email" example:"user@example.com"`
+	Username string `json:"username" validate:"required,min=3,max=30,alphanum" example:"johndoe"`
+	Password string `json:"password" validate:"required,strong_password" example:"SecurePass123!"`
+}
+
+func (r RegisterRequest) Validate() error {
+	return GetValidator().Struct(r)
 }
 
 type LoginRequest struct {
-	EmailOrUsername string `json:"email_or_username" binding:"required" example:"user@example.com"`
-	Password        string `json:"password" binding:"required" example:"SecurePass123!"`
+	EmailOrUsername string `json:"email_or_username" validate:"required" example:"user@example.com"`
+	Password        string `json:"password" validate:"required" example:"SecurePass123!"`
 	DeviceID        string `json:"device_id,omitempty" example:"device_12345"`
 	RememberMe      bool   `json:"remember_me,omitempty" example:"true"`
 }
 
+func (l LoginRequest) Validate() error {
+	return GetValidator().Struct(l)
+}
+
 type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	RefreshToken string `json:"refresh_token" validate:"required" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+}
+
+func (r RefreshTokenRequest) Validate() error {
+	return GetValidator().Struct(r)
 }
 
 type ChangePasswordRequest struct {
-	CurrentPassword string `json:"current_password" binding:"required" example:"OldPass123!"`
-	NewPassword     string `json:"new_password" binding:"required,min=8" example:"NewPass123!"`
+	CurrentPassword string `json:"current_password" validate:"required" example:"OldPass123!"`
+	NewPassword     string `json:"new_password" validate:"required,strong_password" example:"NewPass123!"`
+}
+
+func (c ChangePasswordRequest) Validate() error {
+	return GetValidator().Struct(c)
 }
 
 type ResetPasswordRequest struct {
-	Token       string `json:"token" binding:"required" example:"reset_token_abc123"`
-	NewPassword string `json:"new_password" binding:"required,min=8" example:"NewPass123!"`
+	Token       string `json:"token" validate:"required" example:"reset_token_abc123"`
+	NewPassword string `json:"new_password" validate:"required,strong_password" example:"NewPass123!"`
+}
+
+func (r ResetPasswordRequest) Validate() error {
+	return GetValidator().Struct(r)
 }
 
 type ForgotPasswordRequest struct {
-	Email string `json:"email" binding:"required,email" example:"user@example.com"`
+	Email string `json:"email" validate:"required,email" example:"user@example.com"`
+}
+
+func (f ForgotPasswordRequest) Validate() error {
+	return GetValidator().Struct(f)
 }
 
 type VerifyEmailRequest struct {
-	Token string `json:"token" binding:"required" example:"verify_token_abc123"`
+	Token string `json:"token" validate:"required" example:"verify_token_abc123"`
+}
+
+func (v VerifyEmailRequest) Validate() error {
+	return GetValidator().Struct(v)
 }
 
 type ResendVerificationRequest struct {
-	Email string `json:"email" binding:"required,email" example:"user@example.com"`
+	Email string `json:"email" validate:"required,email" example:"user@example.com"`
+}
+
+func (r ResendVerificationRequest) Validate() error {
+	return GetValidator().Struct(r)
 }
 
 // ==================== AUTHENTICATION RESPONSE DTOs ====================
@@ -98,8 +130,12 @@ type UserStats struct {
 }
 
 type UpdateProfileRequest struct {
-	Username string `json:"username,omitempty" binding:"omitempty,min=3,max=30" example:"newusername"`
-	Email    string `json:"email,omitempty" binding:"omitempty,email" example:"newemail@example.com"`
+	Username string `json:"username,omitempty" validate:"omitempty,min=3,max=30" example:"newusername"`
+	Email    string `json:"email,omitempty" validate:"omitempty,email" example:"newemail@example.com"`
+}
+
+func (u UpdateProfileRequest) Validate() error {
+	return GetValidator().Struct(u)
 }
 
 // ==================== SESSION MANAGEMENT DTOs ====================
@@ -175,7 +211,11 @@ type SecuritySettings struct {
 
 type UpdateSecuritySettingsRequest struct {
 	LoginNotifications *bool `json:"login_notifications,omitempty" example:"true"`
-	SessionTimeout     *int  `json:"session_timeout,omitempty" example:"720"`
+	SessionTimeout     *int  `json:"session_timeout,omitempty" validate:"omitempty,min=300,max=43200" example:"720"`
+}
+
+func (u UpdateSecuritySettingsRequest) Validate() error {
+	return GetValidator().Struct(u)
 }
 
 // ==================== TWO-FACTOR AUTHENTICATION DTOs ====================
@@ -187,14 +227,22 @@ type EnableTwoFactorResponse struct {
 }
 
 type VerifyTwoFactorRequest struct {
-	Code string `json:"code" binding:"required" example:"123456"`
+	Code string `json:"code" validate:"required,len=6,numeric" example:"123456"`
+}
+
+func (v VerifyTwoFactorRequest) Validate() error {
+	return GetValidator().Struct(v)
 }
 
 type TwoFactorLoginRequest struct {
-	EmailOrUsername string `json:"email_or_username" binding:"required" example:"user@example.com"`
-	Password        string `json:"password" binding:"required" example:"SecurePass123!"`
-	Code            string `json:"code" binding:"required" example:"123456"`
+	EmailOrUsername string `json:"email_or_username" validate:"required" example:"user@example.com"`
+	Password        string `json:"password" validate:"required" example:"SecurePass123!"`
+	Code            string `json:"code" validate:"required,len=6,numeric" example:"123456"`
 	DeviceID        string `json:"device_id,omitempty" example:"device_12345"`
+}
+
+func (t TwoFactorLoginRequest) Validate() error {
+	return GetValidator().Struct(t)
 }
 
 // ==================== ADMIN USER MANAGEMENT DTOs ====================
@@ -220,8 +268,12 @@ type AdminUserInfo struct {
 }
 
 type AdminUpdateUserRequest struct {
-	Role     *string `json:"role,omitempty" example:"admin"`
+	Role     *string `json:"role,omitempty" validate:"omitempty,oneof=user admin moderator" example:"admin"`
 	IsActive *bool   `json:"is_active,omitempty" example:"true"`
+}
+
+func (a AdminUpdateUserRequest) Validate() error {
+	return GetValidator().Struct(a)
 }
 
 // ==================== RATE LIMITING DTOs ====================
@@ -247,8 +299,12 @@ type DeviceInfo struct {
 }
 
 type TrustDeviceRequest struct {
-	DeviceID string `json:"device_id" binding:"required" example:"device_12345"`
+	DeviceID string `json:"device_id" validate:"required" example:"device_12345"`
 	Trust    bool   `json:"trust" example:"true"`
+}
+
+func (t TrustDeviceRequest) Validate() error {
+	return GetValidator().Struct(t)
 }
 
 // ==================== ERROR RESPONSE DTOs ====================
@@ -329,8 +385,12 @@ type SystemStatisticsResponse struct {
 // ==================== SEARCH AND PAGINATION DTOs ====================
 
 type PaginationRequest struct {
-	Page  int `json:"page" form:"page" example:"1"`
-	Limit int `json:"limit" form:"limit" example:"20"`
+	Page  int `json:"page" form:"page" validate:"omitempty,min=1" example:"1"`
+	Limit int `json:"limit" form:"limit" validate:"omitempty,min=1,max=100" example:"20"`
+}
+
+func (p PaginationRequest) Validate() error {
+	return GetValidator().Struct(p)
 }
 
 type PaginationResponse struct {
@@ -344,10 +404,14 @@ type PaginationResponse struct {
 
 type SearchUsersRequest struct {
 	PaginationRequest
-	Query         string `json:"query" form:"query" example:"john"`
-	Role          string `json:"role" form:"role" example:"user"`
+	Query         string `json:"query" form:"query" validate:"omitempty,min=1,max=100" example:"john"`
+	Role          string `json:"role" form:"role" validate:"omitempty,oneof=user admin moderator" example:"user"`
 	IsActive      *bool  `json:"is_active" form:"is_active" example:"true"`
 	EmailVerified *bool  `json:"email_verified" form:"email_verified" example:"true"`
+}
+
+func (s SearchUsersRequest) Validate() error {
+	return GetValidator().Struct(s)
 }
 
 type SearchUsersResponse struct {

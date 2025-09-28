@@ -55,7 +55,11 @@ type LessonResponse struct {
 }
 
 type LessonAccessRequest struct {
-	LessonID string `json:"lesson_id" binding:"required"`
+	LessonID string `json:"lesson_id" validate:"required"`
+}
+
+func (l LessonAccessRequest) Validate() error {
+	return GetValidator().Struct(l)
 }
 
 type LessonAccessResponse struct {
@@ -65,8 +69,12 @@ type LessonAccessResponse struct {
 }
 
 type ValidateLessonRequest struct {
-	LessonID    string                 `json:"lesson_id" binding:"required"`
-	UserAnswers map[string]interface{} `json:"user_answers" binding:"required"`
+	LessonID    string                 `json:"lesson_id" validate:"required"`
+	UserAnswers map[string]interface{} `json:"user_answers" validate:"required"`
+}
+
+func (v ValidateLessonRequest) Validate() error {
+	return GetValidator().Struct(v)
 }
 
 type ValidateLessonResponse struct {
@@ -77,9 +85,13 @@ type ValidateLessonResponse struct {
 }
 
 type SubmitQuestionAnswerRequest struct {
-	LessonID   string      `json:"lesson_id" binding:"required"`
-	QuestionID string      `json:"question_id" binding:"required"`
-	Answer     interface{} `json:"answer" binding:"required"`
+	LessonID   string      `json:"lesson_id" validate:"required"`
+	QuestionID string      `json:"question_id" validate:"required"`
+	Answer     interface{} `json:"answer" validate:"required"`
+}
+
+func (s SubmitQuestionAnswerRequest) Validate() error {
+	return GetValidator().Struct(s)
 }
 
 type SubmitQuestionAnswerResponse struct {
@@ -94,7 +106,11 @@ type SubmitQuestionAnswerResponse struct {
 }
 
 type CheckLessonStatusRequest struct {
-	LessonID string `json:"lesson_id" binding:"required"`
+	LessonID string `json:"lesson_id" validate:"required"`
+}
+
+func (c CheckLessonStatusRequest) Validate() error {
+	return GetValidator().Struct(c)
 }
 
 type CheckLessonStatusResponse struct {
@@ -152,11 +168,15 @@ type TimelineDynastyResponse struct {
 
 // Search DTOs
 type SearchRequest struct {
-	Query   string `json:"query" form:"query"`
-	Era     string `json:"era" form:"era"`
-	Dynasty string `json:"dynasty" form:"dynasty"`
-	Rarity  string `json:"rarity" form:"rarity"`
-	Limit   int    `json:"limit" form:"limit"`
+	Query   string `json:"query" form:"query" validate:"omitempty,min=1,max=100"`
+	Era     string `json:"era" form:"era" validate:"omitempty"`
+	Dynasty string `json:"dynasty" form:"dynasty" validate:"omitempty"`
+	Rarity  string `json:"rarity" form:"rarity" validate:"omitempty,oneof=common rare epic legendary"`
+	Limit   int    `json:"limit" form:"limit" validate:"omitempty,min=1,max=100"`
+}
+
+func (s SearchRequest) Validate() error {
+	return GetValidator().Struct(s)
 }
 
 type SearchResponse struct {
@@ -166,27 +186,35 @@ type SearchResponse struct {
 
 // Lesson Creation DTOs
 type CreateLessonRequest struct {
-	CharacterID   string                  `json:"character_id" binding:"required"`
-	Title         string                  `json:"title" binding:"required"`
-	Order         int                     `json:"order" binding:"required"`
-	Story         string                  `json:"story"`
-	VideoURL      string                  `json:"video_url"`
-	SubtitleURL   string                  `json:"subtitle_url"`
-	ThumbnailURL  string                  `json:"thumbnail_url"`
-	VideoDuration int                     `json:"video_duration"`
-	CanSkipAfter  int                     `json:"can_skip_after"`
+	CharacterID   string                  `json:"character_id" validate:"required"`
+	Title         string                  `json:"title" validate:"required,min=1,max=200"`
+	Order         int                     `json:"order" validate:"required,min=1"`
+	Story         string                  `json:"story" validate:"omitempty,max=5000"`
+	VideoURL      string                  `json:"video_url" validate:"omitempty,url"`
+	SubtitleURL   string                  `json:"subtitle_url" validate:"omitempty,url"`
+	ThumbnailURL  string                  `json:"thumbnail_url" validate:"omitempty,url"`
+	VideoDuration int                     `json:"video_duration" validate:"omitempty,min=1"`
+	CanSkipAfter  int                     `json:"can_skip_after" validate:"omitempty,min=0"`
 	HasSubtitles  bool                    `json:"has_subtitles"`
-	Questions     []CreateQuestionRequest `json:"questions"`
-	XPReward      int                     `json:"xp_reward"`
-	MinScore      int                     `json:"min_score"`
+	Questions     []CreateQuestionRequest `json:"questions" validate:"omitempty,dive"`
+	XPReward      int                     `json:"xp_reward" validate:"omitempty,min=1,max=1000"`
+	MinScore      int                     `json:"min_score" validate:"omitempty,min=0,max=100"`
+}
+
+func (c CreateLessonRequest) Validate() error {
+	return GetValidator().Struct(c)
 }
 
 type CreateQuestionRequest struct {
-	ID       string                 `json:"id"`
-	Type     string                 `json:"type" binding:"required"`
-	Question string                 `json:"question" binding:"required"`
-	Options  []string               `json:"options,omitempty"`
-	Answer   interface{}            `json:"answer" binding:"required"`
-	Points   int                    `json:"points" binding:"required"`
+	ID       string                 `json:"id" validate:"omitempty"`
+	Type     string                 `json:"type" validate:"required,oneof=multiple_choice true_false fill_blank matching"`
+	Question string                 `json:"question" validate:"required,min=1,max=1000"`
+	Options  []string               `json:"options,omitempty" validate:"omitempty,dive,min=1,max=200"`
+	Answer   interface{}            `json:"answer" validate:"required"`
+	Points   int                    `json:"points" validate:"required,min=1,max=100"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+func (c CreateQuestionRequest) Validate() error {
+	return GetValidator().Struct(c)
 }

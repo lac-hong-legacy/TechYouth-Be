@@ -99,6 +99,14 @@ func (svc *HttpService) Start() error {
 
 	v1.Post("/register", svc.Register)
 	v1.Post("/login", svc.Login)
+	v1.Post("/refresh", svc.RefreshToken)
+	v1.Post("/logout", svc.Logout)
+	v1.Post("/logout-all", svc.LogoutAll)
+	v1.Get("/verify-email", svc.VerifyEmail)
+	v1.Post("/resend-verification", svc.ResendVerification)
+	v1.Post("/forgot-password", svc.ForgotPassword)
+	v1.Post("/reset-password", svc.ResetPassword)
+	v1.Post("/change-password", svc.ChangePassword)
 	v1.Get("/username/check/:username", svc.CheckUsernameAvailability)
 
 	guest := v1.Group("/guest")
@@ -210,12 +218,17 @@ func (svc *HttpService) HandleError(c *fiber.Ctx, err error) error {
 // @Accept json
 // @Produce json
 // @Param registerRequest body dto.RegisterRequest true "Registration details"
-// @Success 201 {object} dto.AuthResponse{data=dto.RegisterResponse}
+// @Success 201 {object} shared.Response{data=dto.RegisterResponse}
 // @Router /api/v1/register [post]
 func (h *HttpService) Register(c *fiber.Ctx) error {
 	var req dto.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.HandleError(c, err)
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	resp, err := h.authSvc.Register(req)
@@ -232,12 +245,17 @@ func (h *HttpService) Register(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param loginRequest body dto.LoginRequest true "Login credentials"
-// @Success 200 {object} dto.AuthResponse{data=dto.LoginResponse}
+// @Success 200 {object} shared.Response{data=dto.LoginResponse}
 // @Router /api/v1/login [post]
 func (h *HttpService) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.HandleError(c, err)
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	clientIP := c.IP()
@@ -257,12 +275,17 @@ func (h *HttpService) Login(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param refreshRequest body dto.RefreshTokenRequest true "Refresh token"
-// @Success 200 {object} dto.AuthResponse{data=dto.LoginResponse}
+// @Success 200 {object} shared.Response{data=dto.LoginResponse}
 // @Router /api/v1/refresh [post]
 func (h *HttpService) RefreshToken(c *fiber.Ctx) error {
 	var req dto.RefreshTokenRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.HandleError(c, err)
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	clientIP := c.IP()
@@ -360,6 +383,11 @@ func (h *HttpService) ResendVerification(c *fiber.Ctx) error {
 		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
+	}
+
 	err := h.authSvc.ResendVerificationEmail(req.Email)
 	if err != nil {
 		return h.HandleError(c, err)
@@ -382,6 +410,11 @@ func (h *HttpService) ForgotPassword(c *fiber.Ctx) error {
 		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
+	}
+
 	err := h.authSvc.ForgotPassword(req.Email)
 	if err != nil {
 		return h.HandleError(c, err)
@@ -402,6 +435,11 @@ func (h *HttpService) ResetPassword(c *fiber.Ctx) error {
 	var req dto.ResetPasswordRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	err := h.authSvc.ResetPassword(req)
@@ -427,6 +465,11 @@ func (h *HttpService) ChangePassword(c *fiber.Ctx) error {
 	var req dto.ChangePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	err := h.authSvc.ChangePassword(userID, req)
@@ -477,7 +520,7 @@ func (svc *HttpService) CheckUsernameAvailability(c *fiber.Ctx) error {
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Items per page" default(20)
 // @Param search query string false "Search term"
-// @Success 200 {object} dto.AuthResponse{data=dto.AdminUserListResponse}
+// @Success 200 {object} shared.Response{data=dto.AdminUserListResponse}
 // @Router /api/v1/admin/users [get]
 func (h *HttpService) AdminGetUsers(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
@@ -507,7 +550,7 @@ func (h *HttpService) AdminGetUsers(c *fiber.Ctx) error {
 // @Security Bearer
 // @Param userId path string true "User ID"
 // @Param updateRequest body dto.AdminUpdateUserRequest true "User update data"
-// @Success 200 {object} dto.AuthResponse{data=dto.AdminUserInfo}
+// @Success 200 {object} shared.Response{data=dto.AdminUserInfo}
 // @Router /api/v1/admin/users/{userId} [put]
 func (h *HttpService) AdminUpdateUser(c *fiber.Ctx) error {
 	userID := c.Params("userId")
@@ -518,6 +561,11 @@ func (h *HttpService) AdminUpdateUser(c *fiber.Ctx) error {
 	var req dto.AdminUpdateUserRequest
 	if err := c.BodyParser(&req); err != nil {
 		return shared.ResponseJSON(c, http.StatusBadRequest, "Invalid request", err.Error())
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	user, err := h.userSvc.AdminUpdateUser(userID, req)
@@ -535,7 +583,7 @@ func (h *HttpService) AdminUpdateUser(c *fiber.Ctx) error {
 // @Produce json
 // @Security Bearer
 // @Param userId path string true "User ID"
-// @Success 200 {object} dto.AuthResponse
+// @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/admin/users/{userId} [delete]
 func (h *HttpService) AdminDeleteUser(c *fiber.Ctx) error {
 	userID := c.Params("userId")
@@ -557,7 +605,7 @@ func (h *HttpService) AdminDeleteUser(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security Bearer
-// @Success 200 {object} dto.AuthResponse{data=dto.UserProfileResponse}
+// @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
 // @Router /api/v1/user/profile [get]
 func (h *HttpService) GetProfile(c *fiber.Ctx) error {
 	userID := c.Locals(shared.UserID).(string)
@@ -577,7 +625,7 @@ func (h *HttpService) GetProfile(c *fiber.Ctx) error {
 // @Produce json
 // @Security Bearer
 // @Param updateRequest body dto.UpdateProfileRequest true "Profile update data"
-// @Success 200 {object} dto.AuthResponse{data=dto.UserProfileResponse}
+// @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
 // @Router /api/v1/user/profile [put]
 func (h *HttpService) UpdateProfile(c *fiber.Ctx) error {
 	userID := c.Locals(shared.UserID).(string)
@@ -585,6 +633,11 @@ func (h *HttpService) UpdateProfile(c *fiber.Ctx) error {
 	var req dto.UpdateProfileRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	profile, err := h.userSvc.UpdateUserProfile(userID, req)
@@ -601,7 +654,7 @@ func (h *HttpService) UpdateProfile(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security Bearer
-// @Success 200 {object} dto.AuthResponse{data=dto.SessionListResponse}
+// @Success 200 {object} shared.Response{data=dto.SessionListResponse}
 // @Router /api/v1/user/sessions [get]
 func (h *HttpService) GetSessions(c *fiber.Ctx) error {
 	userID := c.Locals(shared.UserID).(string)
@@ -622,7 +675,7 @@ func (h *HttpService) GetSessions(c *fiber.Ctx) error {
 // @Produce json
 // @Security Bearer
 // @Param sessionId path string true "Session ID"
-// @Success 200 {object} dto.AuthResponse{data=nil}
+// @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/user/sessions/{sessionId} [delete]
 func (h *HttpService) RevokeSession(c *fiber.Ctx) error {
 	userID := c.Locals(shared.UserID).(string)
@@ -646,7 +699,7 @@ func (h *HttpService) RevokeSession(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security Bearer
-// @Success 200 {object} dto.AuthResponse{data=dto.SecuritySettings}
+// @Success 200 {object} shared.Response{data=dto.SecuritySettings}
 // @Router /api/v1/user/security [get]
 func (h *HttpService) GetSecuritySettings(c *fiber.Ctx) error {
 	userID := c.Locals(shared.UserID).(string)
@@ -666,7 +719,7 @@ func (h *HttpService) GetSecuritySettings(c *fiber.Ctx) error {
 // @Produce json
 // @Security Bearer
 // @Param updateRequest body dto.UpdateSecuritySettingsRequest true "Security settings"
-// @Success 200 {object} dto.AuthResponse{data=dto.SecuritySettings}
+// @Success 200 {object} shared.Response{data=dto.SecuritySettings}
 // @Router /api/v1/user/security [put]
 func (h *HttpService) UpdateSecuritySettings(c *fiber.Ctx) error {
 	userID := c.Locals(shared.UserID).(string)
@@ -674,6 +727,11 @@ func (h *HttpService) UpdateSecuritySettings(c *fiber.Ctx) error {
 	var req dto.UpdateSecuritySettingsRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	settings, err := h.userSvc.UpdateSecuritySettings(userID, req)
@@ -692,7 +750,7 @@ func (h *HttpService) UpdateSecuritySettings(c *fiber.Ctx) error {
 // @Security Bearer
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Items per page" default(20)
-// @Success 200 {object} dto.AuthResponse{data=dto.AuditLogResponse}
+// @Success 200 {object} shared.Response{data=dto.AuditLogResponse}
 // @Router /api/v1/user/audit-logs [get]
 func (h *HttpService) GetAuditLogs(c *fiber.Ctx) error {
 	userID := c.Locals(shared.UserID).(string)
@@ -727,6 +785,11 @@ func (svc *HttpService) CreateSession(c *fiber.Ctx) error {
 	var req dto.CreateSessionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	session, err := svc.guestSvc.CreateOrGetSession(req.DeviceID)
@@ -805,6 +868,11 @@ func (svc *HttpService) CompleteLesson(c *fiber.Ctx) error {
 	var req dto.CompleteLessonRequest
 	if err := c.BodyParser(&req); err != nil {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	err := svc.guestSvc.CompleteLesson(sessionID, req.LessonID, req.Score, req.TimeSpent)
@@ -978,6 +1046,11 @@ func (svc *HttpService) ValidateLessonAnswers(c *fiber.Ctx) error {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
+	}
+
 	result, err := svc.contentSvc.ValidateLessonAnswers(req.LessonID, req.UserAnswers)
 	if err != nil {
 		return svc.HandleError(c, err)
@@ -1001,6 +1074,11 @@ func (svc *HttpService) SearchContent(c *fiber.Ctx) error {
 	var req dto.SearchRequest
 	if err := c.QueryParser(&req); err != nil {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid query parameters"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	if req.Limit == 0 {
@@ -1033,6 +1111,11 @@ func (svc *HttpService) SubmitQuestionAnswer(c *fiber.Ctx) error {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
+	}
+
 	result, err := svc.contentSvc.SubmitQuestionAnswer(userID, req.LessonID, req.QuestionID, req.Answer)
 	if err != nil {
 		return svc.HandleError(c, err)
@@ -1057,6 +1140,11 @@ func (svc *HttpService) CheckLessonStatus(c *fiber.Ctx) error {
 	var req dto.CheckLessonStatusRequest
 	if err := c.BodyParser(&req); err != nil {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	result, err := svc.contentSvc.CheckLessonStatus(userID, req.LessonID)
@@ -1292,6 +1380,11 @@ func (svc *HttpService) AddUserHearts(c *fiber.Ctx) error {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
 	}
 
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
+	}
+
 	status, err := svc.userSvc.AddHearts(userID, req.Source, req.Amount)
 	if err != nil {
 		return svc.HandleError(c, err)
@@ -1439,6 +1532,11 @@ func (svc *HttpService) ShareAchievement(c *fiber.Ctx) error {
 	var req dto.ShareRequest
 	if err := c.BodyParser(&req); err != nil {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	shareData, err := svc.userSvc.CreateShareContent(userID, req)
@@ -1681,6 +1779,11 @@ func (svc *HttpService) CreateLessonFromRequest(c *fiber.Ctx) error {
 	var req dto.CreateLessonRequest
 	if err := c.BodyParser(&req); err != nil {
 		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid lesson request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
 	}
 
 	created, err := svc.contentSvc.CreateLessonFromRequest(req)

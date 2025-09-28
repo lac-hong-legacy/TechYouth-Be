@@ -23,6 +23,7 @@ func main() {
 		&services.ContentService{},
 		&services.MediaService{},
 		&services.UserService{},
+		&services.EmailService{},
 		&services.HttpService{},
 	)
 	if err != nil {
