@@ -93,6 +93,16 @@ func (ds *SqliteService) Start() (err error) {
 		return err
 	}
 
+	ticker := time.NewTicker(24 * time.Hour)
+	go func() {
+		for range ticker.C {
+			err := ds.CleanupExpiredData()
+			if err != nil {
+				log.Printf("Failed to cleanup expired data: %v", err)
+			}
+		}
+	}()
+
 	log.Println("Database connected and migrated successfully")
 	return nil
 }
