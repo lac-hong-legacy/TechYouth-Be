@@ -195,8 +195,6 @@ func (svc *HttpService) Shutdown() {
 // @Success 200 {object} shared.Response{data=string}
 // @Router /ping [get]
 func (svc *HttpService) ping(c *fiber.Ctx) error {
-	c.Set("Cache-Control", "max-age=10")
-
 	return shared.ResponseJSON(c, fiber.StatusOK, "Success", "pong")
 }
 

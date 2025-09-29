@@ -2,7 +2,9 @@ package services
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -655,6 +657,6 @@ func (svc *AuthService) startLogAuthEventJob() {
 }
 
 func (svc *AuthService) hashToken(token string) string {
-	hash, _ := bcrypt.GenerateFromPassword([]byte(token), 10)
-	return string(hash)
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
 }
