@@ -149,6 +149,17 @@ func (svc *HttpService) Start() error {
 	user.Post("/hearts/add", svc.AddUserHearts)
 	user.Post("/hearts/lose", svc.LoseUserHeart)
 
+	// Session management
+	user.Get("/sessions", svc.GetSessions)
+	user.Delete("/sessions/:sessionId", svc.RevokeSession)
+
+	// Security management
+	user.Get("/security", svc.GetSecuritySettings)
+	user.Put("/security", svc.UpdateSecuritySettings)
+
+	// Audit logs
+	user.Get("/audit-logs", svc.GetAuditLogs)
+
 	// Social features
 	user.Post("/share", svc.ShareAchievement)
 
@@ -171,6 +182,9 @@ func (svc *HttpService) Start() error {
 	admin.Delete("/media/assets/:assetId", svc.DeleteMediaAsset)
 	admin.Post("/lessons/:lessonId/media/batch", svc.BatchUploadMedia)
 	admin.Get("/media/statistics", svc.GetMediaStatistics)
+	admin.Get("/users", svc.AdminGetUsers)
+	admin.Put("/users/:userId", svc.AdminUpdateUser)
+	admin.Delete("/users/:userId", svc.AdminDeleteUser)
 
 	// Static file serving for uploaded media
 	svc.app.Static("/uploads", "./uploads")
@@ -595,55 +609,6 @@ func (h *HttpService) AdminDeleteUser(c *fiber.Ctx) error {
 	}
 
 	return shared.ResponseJSON(c, http.StatusOK, "User deleted successfully", nil)
-}
-
-// @Summary Get user profile
-// @Description Get current user profile information
-// @Tags user
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
-// @Router /api/v1/user/profile [get]
-func (h *HttpService) GetProfile(c *fiber.Ctx) error {
-	userID := c.Locals(shared.UserID).(string)
-
-	profile, err := h.userSvc.GetUserProfile(userID)
-	if err != nil {
-		return h.HandleError(c, err)
-	}
-
-	return shared.ResponseJSON(c, http.StatusOK, "Profile retrieved successfully", profile)
-}
-
-// @Summary Update user profile
-// @Description Update current user profile information
-// @Tags user
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param updateRequest body dto.UpdateProfileRequest true "Profile update data"
-// @Success 200 {object} shared.Response{data=dto.UserProfileResponse}
-// @Router /api/v1/user/profile [put]
-func (h *HttpService) UpdateProfile(c *fiber.Ctx) error {
-	userID := c.Locals(shared.UserID).(string)
-
-	var req dto.UpdateProfileRequest
-	if err := c.BodyParser(&req); err != nil {
-		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
-	}
-
-	if err := req.Validate(); err != nil {
-		validationResp := dto.CreateValidationErrorResponse(err)
-		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
-	}
-
-	profile, err := h.userSvc.UpdateUserProfile(userID, req)
-	if err != nil {
-		return h.HandleError(c, err)
-	}
-
-	return shared.ResponseJSON(c, http.StatusOK, "Profile updated successfully", profile)
 }
 
 // @Summary Get user sessions
