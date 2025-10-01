@@ -1,4 +1,4 @@
-module github.com/lac-hong-legacy/TechYouth-Be
+module github.com/lac-hong-legacy/ven_api
 
 go 1.24.2
 
