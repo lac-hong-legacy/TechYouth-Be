@@ -5,13 +5,13 @@ import (
 
 	"github.com/alphabatem/common/context"
 	"github.com/joho/godotenv"
-	"github.com/rs/zerolog/log"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error loading .env file")
+		log.WithError(err).Fatal("Error loading .env file")
 	}
 
 	ctx, err := context.NewCtx(
@@ -27,13 +27,13 @@ func main() {
 		&services.HttpService{},
 	)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.WithError(err).Fatal("Failed to initialize context")
 		return
 	}
 
 	err = ctx.Run()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.WithError(err).Fatal("Failed to run application")
 		return
 	}
 }

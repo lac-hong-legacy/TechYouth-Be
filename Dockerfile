@@ -3,7 +3,7 @@ FROM golang:1.23-alpine AS builder
 WORKDIR /app
 
 # Install git and ca-certificates
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git ca-certificates gcc musl-dev
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./runtime/
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main ./runtime/
 
 # Final stage
 FROM alpine:latest
