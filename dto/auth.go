@@ -191,10 +191,10 @@ type AuditLogResponse struct {
 
 // ==================== PASSWORD RESET DTOs ====================
 
-type PasswordResetToken struct {
+type PasswordResetCode struct {
 	ID        string    `json:"id" example:"rst_123456789"`
 	UserID    string    `json:"user_id" example:"usr_123456789"`
-	Token     string    `json:"token" example:"reset_token_abc123"`
+	Code      string    `json:"code" example:"123456"`
 	ExpiresAt time.Time `json:"expires_at" example:"2023-01-15T11:30:00Z"`
 	Used      bool      `json:"used" example:"false"`
 	CreatedAt time.Time `json:"created_at" example:"2023-01-15T10:30:00Z"`
