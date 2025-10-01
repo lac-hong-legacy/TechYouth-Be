@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/lac-hong-legacy/TechYouth-Be/seed/seeders"
+	"github.com/lac-hong-legacy/ven_api/seed/seeders"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/lac-hong-legacy/TechYouth-Be/model"
+import "github.com/lac-hong-legacy/ven_api/model"
 
 type CreateSessionRequest struct {
 	DeviceID string `json:"device_id" validate:"required,min=1,max=100"`

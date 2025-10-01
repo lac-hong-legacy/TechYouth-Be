@@ -13,11 +13,11 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
-	docs "github.com/lac-hong-legacy/TechYouth-Be/docs"
-	"github.com/lac-hong-legacy/TechYouth-Be/dto"
-	"github.com/lac-hong-legacy/TechYouth-Be/model"
+	docs "github.com/lac-hong-legacy/ven_api/docs"
+	"github.com/lac-hong-legacy/ven_api/dto"
+	"github.com/lac-hong-legacy/ven_api/model"
 
-	"github.com/lac-hong-legacy/TechYouth-Be/shared"
+	"github.com/lac-hong-legacy/ven_api/shared"
 )
 
 type HttpService struct {

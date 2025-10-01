@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/lac-hong-legacy/TechYouth-Be/dto"
+	"github.com/lac-hong-legacy/ven_api/dto"
 
 	"github.com/alphabatem/common/context"
 )

@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/alphabatem/common/context"
-	"github.com/lac-hong-legacy/TechYouth-Be/dto"
-	"github.com/lac-hong-legacy/TechYouth-Be/model"
+	"github.com/lac-hong-legacy/ven_api/dto"
+	"github.com/lac-hong-legacy/ven_api/model"
 	log "github.com/sirupsen/logrus"
 )
 

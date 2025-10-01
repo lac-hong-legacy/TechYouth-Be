@@ -11,9 +11,9 @@ import (
 
 	"github.com/alphabatem/common/context"
 	"github.com/google/uuid"
-	"github.com/lac-hong-legacy/TechYouth-Be/dto"
-	"github.com/lac-hong-legacy/TechYouth-Be/model"
-	"github.com/lac-hong-legacy/TechYouth-Be/shared"
+	"github.com/lac-hong-legacy/ven_api/dto"
+	"github.com/lac-hong-legacy/ven_api/model"
+	"github.com/lac-hong-legacy/ven_api/shared"
 	log "github.com/sirupsen/logrus"
 )
 

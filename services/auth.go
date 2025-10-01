@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/lac-hong-legacy/TechYouth-Be/dto"
-	"github.com/lac-hong-legacy/TechYouth-Be/model"
-	"github.com/lac-hong-legacy/TechYouth-Be/shared"
+	"github.com/lac-hong-legacy/ven_api/dto"
+	"github.com/lac-hong-legacy/ven_api/model"
+	"github.com/lac-hong-legacy/ven_api/shared"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/alphabatem/common/context"
