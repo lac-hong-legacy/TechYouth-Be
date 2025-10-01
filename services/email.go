@@ -125,7 +125,8 @@ const passwordResetEmailHTML = `
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #DC2626; color: white; padding: 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; }
-        .button { display: inline-block; padding: 12px 24px; background-color: #DC2626; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .code-box { background-color: #fff; border: 2px dashed #DC2626; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+        .reset-code { font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #DC2626; font-family: 'Courier New', monospace; }
         .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
         .warning { background-color: #FEF2F2; border-left: 4px solid #DC2626; padding: 10px; margin: 20px 0; }
     </style>
@@ -137,13 +138,18 @@ const passwordResetEmailHTML = `
         </div>
         <div class="content">
             <h2>Hi {{.Username}},</h2>
-            <p>We received a request to reset your password for your {{.AppName}} account.</p>
-            <a href="{{.ResetURL}}" class="button">Reset Password</a>
-            <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
-            <p><a href="{{.ResetURL}}">{{.ResetURL}}</a></p>
-            <div class="warning">
-                <strong>Important:</strong> This password reset link will expire in 1 hour for security reasons.
+            <p>We received a request to reset your password for your {{.AppName}} account. Please use the reset code below:</p>
+            
+            <div class="code-box">
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Your Password Reset Code</p>
+                <div class="reset-code">{{.ResetCode}}</div>
             </div>
+            
+            <div class="warning">
+                <strong>⏰ Important:</strong> This reset code will expire in 1 hour for security reasons.
+            </div>
+            
+            <p>Enter this code in the password reset form to create a new password.</p>
             <p>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
         </div>
         <div class="footer">
@@ -214,9 +220,9 @@ type VerificationEmailData struct {
 }
 
 type PasswordResetEmailData struct {
-	AppName  string
-	Username string
-	ResetURL string
+	AppName   string
+	Username  string
+	ResetCode string
 }
 
 type LoginNotificationEmailData struct {
@@ -265,18 +271,16 @@ func (svc *EmailService) SendVerificationEmail(email, username, code string) err
 	return svc.sendTemplateEmail(email, subject, "verification", data)
 }
 
-func (svc *EmailService) SendPasswordResetEmail(email, username, token string) error {
+func (svc *EmailService) SendPasswordResetEmail(email, username, code string) error {
 	if svc.smtpHost == "" {
 		log.Warn("SMTP not configured, skipping password reset email")
 		return nil
 	}
 
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", svc.baseURL, token)
-
 	data := PasswordResetEmailData{
-		AppName:  "TechYouth",
-		Username: username,
-		ResetURL: resetURL,
+		AppName:   "TechYouth",
+		Username:  username,
+		ResetCode: code,
 	}
 
 	subject := "Reset Your Password - TechYouth"

@@ -43,7 +43,7 @@ func (c ChangePasswordRequest) Validate() error {
 }
 
 type ResetPasswordRequest struct {
-	Token       string `json:"token" validate:"required" example:"reset_token_abc123"`
+	Code        string `json:"code" validate:"required,len=6,numeric" example:"123456"`
 	NewPassword string `json:"new_password" validate:"required,strong_password" example:"NewPass123!"`
 }
 

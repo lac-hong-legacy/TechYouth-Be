@@ -3,7 +3,6 @@ package services
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -28,9 +27,9 @@ type VerificationEmail struct {
 }
 
 type PasswordResetEmail struct {
-	Email      string
-	Username   string
-	ResetToken string
+	Email     string
+	Username  string
+	ResetCode string
 }
 
 type LoginNotificationEmail struct {
@@ -123,14 +122,6 @@ func (svc *AuthService) validatePassword(password string) error {
 	}
 
 	return nil
-}
-
-func (svc *AuthService) generateSecureToken() (string, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
 func (svc *AuthService) generateVerificationCode() (string, error) {
@@ -466,21 +457,21 @@ func (svc *AuthService) ForgotPassword(email string) error {
 		return nil
 	}
 
-	resetToken, err := svc.generateSecureToken()
+	resetCode, err := svc.generateVerificationCode()
 	if err != nil {
-		return shared.NewInternalError(err, "Failed to generate reset token")
+		return shared.NewInternalError(err, "Failed to generate reset code")
 	}
 
 	expiresAt := time.Now().Add(time.Hour)
-	err = svc.sqlSvc.CreatePasswordResetToken(user.ID, resetToken, expiresAt)
+	err = svc.sqlSvc.CreatePasswordResetToken(user.ID, resetCode, expiresAt)
 	if err != nil {
-		return shared.NewInternalError(err, "Failed to create reset token")
+		return shared.NewInternalError(err, "Failed to create reset code")
 	}
 
 	svc.sendPasswordResetEmailAsync <- PasswordResetEmail{
-		Email:      user.Email,
-		Username:   user.Username,
-		ResetToken: resetToken,
+		Email:     user.Email,
+		Username:  user.Username,
+		ResetCode: resetCode,
 	}
 
 	svc.logAuthEventCh <- dto.AuthAuditLog{
@@ -499,13 +490,13 @@ func (svc *AuthService) ResetPassword(resetRequest dto.ResetPasswordRequest) err
 		return shared.NewBadRequestError(err, err.Error())
 	}
 
-	resetToken, err := svc.sqlSvc.GetPasswordResetToken(resetRequest.Token)
+	resetToken, err := svc.sqlSvc.GetPasswordResetToken(resetRequest.Code)
 	if err != nil {
-		return shared.NewBadRequestError(err, "Invalid reset token")
+		return shared.NewBadRequestError(err, "Invalid reset code")
 	}
 
 	if resetToken.ExpiresAt.Before(time.Now()) {
-		return shared.NewBadRequestError(errors.New("token expired"), "Reset token has expired")
+		return shared.NewBadRequestError(errors.New("code expired"), "Reset code has expired")
 	}
 
 	hashedPassword, err := svc.hashPassword(resetRequest.NewPassword)
@@ -519,7 +510,7 @@ func (svc *AuthService) ResetPassword(resetRequest dto.ResetPasswordRequest) err
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.InvalidatePasswordResetToken(resetRequest.Token)
+		svc.sqlSvc.InvalidatePasswordResetToken(resetRequest.Code)
 	}
 
 	svc.dbOperationCh <- func() {
@@ -650,7 +641,7 @@ func (svc *AuthService) startVerificationEmailJob() {
 
 func (svc *AuthService) startPasswordResetEmailJob() {
 	for email := range svc.sendPasswordResetEmailAsync {
-		err := svc.emailSvc.SendPasswordResetEmail(email.Email, email.Username, email.ResetToken)
+		err := svc.emailSvc.SendPasswordResetEmail(email.Email, email.Username, email.ResetCode)
 		if err != nil {
 			log.WithError(err).Error("Failed to send password reset email")
 		}

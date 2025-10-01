@@ -440,11 +440,11 @@ func (h *HttpService) ForgotPassword(c *fiber.Ctx) error {
 }
 
 // @Summary Reset password
-// @Description Reset user password with reset token
+// @Description Reset user password with reset code
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param resetRequest body dto.ResetPasswordRequest true "Reset token and new password"
+// @Param resetRequest body dto.ResetPasswordRequest true "Reset code and new password"
 // @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/reset-password [post]
 func (h *HttpService) ResetPassword(c *fiber.Ctx) error {
