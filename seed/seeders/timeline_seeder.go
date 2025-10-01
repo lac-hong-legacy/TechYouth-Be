@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/lac-hong-legacy/TechYouth-Be/model"
+	"github.com/lac-hong-legacy/ven_api/model"
 	"gorm.io/gorm"
 )
 

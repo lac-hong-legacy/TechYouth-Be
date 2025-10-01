@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/alphabatem/common/context"
-	"github.com/lac-hong-legacy/TechYouth-Be/dto"
-	"github.com/lac-hong-legacy/TechYouth-Be/model"
+	"github.com/lac-hong-legacy/ven_api/dto"
+	"github.com/lac-hong-legacy/ven_api/model"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -618,63 +618,4 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// GetNextBestQuestions suggests which questions to answer next for optimal progression
-func (svc *ContentService) GetNextBestQuestions(userID, lessonID string) ([]string, error) {
-	// Get the lesson
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
-	if err != nil {
-		return nil, err
-	}
-
-	var questions []model.Question
-	if err := json.Unmarshal(lesson.Questions, &questions); err != nil {
-		return nil, fmt.Errorf("failed to parse lesson questions: %v", err)
-	}
-
-	// Get user's answers
-	userAnswers, err := svc.sqlSvc.GetUserQuestionAnswers(userID, lessonID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create map of answered questions
-	answeredQuestions := make(map[string]bool)
-	for _, answer := range userAnswers {
-		answeredQuestions[answer.QuestionID] = true
-	}
-
-	// Find unanswered questions and sort by points (highest first)
-	type questionWithPoints struct {
-		ID     string
-		Points int
-	}
-
-	var unanswered []questionWithPoints
-	for _, question := range questions {
-		if !answeredQuestions[question.ID] {
-			unanswered = append(unanswered, questionWithPoints{
-				ID:     question.ID,
-				Points: question.Points,
-			})
-		}
-	}
-
-	// Sort by points descending (highest value questions first)
-	for i := 0; i < len(unanswered)-1; i++ {
-		for j := i + 1; j < len(unanswered); j++ {
-			if unanswered[i].Points < unanswered[j].Points {
-				unanswered[i], unanswered[j] = unanswered[j], unanswered[i]
-			}
-		}
-	}
-
-	// Return question IDs in order of priority
-	var result []string
-	for _, q := range unanswered {
-		result = append(result, q.ID)
-	}
-
-	return result, nil
 }

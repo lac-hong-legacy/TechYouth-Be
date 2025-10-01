@@ -25,8 +25,12 @@ type LessonMediaResponse struct {
 
 // Batch Upload DTOs
 type BatchMediaUploadRequest struct {
-	LessonID string `json:"lesson_id" binding:"required"`
+	LessonID string `json:"lesson_id" validate:"required"`
 	// Files will be handled separately in multipart form
+}
+
+func (b BatchMediaUploadRequest) Validate() error {
+	return GetValidator().Struct(b)
 }
 
 type BatchMediaUploadResponse struct {

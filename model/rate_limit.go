@@ -3,20 +3,24 @@ package model
 import "time"
 
 type RateLimit struct {
-	ID           string     `json:"id" gorm:"column:id;type:varchar(255);primaryKey"`
-	Identifier   string     `json:"identifier" gorm:"column:identifier;type:varchar(255);not null;index"`       // IP or device_id
-	EndpointType string     `json:"endpoint_type" gorm:"column:endpoint_type;type:varchar(100);not null;index"` // guest_session, lesson_complete, etc
-	RequestCount int        `json:"request_count" gorm:"column:request_count;type:int;default:0"`
-	WindowStart  time.Time  `json:"window_start" gorm:"column:window_start;type:datetime;not null"`
-	BlockedUntil *time.Time `json:"blocked_until" gorm:"column:blocked_until;type:datetime"`
-	CreatedAt    time.Time  `json:"created_at" gorm:"column:created_at;type:datetime;autoCreateTime"`
-	UpdatedAt    time.Time  `json:"updated_at" gorm:"column:updated_at;type:datetime;autoUpdateTime"`
+	ID           string     `json:"id" gorm:"primaryKey;type:text;not null"`
+	Identifier   string     `json:"identifier" gorm:"not null;index;size:255"`
+	EndpointType string     `json:"endpoint_type" gorm:"not null;size:50"`
+	RequestCount int        `json:"request_count" gorm:"default:0;not null"`
+	WindowStart  time.Time  `json:"window_start" gorm:"not null"`
+	BlockedUntil *time.Time `json:"blocked_until,omitempty" gorm:"index"`
+	CreatedAt    time.Time  `json:"created_at" gorm:"not null"`
+	UpdatedAt    time.Time  `json:"updated_at" gorm:"not null"`
 }
 
 type RateLimitConfig struct {
-	EndpointType string        `json:"endpoint_type" gorm:"column:endpoint_type;type:varchar(100);primaryKey"`
-	MaxRequests  int           `json:"max_requests" gorm:"column:max_requests;type:int;not null"`
-	WindowSize   time.Duration `json:"window_size" gorm:"column:window_size;type:bigint;not null"` // Store as nanoseconds
-	BlockTime    time.Duration `json:"block_time" gorm:"column:block_time;type:bigint;not null"`   // Store as nanoseconds
-	Description  string        `json:"description" gorm:"column:description;type:text"`
+	ID           string    `json:"id" gorm:"primaryKey;type:text;not null"`
+	EndpointType string    `json:"endpoint_type" gorm:"uniqueIndex;not null;size:50"`
+	Limit        int       `json:"limit" gorm:"not null"`
+	WindowSize   int       `json:"window_size" gorm:"not null"` // seconds
+	BlockTime    int       `json:"block_time" gorm:"not null"`  // seconds
+	Description  string    `json:"description" gorm:"type:text"`
+	IsActive     bool      `json:"is_active" gorm:"default:true;not null"`
+	CreatedAt    time.Time `json:"created_at" gorm:"not null"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"not null"`
 }

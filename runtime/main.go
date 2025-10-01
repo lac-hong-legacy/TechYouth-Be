@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lac-hong-legacy/TechYouth-Be/services"
+	"github.com/lac-hong-legacy/ven_api/services"
 
 	"github.com/alphabatem/common/context"
 	"github.com/joho/godotenv"
@@ -23,6 +23,7 @@ func main() {
 		&services.ContentService{},
 		&services.MediaService{},
 		&services.UserService{},
+		&services.EmailService{},
 		&services.HttpService{},
 	)
 	if err != nil {

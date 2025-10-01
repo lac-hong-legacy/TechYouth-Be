@@ -9,7 +9,7 @@ type AppError struct {
 	Err        error
 	StatusCode int
 	Message    string
-	Code       string // Optional error code for API clients
+	Code       string      // Optional error code for API clients
 	Data       interface{} // Optional data to include in response
 }
 
@@ -97,6 +97,18 @@ func NewInternalError(err error, message string) *AppError {
 		StatusCode: http.StatusInternalServerError,
 		Message:    message,
 		Code:       "INTERNAL_ERROR",
+	}
+}
+
+func NewTooManyRequestsError(err error, message string) *AppError {
+	if message == "" {
+		message = "Too Many Requests"
+	}
+	return &AppError{
+		Err:        err,
+		StatusCode: http.StatusTooManyRequests,
+		Message:    message,
+		Code:       "TOO_MANY_REQUESTS",
 	}
 }
 
