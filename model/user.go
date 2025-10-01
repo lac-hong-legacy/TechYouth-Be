@@ -30,7 +30,6 @@ type User struct {
 
 	// Email Verification
 	EmailVerified          bool       `json:"email_verified" gorm:"default:false;not null;index"`
-	VerificationToken      string     `json:"-" gorm:"size:255;index"` // Deprecated, keeping for migration compatibility
 	VerificationCode       string     `json:"-" gorm:"size:6;index"`
 	VerificationCodeExpiry *time.Time `json:"-" gorm:"index"`
 
@@ -88,11 +87,11 @@ type AuthAuditLog struct {
 	User *User `json:"-" gorm:"foreignKey:UserID;constraint:OnDelete:SET NULL"`
 }
 
-// PasswordResetToken represents password reset tokens
-type PasswordResetToken struct {
+// PasswordResetCode represents password reset codes
+type PasswordResetCode struct {
 	ID        string    `json:"id" gorm:"primaryKey;type:text;not null"`
 	UserID    string    `json:"user_id" gorm:"not null;index;size:50"`
-	Token     string    `json:"token" gorm:"not null;uniqueIndex;size:255"`
+	Code      string    `json:"code" gorm:"not null;uniqueIndex;size:255"`
 	ExpiresAt time.Time `json:"expires_at" gorm:"not null;index"`
 	Used      bool      `json:"used" gorm:"default:false;not null;index"`
 	CreatedAt time.Time `json:"created_at" gorm:"not null"`

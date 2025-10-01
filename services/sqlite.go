@@ -75,7 +75,7 @@ func (ds *SqliteService) Start() (err error) {
 		// New authentication models
 		&model.UserSession{},
 		&model.AuthAuditLog{},
-		&model.PasswordResetToken{},
+		&model.PasswordResetCode{},
 		&model.BlacklistedToken{},
 		&model.TrustedDevice{},
 		&model.LoginAttempt{},
@@ -1336,11 +1336,11 @@ func (ds *SqliteService) CleanupExpiredSessions() error {
 
 // ==================== PASSWORD RESET METHODS ====================
 
-func (ds *SqliteService) CreatePasswordResetToken(userID, token string, expiresAt time.Time) error {
-	resetToken := &model.PasswordResetToken{
+func (ds *SqliteService) CreatePasswordResetCode(userID, code string, expiresAt time.Time) error {
+	resetToken := &model.PasswordResetCode{
 		ID:        uuid.New().String(),
 		UserID:    userID,
-		Token:     token,
+		Code:      code,
 		ExpiresAt: expiresAt,
 		Used:      false,
 		CreatedAt: time.Now(),
@@ -1349,21 +1349,21 @@ func (ds *SqliteService) CreatePasswordResetToken(userID, token string, expiresA
 	return ds.db.Create(resetToken).Error
 }
 
-func (ds *SqliteService) GetPasswordResetToken(token string) (*model.PasswordResetToken, error) {
-	var resetToken model.PasswordResetToken
-	err := ds.db.Where("token = ? AND used = ?", token, false).First(&resetToken).Error
+func (ds *SqliteService) GetPasswordResetCode(code string) (*model.PasswordResetCode, error) {
+	var resetCode model.PasswordResetCode
+	err := ds.db.Where("code = ? AND used = ?", code, false).First(&resetCode).Error
 	if err != nil {
 		return nil, ds.HandleError(err)
 	}
-	return &resetToken, nil
+	return &resetCode, nil
 }
 
-func (ds *SqliteService) InvalidatePasswordResetToken(token string) error {
-	return ds.db.Model(&model.PasswordResetToken{}).Where("token = ?", token).Update("used", true).Error
+func (ds *SqliteService) InvalidatePasswordResetCode(code string) error {
+	return ds.db.Model(&model.PasswordResetCode{}).Where("code = ?", code).Update("used", true).Error
 }
 
-func (ds *SqliteService) CleanupExpiredPasswordTokens() error {
-	return ds.db.Where("expires_at < ?", time.Now()).Delete(&model.PasswordResetToken{}).Error
+func (ds *SqliteService) CleanupExpiredPasswordCodes() error {
+	return ds.db.Where("expires_at < ?", time.Now()).Delete(&model.PasswordResetCode{}).Error
 }
 
 // ==================== TOKEN BLACKLIST METHODS ====================
@@ -1627,8 +1627,8 @@ func (ds *SqliteService) CleanupExpiredData() error {
 	// Cleanup expired sessions
 	ds.CleanupExpiredSessions()
 
-	// Cleanup expired password reset tokens
-	ds.CleanupExpiredPasswordTokens()
+	// Cleanup expired password reset codes
+	ds.CleanupExpiredPasswordCodes()
 
 	// Cleanup expired blacklisted tokens
 	ds.CleanupExpiredBlacklistedTokens()

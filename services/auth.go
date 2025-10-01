@@ -463,7 +463,7 @@ func (svc *AuthService) ForgotPassword(email string) error {
 	}
 
 	expiresAt := time.Now().Add(time.Hour)
-	err = svc.sqlSvc.CreatePasswordResetToken(user.ID, resetCode, expiresAt)
+	err = svc.sqlSvc.CreatePasswordResetCode(user.ID, resetCode, expiresAt)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to create reset code")
 	}
@@ -490,12 +490,12 @@ func (svc *AuthService) ResetPassword(resetRequest dto.ResetPasswordRequest) err
 		return shared.NewBadRequestError(err, err.Error())
 	}
 
-	resetToken, err := svc.sqlSvc.GetPasswordResetToken(resetRequest.Code)
+	resetCode, err := svc.sqlSvc.GetPasswordResetCode(resetRequest.Code)
 	if err != nil {
 		return shared.NewBadRequestError(err, "Invalid reset code")
 	}
 
-	if resetToken.ExpiresAt.Before(time.Now()) {
+	if resetCode.ExpiresAt.Before(time.Now()) {
 		return shared.NewBadRequestError(errors.New("code expired"), "Reset code has expired")
 	}
 
@@ -504,21 +504,21 @@ func (svc *AuthService) ResetPassword(resetRequest dto.ResetPasswordRequest) err
 		return shared.NewInternalError(err, "Failed to hash password")
 	}
 
-	err = svc.sqlSvc.UpdateUserPassword(resetToken.UserID, hashedPassword)
+	err = svc.sqlSvc.UpdateUserPassword(resetCode.UserID, hashedPassword)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to update password")
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.InvalidatePasswordResetToken(resetRequest.Code)
+		svc.sqlSvc.InvalidatePasswordResetCode(resetRequest.Code)
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.DeactivateAllUserSessions(resetToken.UserID, "")
+		svc.sqlSvc.DeactivateAllUserSessions(resetCode.UserID, "")
 	}
 
 	svc.logAuthEventCh <- dto.AuthAuditLog{
-		UserID:    resetToken.UserID,
+		UserID:    resetCode.UserID,
 		Action:    "password_reset",
 		IP:        "",
 		UserAgent: "",
