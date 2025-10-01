@@ -79,8 +79,10 @@ const verificationEmailHTML = `
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; }
-        .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .code-box { background-color: #fff; border: 2px dashed #4F46E5; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+        .verification-code { font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; font-family: 'Courier New', monospace; }
         .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        .warning { background-color: #FEF2F2; border-left: 4px solid #DC2626; padding: 10px; margin: 20px 0; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -90,11 +92,18 @@ const verificationEmailHTML = `
         </div>
         <div class="content">
             <h2>Hi {{.Username}},</h2>
-            <p>Thank you for registering with {{.AppName}}! To complete your registration, please verify your email address by clicking the button below:</p>
-            <a href="{{.VerificationURL}}" class="button">Verify Email Address</a>
-            <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
-            <p><a href="{{.VerificationURL}}">{{.VerificationURL}}</a></p>
-            <p>This verification link will expire in 24 hours.</p>
+            <p>Thank you for registering with {{.AppName}}! To complete your registration, please use the verification code below:</p>
+            
+            <div class="code-box">
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Your Verification Code</p>
+                <div class="verification-code">{{.VerificationCode}}</div>
+            </div>
+            
+            <div class="warning">
+                <strong>⏰ Important:</strong> This code will expire in 15 minutes for security reasons.
+            </div>
+            
+            <p>Enter this code in the verification form to activate your account.</p>
             <p>If you didn't create an account with {{.AppName}}, you can safely ignore this email.</p>
         </div>
         <div class="footer">
@@ -199,9 +208,9 @@ const loginNotificationEmailHTML = `
 
 // Template data structures
 type VerificationEmailData struct {
-	AppName         string
-	Username        string
-	VerificationURL string
+	AppName          string
+	Username         string
+	VerificationCode string
 }
 
 type PasswordResetEmailData struct {
@@ -240,18 +249,16 @@ func (svc *EmailService) loadTemplates() error {
 	return nil
 }
 
-func (svc *EmailService) SendVerificationEmail(email, username, token string) error {
+func (svc *EmailService) SendVerificationEmail(email, username, code string) error {
 	if svc.smtpHost == "" {
 		log.Warn("SMTP not configured, skipping verification email")
 		return nil
 	}
 
-	verificationURL := fmt.Sprintf("%s/api/v1/verify-email?token=%s", svc.baseURL, token)
-
 	data := VerificationEmailData{
-		AppName:         "TechYouth",
-		Username:        username,
-		VerificationURL: verificationURL,
+		AppName:          "Ven",
+		Username:         username,
+		VerificationCode: code,
 	}
 
 	subject := "Verify Your Email Address - TechYouth"

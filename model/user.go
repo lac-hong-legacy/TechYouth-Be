@@ -29,8 +29,10 @@ type User struct {
 	IsActive bool   `json:"is_active" gorm:"default:true;not null;index"`
 
 	// Email Verification
-	EmailVerified     bool   `json:"email_verified" gorm:"default:false;not null;index"`
-	VerificationToken string `json:"-" gorm:"size:255;index"`
+	EmailVerified          bool       `json:"email_verified" gorm:"default:false;not null;index"`
+	VerificationToken      string     `json:"-" gorm:"size:255;index"` // Deprecated, keeping for migration compatibility
+	VerificationCode       string     `json:"-" gorm:"size:6;index"`
+	VerificationCodeExpiry *time.Time `json:"-" gorm:"index"`
 
 	// Security Fields
 	FailedAttempts     int        `json:"failed_attempts" gorm:"default:0;not null"`

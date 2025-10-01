@@ -102,7 +102,7 @@ func (svc *HttpService) Start() error {
 	v1.Post("/refresh", svc.RefreshToken)
 	v1.Post("/logout", svc.authSvc.RequiredAuth(), svc.Logout)
 	v1.Post("/logout-all", svc.authSvc.RequiredAuth(), svc.LogoutAll)
-	v1.Get("/verify-email", svc.VerifyEmail)
+	v1.Post("/verify-email", svc.VerifyEmail)
 	v1.Post("/resend-verification", svc.ResendVerification)
 	v1.Post("/forgot-password", svc.ForgotPassword)
 	v1.Post("/reset-password", svc.ResetPassword)
@@ -360,20 +360,24 @@ func (h *HttpService) LogoutAll(c *fiber.Ctx) error {
 }
 
 // @Summary Verify email
-// @Description Verify user email with verification token
+// @Description Verify user email with 6-digit verification code
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param token query string true "Verification token"
+// @Param body body dto.VerifyEmailRequest true "Verification code and email"
 // @Success 200 {object} shared.Response{data=nil}
-// @Router /api/v1/verify-email [get]
+// @Router /api/v1/verify-email [post]
 func (h *HttpService) VerifyEmail(c *fiber.Ctx) error {
-	token := c.Query("token")
-	if token == "" {
-		return h.HandleError(c, shared.NewBadRequestError(errors.New("verification token is required"), "Verification token is required"))
+	var req dto.VerifyEmailRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request body"))
 	}
 
-	err := h.authSvc.VerifyEmail(token)
+	if err := req.Validate(); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Validation failed"))
+	}
+
+	err := h.authSvc.VerifyEmail(req.Email, req.Code)
 	if err != nil {
 		return h.HandleError(c, err)
 	}

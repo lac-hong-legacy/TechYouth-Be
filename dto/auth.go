@@ -60,7 +60,8 @@ func (f ForgotPasswordRequest) Validate() error {
 }
 
 type VerifyEmailRequest struct {
-	Token string `json:"token" validate:"required" example:"verify_token_abc123"`
+	Email string `json:"email" validate:"required,email" example:"user@example.com"`
+	Code  string `json:"code" validate:"required,len=6,numeric" example:"123456"`
 }
 
 func (v VerifyEmailRequest) Validate() error {

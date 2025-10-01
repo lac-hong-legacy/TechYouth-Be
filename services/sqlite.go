@@ -1120,21 +1120,23 @@ func (ds *SqliteService) BulkCreateLessonMedia(lessonMedia []model.LessonMedia) 
 
 // ==================== ENHANCED USER METHODS ====================
 
-func (ds *SqliteService) CreateUser(req dto.RegisterRequest, verificationToken string) (*model.User, error) {
+func (ds *SqliteService) CreateUser(req dto.RegisterRequest, verificationCode string) (*model.User, error) {
+	codeExpiry := time.Now().Add(15 * time.Minute) // Code expires in 15 minutes
 	user := &model.User{
-		ID:                 uuid.New().String(),
-		Username:           req.Username,
-		Email:              req.Email,
-		Password:           req.Password,
-		Role:               model.RoleUser,
-		IsActive:           true,
-		EmailVerified:      false,
-		VerificationToken:  verificationToken,
-		FailedAttempts:     0,
-		LoginNotifications: true,
-		SessionTimeout:     1440, // 24 hours
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
+		ID:                     uuid.New().String(),
+		Username:               req.Username,
+		Email:                  req.Email,
+		Password:               req.Password,
+		Role:                   model.RoleUser,
+		IsActive:               true,
+		EmailVerified:          false,
+		VerificationCode:       verificationCode,
+		VerificationCodeExpiry: &codeExpiry,
+		FailedAttempts:         0,
+		LoginNotifications:     true,
+		SessionTimeout:         1440, // 24 hours
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
 	}
 
 	if err := ds.db.Create(user).Error; err != nil {
@@ -1155,6 +1157,15 @@ func (ds *SqliteService) GetUserByID(userID string) (*model.User, error) {
 func (ds *SqliteService) GetUserByVerificationToken(token string) (*model.User, error) {
 	var user model.User
 	err := ds.db.Where("verification_token = ?", token).First(&user).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &user, nil
+}
+
+func (ds *SqliteService) GetUserByVerificationCode(email, code string) (*model.User, error) {
+	var user model.User
+	err := ds.db.Where("email = ? AND verification_code = ?", email, code).First(&user).Error
 	if err != nil {
 		return nil, ds.HandleError(err)
 	}
@@ -1203,9 +1214,11 @@ func (ds *SqliteService) LockAccount(userID string, lockUntil time.Time) error {
 
 func (ds *SqliteService) VerifyUserEmail(userID string) error {
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"email_verified":     true,
-		"verification_token": nil,
-		"updated_at":         time.Now(),
+		"email_verified":           true,
+		"verification_token":       nil,
+		"verification_code":        nil,
+		"verification_code_expiry": nil,
+		"updated_at":               time.Now(),
 	}).Error
 }
 
@@ -1213,6 +1226,15 @@ func (ds *SqliteService) UpdateVerificationToken(userID, token string) error {
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"verification_token": token,
 		"updated_at":         time.Now(),
+	}).Error
+}
+
+func (ds *SqliteService) UpdateVerificationCode(userID, code string) error {
+	codeExpiry := time.Now().Add(15 * time.Minute) // Code expires in 15 minutes
+	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"verification_code":        code,
+		"verification_code_expiry": &codeExpiry,
+		"updated_at":               time.Now(),
 	}).Error
 }
 

@@ -22,9 +22,9 @@ import (
 )
 
 type VerificationEmail struct {
-	Email             string
-	Username          string
-	VerificationToken string
+	Email            string
+	Username         string
+	VerificationCode string
 }
 
 type PasswordResetEmail struct {
@@ -133,6 +133,17 @@ func (svc *AuthService) generateSecureToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
+func (svc *AuthService) generateVerificationCode() (string, error) {
+	// Generate a random 6-digit code (100000 to 999999)
+	bytes := make([]byte, 4)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	// Convert to number between 100000 and 999999
+	code := 100000 + (int(bytes[0])<<16|int(bytes[1])<<8|int(bytes[2]))%900000
+	return fmt.Sprintf("%06d", code), nil
+}
+
 func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.RegisterResponse, error) {
 	_, err := svc.sqlSvc.GetUserByUsername(registerRequest.Username)
 	if err == nil {
@@ -148,22 +159,22 @@ func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.Regi
 		return nil, shared.NewInternalError(err, "Failed to hash password")
 	}
 
-	verificationToken, err := svc.generateSecureToken()
+	verificationCode, err := svc.generateVerificationCode()
 	if err != nil {
-		return nil, shared.NewInternalError(err, "Failed to generate verification token")
+		return nil, shared.NewInternalError(err, "Failed to generate verification code")
 	}
 
 	registerRequest.Password = hashedPassword
-	user, err := svc.sqlSvc.CreateUser(registerRequest, verificationToken)
+	user, err := svc.sqlSvc.CreateUser(registerRequest, verificationCode)
 	if err != nil {
 		return nil, shared.NewInternalError(err, err.Error())
 	}
 
 	if svc.requireEmailVerify {
 		svc.sendVerificationEmailAsync <- VerificationEmail{
-			Email:             registerRequest.Email,
-			Username:          registerRequest.Username,
-			VerificationToken: verificationToken,
+			Email:            registerRequest.Email,
+			Username:         registerRequest.Username,
+			VerificationCode: verificationCode,
 		}
 	}
 
@@ -389,14 +400,19 @@ func (svc *AuthService) LogoutAllDevices(userID, currentSessionID, clientIP, use
 	return nil
 }
 
-func (svc *AuthService) VerifyEmail(token string) error {
-	user, err := svc.sqlSvc.GetUserByVerificationToken(token)
+func (svc *AuthService) VerifyEmail(email, code string) error {
+	user, err := svc.sqlSvc.GetUserByVerificationCode(email, code)
 	if err != nil {
-		return shared.NewBadRequestError(err, "Invalid verification token")
+		return shared.NewBadRequestError(err, "Invalid verification code or email")
 	}
 
-	if user.CreatedAt.Add(24 * time.Hour).Before(time.Now()) {
-		return shared.NewBadRequestError(errors.New("token expired"), "Verification token has expired")
+	if user.EmailVerified {
+		return shared.NewBadRequestError(errors.New("already verified"), "Email is already verified")
+	}
+
+	// Check if code has expired
+	if user.VerificationCodeExpiry == nil || user.VerificationCodeExpiry.Before(time.Now()) {
+		return shared.NewBadRequestError(errors.New("code expired"), "Verification code has expired. Please request a new one")
 	}
 
 	err = svc.sqlSvc.VerifyUserEmail(user.ID)
@@ -425,20 +441,20 @@ func (svc *AuthService) ResendVerificationEmail(email string) error {
 		return shared.NewBadRequestError(errors.New("already verified"), "Email is already verified")
 	}
 
-	verificationToken, err := svc.generateSecureToken()
+	verificationCode, err := svc.generateVerificationCode()
 	if err != nil {
-		return shared.NewInternalError(err, "Failed to generate verification token")
+		return shared.NewInternalError(err, "Failed to generate verification code")
 	}
 
-	err = svc.sqlSvc.UpdateVerificationToken(user.ID, verificationToken)
+	err = svc.sqlSvc.UpdateVerificationCode(user.ID, verificationCode)
 	if err != nil {
-		return shared.NewInternalError(err, "Failed to update verification token")
+		return shared.NewInternalError(err, "Failed to update verification code")
 	}
 
 	svc.sendVerificationEmailAsync <- VerificationEmail{
-		Email:             user.Email,
-		Username:          user.Username,
-		VerificationToken: verificationToken,
+		Email:            user.Email,
+		Username:         user.Username,
+		VerificationCode: verificationCode,
 	}
 
 	return nil
@@ -625,7 +641,7 @@ func (svc *AuthService) RequireEmailVerified() fiber.Handler {
 
 func (svc *AuthService) startVerificationEmailJob() {
 	for email := range svc.sendVerificationEmailAsync {
-		err := svc.emailSvc.SendVerificationEmail(email.Email, email.Username, email.VerificationToken)
+		err := svc.emailSvc.SendVerificationEmail(email.Email, email.Username, email.VerificationCode)
 		if err != nil {
 			log.WithError(err).Error("Failed to send verification email")
 		}

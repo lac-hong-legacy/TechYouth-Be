@@ -2830,8 +2830,8 @@ const docTemplate = `{
             }
         },
         "/api/v1/verify-email": {
-            "get": {
-                "description": "Verify user email with verification token",
+            "post": {
+                "description": "Verify user email with 6-digit verification code",
                 "consumes": [
                     "application/json"
                 ],
@@ -2844,11 +2844,13 @@ const docTemplate = `{
                 "summary": "Verify email",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Verification token",
-                        "name": "token",
-                        "in": "query",
-                        "required": true
+                        "description": "Verification code and email",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.VerifyEmailRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -4297,6 +4299,23 @@ const docTemplate = `{
                 },
                 "total_points": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.VerifyEmailRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "email"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
                 }
             }
         },
