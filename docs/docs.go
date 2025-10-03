@@ -1900,7 +1900,7 @@ const docTemplate = `{
         },
         "/api/v1/reset-password": {
             "post": {
-                "description": "Reset user password with reset token",
+                "description": "Reset user password with reset code",
                 "consumes": [
                     "application/json"
                 ],
@@ -1913,7 +1913,7 @@ const docTemplate = `{
                 "summary": "Reset password",
                 "parameters": [
                     {
-                        "description": "Reset token and new password",
+                        "description": "Reset code and new password",
                         "name": "resetRequest",
                         "in": "body",
                         "required": true,
@@ -3804,17 +3804,17 @@ const docTemplate = `{
         "dto.ResetPasswordRequest": {
             "type": "object",
             "required": [
-                "new_password",
-                "token"
+                "code",
+                "new_password"
             ],
             "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
                 "new_password": {
                     "type": "string",
                     "example": "NewPass123!"
-                },
-                "token": {
-                    "type": "string",
-                    "example": "reset_token_abc123"
                 }
             }
         },

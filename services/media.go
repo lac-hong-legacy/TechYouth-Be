@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -19,9 +18,9 @@ import (
 
 type MediaService struct {
 	context.DefaultService
-	sqlSvc     *SqliteService
-	uploadPath string
-	baseURL    string
+	sqlSvc   *SqliteService
+	minioSvc *MinIOService
+	baseURL  string
 }
 
 const MEDIA_SVC = "media_svc"
@@ -31,23 +30,9 @@ func (svc MediaService) Id() string {
 }
 
 func (svc *MediaService) Configure(ctx *context.Context) error {
-	svc.uploadPath = os.Getenv("UPLOAD_PATH")
-	if svc.uploadPath == "" {
-		svc.uploadPath = "./uploads"
-	}
-
 	svc.baseURL = os.Getenv("BASE_URL")
 	if svc.baseURL == "" {
 		svc.baseURL = "http://localhost:8000"
-	}
-
-	// Create upload directories
-	dirs := []string{"videos", "subtitles", "thumbnails"}
-	for _, dir := range dirs {
-		fullPath := filepath.Join(svc.uploadPath, dir)
-		if err := os.MkdirAll(fullPath, 0755); err != nil {
-			return fmt.Errorf("failed to create upload directory %s: %v", fullPath, err)
-		}
 	}
 
 	return svc.DefaultService.Configure(ctx)
@@ -55,6 +40,7 @@ func (svc *MediaService) Configure(ctx *context.Context) error {
 
 func (svc *MediaService) Start() error {
 	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.minioSvc = svc.Service(MINIO_SVC).(*MinIOService)
 	return nil
 }
 
@@ -82,12 +68,72 @@ func (svc *MediaService) UploadLessonSubtitle(lessonID string, file *multipart.F
 	return svc.uploadFile(file, "subtitle", lessonID)
 }
 
+func (svc *MediaService) UploadBackgroundMusic(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
+	if !svc.isValidAudioFile(file.Filename) {
+		return nil, shared.NewBadRequestError(nil, "Invalid audio file format. Supported: MP3, WAV, AAC")
+	}
+
+	if file.Size > 10*1024*1024 {
+		return nil, shared.NewBadRequestError(nil, "Audio file too large. Maximum size: 10MB")
+	}
+
+	return svc.uploadFile(file, "background_music", lessonID)
+}
+
+func (svc *MediaService) UploadVoiceOver(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
+	if !svc.isValidAudioFile(file.Filename) {
+		return nil, shared.NewBadRequestError(nil, "Invalid audio file format. Supported: MP3, WAV, AAC")
+	}
+
+	if file.Size > 20*1024*1024 {
+		return nil, shared.NewBadRequestError(nil, "Voice-over file too large. Maximum size: 20MB")
+	}
+
+	return svc.uploadFile(file, "voice_over", lessonID)
+}
+
+func (svc *MediaService) UploadAnimation(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
+	if !svc.isValidVideoFile(file.Filename) {
+		return nil, shared.NewBadRequestError(nil, "Invalid animation file format. Supported: MP4, MOV, WEBM")
+	}
+
+	if file.Size > 50*1024*1024 {
+		return nil, shared.NewBadRequestError(nil, "Animation file too large. Maximum size: 50MB")
+	}
+
+	return svc.uploadFile(file, "animation", lessonID)
+}
+
+func (svc *MediaService) UploadIllustration(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
+	if !svc.isValidImageFile(file.Filename) {
+		return nil, shared.NewBadRequestError(nil, "Invalid image file format. Supported: JPG, PNG, WEBP")
+	}
+
+	if file.Size > 5*1024*1024 {
+		return nil, shared.NewBadRequestError(nil, "Image file too large. Maximum size: 5MB")
+	}
+
+	return svc.uploadFile(file, "illustration", lessonID)
+}
+
+func (svc *MediaService) UploadThumbnail(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
+	if !svc.isValidImageFile(file.Filename) {
+		return nil, shared.NewBadRequestError(nil, "Invalid image file format. Supported: JPG, PNG, WEBP")
+	}
+
+	if file.Size > 2*1024*1024 {
+		return nil, shared.NewBadRequestError(nil, "Thumbnail file too large. Maximum size: 2MB")
+	}
+
+	return svc.uploadFile(file, "thumbnail", lessonID)
+}
+
 func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lessonID string) (*dto.MediaUploadResponse, error) {
 	// Generate unique filename
 	ext := filepath.Ext(file.Filename)
 	fileName := fmt.Sprintf("%s_%s_%d%s", lessonID, fileType, time.Now().Unix(), ext)
 
-	// Determine subdirectory
+	// Determine subdirectory based on file type
 	var subDir string
 	switch fileType {
 	case "video":
@@ -96,12 +142,22 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 		subDir = "subtitles"
 	case "thumbnail":
 		subDir = "thumbnails"
+	case "audio":
+		subDir = "audio"
+	case "background_music":
+		subDir = "background_music"
+	case "voice_over":
+		subDir = "voice_over"
+	case "animation":
+		subDir = "animations"
+	case "illustration":
+		subDir = "illustrations"
 	default:
 		subDir = "misc"
 	}
 
-	// Full file path
-	filePath := filepath.Join(svc.uploadPath, subDir, fileName)
+	// Create object name for MinIO
+	objectName := fmt.Sprintf("%s/%s", subDir, fileName)
 
 	// Open uploaded file
 	src, err := file.Open()
@@ -110,17 +166,19 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 	}
 	defer src.Close()
 
-	// Create destination file
-	dst, err := os.Create(filePath)
+	// Upload to MinIO
+	uploadInfo, err := svc.minioSvc.UploadFile(objectName, src, file.Size, file.Header.Get("Content-Type"))
 	if err != nil {
-		return nil, shared.NewInternalError(err, "Failed to create destination file")
+		return nil, shared.NewInternalError(err, "Failed to upload file to storage")
 	}
-	defer dst.Close()
 
-	// Copy file content
-	if _, err := io.Copy(dst, src); err != nil {
-		return nil, shared.NewInternalError(err, "Failed to save file")
+	// Generate presigned URL (valid for 24 hours)
+	fileURL, err := svc.minioSvc.GetFileURL(objectName, 24*time.Hour)
+	if err != nil {
+		log.Printf("Failed to generate presigned URL: %v", err)
+		fileURL = fmt.Sprintf("%s/%s/%s", svc.baseURL, svc.minioSvc.GetBucketName(), objectName)
 	}
+
 	id, _ := uuid.NewV7()
 
 	// Create media asset record
@@ -131,8 +189,8 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 		FileType:     fileType,
 		MimeType:     file.Header.Get("Content-Type"),
 		FileSize:     file.Size,
-		URL:          fmt.Sprintf("%s/uploads/%s/%s", svc.baseURL, subDir, fileName),
-		StoragePath:  filePath,
+		URL:          fileURL,
+		StoragePath:  objectName,
 		IsProcessed:  false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -141,7 +199,7 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 	// Save to database
 	if err := svc.sqlSvc.CreateMediaAsset(mediaAsset); err != nil {
 		// Clean up file if database save fails
-		os.Remove(filePath)
+		svc.minioSvc.DeleteFile(objectName)
 		return nil, err
 	}
 
@@ -160,6 +218,8 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 			log.Printf("Failed to link media to lesson: %v", err)
 		}
 	}
+
+	log.Printf("Successfully uploaded file %s to MinIO: %s", fileName, uploadInfo.Key)
 
 	return &dto.MediaUploadResponse{
 		ID:       mediaAsset.ID,
@@ -221,6 +281,30 @@ func (svc *MediaService) isValidSubtitleFile(filename string) bool {
 	return false
 }
 
+func (svc *MediaService) isValidAudioFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	validExts := []string{".mp3", ".wav", ".aac", ".m4a", ".ogg"}
+
+	for _, validExt := range validExts {
+		if ext == validExt {
+			return true
+		}
+	}
+	return false
+}
+
+func (svc *MediaService) isValidImageFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	validExts := []string{".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+	for _, validExt := range validExts {
+		if ext == validExt {
+			return true
+		}
+	}
+	return false
+}
+
 // ==================== MEDIA PROCESSING METHODS ====================
 
 func (svc *MediaService) ProcessVideoMetadata(mediaAssetID string) error {
@@ -253,9 +337,9 @@ func (svc *MediaService) DeleteMediaAsset(mediaAssetID string) error {
 		return err
 	}
 
-	// Delete physical file
-	if err := os.Remove(asset.StoragePath); err != nil {
-		log.Printf("Failed to delete physical file %s: %v", asset.StoragePath, err)
+	// Delete file from MinIO
+	if err := svc.minioSvc.DeleteFile(asset.StoragePath); err != nil {
+		log.Printf("Failed to delete file from MinIO %s: %v", asset.StoragePath, err)
 	}
 
 	// Delete database records

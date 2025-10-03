@@ -11,11 +11,12 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.WithError(err).Fatal("Error loading .env file")
+		log.Info("Error loading .env file", err)
 	}
 
 	ctx, err := context.NewCtx(
 		&services.SqliteService{},
+		&services.MinIOService{},
 		&services.JWTService{},
 		&services.RateLimitService{},
 		&services.AuthService{},

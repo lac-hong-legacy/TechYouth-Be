@@ -613,15 +613,15 @@ definitions:
     type: object
   dto.ResetPasswordRequest:
     properties:
+      code:
+        example: "123456"
+        type: string
       new_password:
         example: NewPass123!
         type: string
-      token:
-        example: reset_token_abc123
-        type: string
     required:
+    - code
     - new_password
-    - token
     type: object
   dto.SearchResponse:
     properties:
@@ -2112,9 +2112,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Reset user password with reset token
+      description: Reset user password with reset code
       parameters:
-      - description: Reset token and new password
+      - description: Reset code and new password
         in: body
         name: resetRequest
         required: true

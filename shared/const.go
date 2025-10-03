@@ -24,4 +24,13 @@ const (
 	AuthCacheTTL      = 1800
 	SessionCacheTTL   = 7200
 	RateLimitCacheTTL = 60
+
+	MediaTypeVideo           = "video"
+	MediaTypeSubtitle        = "subtitle"
+	MediaTypeThumbnail       = "thumbnail"
+	MediaTypeAudio           = "audio"
+	MediaTypeBackgroundMusic = "background_music"
+	MediaTypeVoiceOver       = "voice_over"
+	MediaTypeAnimation       = "animation"
+	MediaTypeIllustration    = "illustration"
 )

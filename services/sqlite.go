@@ -1154,15 +1154,6 @@ func (ds *SqliteService) GetUserByID(userID string) (*model.User, error) {
 	return &user, nil
 }
 
-func (ds *SqliteService) GetUserByVerificationToken(token string) (*model.User, error) {
-	var user model.User
-	err := ds.db.Where("verification_token = ?", token).First(&user).Error
-	if err != nil {
-		return nil, ds.HandleError(err)
-	}
-	return &user, nil
-}
-
 func (ds *SqliteService) GetUserByVerificationCode(email, code string) (*model.User, error) {
 	var user model.User
 	err := ds.db.Where("email = ? AND verification_code = ?", email, code).First(&user).Error
@@ -1215,17 +1206,9 @@ func (ds *SqliteService) LockAccount(userID string, lockUntil time.Time) error {
 func (ds *SqliteService) VerifyUserEmail(userID string) error {
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"email_verified":           true,
-		"verification_token":       nil,
 		"verification_code":        nil,
 		"verification_code_expiry": nil,
 		"updated_at":               time.Now(),
-	}).Error
-}
-
-func (ds *SqliteService) UpdateVerificationToken(userID, token string) error {
-	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"verification_token": token,
-		"updated_at":         time.Now(),
 	}).Error
 }
 

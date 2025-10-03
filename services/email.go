@@ -326,7 +326,10 @@ func (svc *EmailService) sendEmail(to, subject, body string) error {
 		return fmt.Errorf("SMTP not configured")
 	}
 
-	auth := smtp.PlainAuth("", svc.smtpUsername, svc.smtpPassword, svc.smtpHost)
+	var auth smtp.Auth
+	if svc.smtpUsername != "" && svc.smtpPassword != "" {
+		auth = smtp.PlainAuth("", svc.smtpUsername, svc.smtpPassword, svc.smtpHost)
+	}
 
 	msg := []byte(fmt.Sprintf(
 		"From: %s <%s>\r\n"+
