@@ -29,7 +29,7 @@ type HttpService struct {
 	contentSvc *ContentService
 	userSvc    *UserService
 	mediaSvc   *MediaService
-	sqliteSvc  *SqliteService
+	sqliteSvc  *PostgresService
 
 	internalPassword string
 
@@ -65,7 +65,7 @@ func (svc *HttpService) Start() error {
 	svc.userSvc = svc.Service(USER_SVC).(*UserService)
 	svc.contentSvc = svc.Service(CONTENT_SVC).(*ContentService)
 	svc.mediaSvc = svc.Service(MEDIA_SVC).(*MediaService)
-	svc.sqliteSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqliteSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
 
 	// Create Fiber app
 	config := fiber.Config{

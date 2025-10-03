@@ -15,36 +15,70 @@ import (
 
 	"github.com/alphabatem/common/context"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-type SqliteService struct {
+type PostgresService struct {
 	context.DefaultService
 	db *gorm.DB
 
 	database string
 }
 
-const SQLITE_SVC = "sqlite_svc"
+const POSTGRES_SVC = "postgres_svc"
 
-func (ds SqliteService) Id() string {
-	return SQLITE_SVC
+func (ds PostgresService) Id() string {
+	return POSTGRES_SVC
 }
 
-func (ds SqliteService) Db() *gorm.DB {
+func (ds PostgresService) Db() *gorm.DB {
 	return ds.db
 }
 
-func (ds *SqliteService) Configure(ctx *context.Context) error {
-	ds.database = os.Getenv("DB_NAME")
+func (ds *PostgresService) Configure(ctx *context.Context) error {
+	ds.database = os.Getenv("DATABASE_URL")
+	if ds.database == "" {
+		// Fallback to individual environment variables
+		host := os.Getenv("DB_HOST")
+		if host == "" {
+			host = "localhost"
+		}
+		port := os.Getenv("DB_PORT")
+		if port == "" {
+			port = "5432"
+		}
+		user := os.Getenv("DB_USER")
+		if user == "" {
+			user = "postgres"
+		}
+		password := os.Getenv("DB_PASSWORD")
+		if password == "" {
+			password = "postgres"
+		}
+		dbname := os.Getenv("DB_NAME")
+		if dbname == "" {
+			dbname = "ven_api"
+		}
+		sslmode := os.Getenv("DB_SSLMODE")
+		if sslmode == "" {
+			sslmode = "disable"
+		}
+		timezone := os.Getenv("DB_TIMEZONE")
+		if timezone == "" {
+			timezone = "UTC"
+		}
+
+		ds.database = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
+			host, user, password, dbname, port, sslmode, timezone)
+	}
 
 	return ds.DefaultService.Configure(ctx)
 }
 
-func (ds *SqliteService) Start() (err error) {
-	ds.db, err = gorm.Open(sqlite.Open(ds.database), &gorm.Config{
+func (ds *PostgresService) Start() (err error) {
+	ds.db, err = gorm.Open(postgres.Open(ds.database), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
@@ -107,10 +141,14 @@ func (ds *SqliteService) Start() (err error) {
 	return nil
 }
 
-func (ds *SqliteService) Shutdown() {
+func (ds *PostgresService) Shutdown() {
+	sqlDB, err := ds.db.DB()
+	if err == nil {
+		sqlDB.Close()
+	}
 }
 
-func (ds *SqliteService) HandleError(err error) error {
+func (ds *PostgresService) HandleError(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -132,13 +170,16 @@ func (ds *SqliteService) HandleError(err error) error {
 		statusCode = http.StatusInternalServerError // 500
 		errorType = "TRANSACTION_ERROR"
 	default:
-		// Check for SQLite-specific errors
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		// Check for PostgreSQL-specific errors
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			statusCode = http.StatusConflict // 409
 			errorType = "UNIQUE_CONSTRAINT"
-		} else if strings.Contains(err.Error(), "no such table") {
+		} else if strings.Contains(err.Error(), "relation") && strings.Contains(err.Error(), "does not exist") {
 			statusCode = http.StatusInternalServerError // 500
 			errorType = "SCHEMA_ERROR"
+		} else if strings.Contains(err.Error(), "connection refused") {
+			statusCode = http.StatusServiceUnavailable // 503
+			errorType = "DATABASE_CONNECTION_ERROR"
 		} else {
 			statusCode = http.StatusInternalServerError // 500
 			errorType = "INTERNAL_ERROR"
@@ -160,7 +201,7 @@ func (ds *SqliteService) HandleError(err error) error {
 	return fmt.Errorf("%s: %w", errorType, err)
 }
 
-func (ds *SqliteService) GetUserByEmail(email string) (*model.User, error) {
+func (ds *PostgresService) GetUserByEmail(email string) (*model.User, error) {
 	var user model.User
 	if err := ds.db.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
@@ -168,7 +209,7 @@ func (ds *SqliteService) GetUserByEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
-func (ds *SqliteService) GetUserByUsername(username string) (*model.User, error) {
+func (ds *PostgresService) GetUserByUsername(username string) (*model.User, error) {
 	var user model.User
 	if err := ds.db.Where("username = ?", username).First(&user).Error; err != nil {
 		return nil, err
@@ -176,7 +217,7 @@ func (ds *SqliteService) GetUserByUsername(username string) (*model.User, error)
 	return &user, nil
 }
 
-func (ds *SqliteService) GetUserByEmailOrUsername(emailOrUsername string) (*model.User, error) {
+func (ds *PostgresService) GetUserByEmailOrUsername(emailOrUsername string) (*model.User, error) {
 	var user model.User
 	if err := ds.db.Where("email = ? OR username = ?", emailOrUsername, emailOrUsername).First(&user).Error; err != nil {
 		return nil, err
@@ -184,7 +225,7 @@ func (ds *SqliteService) GetUserByEmailOrUsername(emailOrUsername string) (*mode
 	return &user, nil
 }
 
-func (ds *SqliteService) GetSessionByDeviceID(deviceID string) (*model.GuestSession, error) {
+func (ds *PostgresService) GetSessionByDeviceID(deviceID string) (*model.GuestSession, error) {
 	var session model.GuestSession
 	if err := ds.db.Where("device_id = ?", deviceID).First(&session).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -192,7 +233,7 @@ func (ds *SqliteService) GetSessionByDeviceID(deviceID string) (*model.GuestSess
 	return &session, nil
 }
 
-func (ds *SqliteService) CreateSession(session *model.GuestSession) (*model.GuestSession, error) {
+func (ds *PostgresService) CreateSession(session *model.GuestSession) (*model.GuestSession, error) {
 	id, _ := uuid.NewV7()
 	session.ID = id.String()
 	if err := ds.db.Create(session).Error; err != nil {
@@ -201,14 +242,14 @@ func (ds *SqliteService) CreateSession(session *model.GuestSession) (*model.Gues
 	return session, nil
 }
 
-func (ds *SqliteService) UpdateSession(session *model.GuestSession) error {
+func (ds *PostgresService) UpdateSession(session *model.GuestSession) error {
 	if err := ds.db.Save(session).Error; err != nil {
 		return ds.HandleError(err)
 	}
 	return nil
 }
 
-func (ds *SqliteService) GetProgress(sessionID string) (*model.GuestProgress, error) {
+func (ds *PostgresService) GetProgress(sessionID string) (*model.GuestProgress, error) {
 	var progress model.GuestProgress
 	if err := ds.db.Where("guest_session_id = ?", sessionID).First(&progress).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -216,7 +257,7 @@ func (ds *SqliteService) GetProgress(sessionID string) (*model.GuestProgress, er
 	return &progress, nil
 }
 
-func (ds *SqliteService) CreateProgress(progress *model.GuestProgress) (*model.GuestProgress, error) {
+func (ds *PostgresService) CreateProgress(progress *model.GuestProgress) (*model.GuestProgress, error) {
 	id, _ := uuid.NewV7()
 	progress.ID = id.String()
 	if err := ds.db.Create(progress).Error; err != nil {
@@ -225,14 +266,14 @@ func (ds *SqliteService) CreateProgress(progress *model.GuestProgress) (*model.G
 	return progress, nil
 }
 
-func (ds *SqliteService) UpdateProgress(progress *model.GuestProgress) error {
+func (ds *PostgresService) UpdateProgress(progress *model.GuestProgress) error {
 	if err := ds.db.Save(progress).Error; err != nil {
 		return ds.HandleError(err)
 	}
 	return nil
 }
 
-func (ds *SqliteService) CreateLessonAttempt(attempt *model.GuestLessonAttempt) error {
+func (ds *PostgresService) CreateLessonAttempt(attempt *model.GuestLessonAttempt) error {
 	id, _ := uuid.NewV7()
 	attempt.ID = id.String()
 	if err := ds.db.Create(attempt).Error; err != nil {
@@ -246,7 +287,7 @@ func DeactivateSession(sessionID string) error {
 	return nil
 }
 
-func (s *SqliteService) GetRateLimit(identifier, endpointType string) (*model.RateLimit, error) {
+func (s *PostgresService) GetRateLimit(identifier, endpointType string) (*model.RateLimit, error) {
 	var rateLimit model.RateLimit
 
 	err := s.db.Where("identifier = ? AND endpoint_type = ?", identifier, endpointType).First(&rateLimit).Error
@@ -260,7 +301,7 @@ func (s *SqliteService) GetRateLimit(identifier, endpointType string) (*model.Ra
 	return &rateLimit, nil
 }
 
-func (s *SqliteService) SaveRateLimit(rateLimit *model.RateLimit) error {
+func (s *PostgresService) SaveRateLimit(rateLimit *model.RateLimit) error {
 	// Generate ID if not set
 	if rateLimit.ID == "" {
 		id, _ := uuid.NewV7()
@@ -281,7 +322,7 @@ func (s *SqliteService) SaveRateLimit(rateLimit *model.RateLimit) error {
 	return nil
 }
 
-func (s *SqliteService) UpdateRateLimit(rateLimit *model.RateLimit) error {
+func (s *PostgresService) UpdateRateLimit(rateLimit *model.RateLimit) error {
 	// Update specific fields using GORM's Updates method
 	err := s.db.Model(rateLimit).Where("id = ?", rateLimit.ID).Updates(map[string]interface{}{
 		"request_count": rateLimit.RequestCount,
@@ -293,7 +334,7 @@ func (s *SqliteService) UpdateRateLimit(rateLimit *model.RateLimit) error {
 }
 
 // Cleanup old rate limit records
-func (s *SqliteService) CleanupOldRecords() error {
+func (s *PostgresService) CleanupOldRecords() error {
 	// Remove records older than 7 days and not currently blocked
 	cutoff := time.Now().Add(-7 * 24 * time.Hour)
 	now := time.Now()
@@ -306,7 +347,7 @@ func (s *SqliteService) CleanupOldRecords() error {
 
 // ==================== CHARACTER METHODS ====================
 
-func (ds *SqliteService) CreateCharacter(character *model.Character) (*model.Character, error) {
+func (ds *PostgresService) CreateCharacter(character *model.Character) (*model.Character, error) {
 	if character.ID == "" {
 		id, _ := uuid.NewV7()
 		character.ID = id.String()
@@ -320,7 +361,7 @@ func (ds *SqliteService) CreateCharacter(character *model.Character) (*model.Cha
 	return character, nil
 }
 
-func (ds *SqliteService) GetCharacter(id string) (*model.Character, error) {
+func (ds *PostgresService) GetCharacter(id string) (*model.Character, error) {
 	var character model.Character
 	if err := ds.db.Where("id = ?", id).First(&character).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -328,7 +369,7 @@ func (ds *SqliteService) GetCharacter(id string) (*model.Character, error) {
 	return &character, nil
 }
 
-func (ds *SqliteService) GetCharactersByDynasty(dynasty string) ([]model.Character, error) {
+func (ds *PostgresService) GetCharactersByDynasty(dynasty string) ([]model.Character, error) {
 	var characters []model.Character
 	query := ds.db.Model(&model.Character{})
 
@@ -342,7 +383,7 @@ func (ds *SqliteService) GetCharactersByDynasty(dynasty string) ([]model.Charact
 	return characters, nil
 }
 
-func (ds *SqliteService) GetCharactersByRarity(rarity string) ([]model.Character, error) {
+func (ds *PostgresService) GetCharactersByRarity(rarity string) ([]model.Character, error) {
 	var characters []model.Character
 	if err := ds.db.Where("rarity = ?", rarity).Find(&characters).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -350,7 +391,7 @@ func (ds *SqliteService) GetCharactersByRarity(rarity string) ([]model.Character
 	return characters, nil
 }
 
-func (ds *SqliteService) UpdateCharacter(character *model.Character) error {
+func (ds *PostgresService) UpdateCharacter(character *model.Character) error {
 	character.UpdatedAt = time.Now()
 	if err := ds.db.Save(character).Error; err != nil {
 		return ds.HandleError(err)
@@ -360,7 +401,7 @@ func (ds *SqliteService) UpdateCharacter(character *model.Character) error {
 
 // ==================== LESSON METHODS ====================
 
-func (ds *SqliteService) CreateLesson(lesson *model.Lesson) (*model.Lesson, error) {
+func (ds *PostgresService) CreateLesson(lesson *model.Lesson) (*model.Lesson, error) {
 	if lesson.ID == "" {
 		id, _ := uuid.NewV7()
 		lesson.ID = id.String()
@@ -374,7 +415,7 @@ func (ds *SqliteService) CreateLesson(lesson *model.Lesson) (*model.Lesson, erro
 	return lesson, nil
 }
 
-func (ds *SqliteService) GetLesson(id string) (*model.Lesson, error) {
+func (ds *PostgresService) GetLesson(id string) (*model.Lesson, error) {
 	var lesson model.Lesson
 	if err := ds.db.Preload("Character").Where("id = ?", id).First(&lesson).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -382,7 +423,7 @@ func (ds *SqliteService) GetLesson(id string) (*model.Lesson, error) {
 	return &lesson, nil
 }
 
-func (ds *SqliteService) GetLessonsByCharacter(characterID string) ([]model.Lesson, error) {
+func (ds *PostgresService) GetLessonsByCharacter(characterID string) ([]model.Lesson, error) {
 	var lessons []model.Lesson
 	if err := ds.db.Preload("Character").Where("character_id = ? AND is_active = ?", characterID, true).
 		Order("\"order\" ASC").Find(&lessons).Error; err != nil {
@@ -391,7 +432,7 @@ func (ds *SqliteService) GetLessonsByCharacter(characterID string) ([]model.Less
 	return lessons, nil
 }
 
-func (ds *SqliteService) UpdateLesson(lesson *model.Lesson) error {
+func (ds *PostgresService) UpdateLesson(lesson *model.Lesson) error {
 	lesson.UpdatedAt = time.Now()
 	if err := ds.db.Save(lesson).Error; err != nil {
 		return ds.HandleError(err)
@@ -401,7 +442,7 @@ func (ds *SqliteService) UpdateLesson(lesson *model.Lesson) error {
 
 // ==================== TIMELINE METHODS ====================
 
-func (ds *SqliteService) CreateTimeline(timeline *model.Timeline) (*model.Timeline, error) {
+func (ds *PostgresService) CreateTimeline(timeline *model.Timeline) (*model.Timeline, error) {
 	if timeline.ID == "" {
 		id, _ := uuid.NewV7()
 		timeline.ID = id.String()
@@ -415,7 +456,7 @@ func (ds *SqliteService) CreateTimeline(timeline *model.Timeline) (*model.Timeli
 	return timeline, nil
 }
 
-func (ds *SqliteService) GetTimeline() ([]model.Timeline, error) {
+func (ds *PostgresService) GetTimeline() ([]model.Timeline, error) {
 	var timelines []model.Timeline
 	if err := ds.db.Order("\"order\" ASC").Find(&timelines).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -423,7 +464,7 @@ func (ds *SqliteService) GetTimeline() ([]model.Timeline, error) {
 	return timelines, nil
 }
 
-func (ds *SqliteService) GetTimelineByEra(era string) ([]model.Timeline, error) {
+func (ds *PostgresService) GetTimelineByEra(era string) ([]model.Timeline, error) {
 	var timelines []model.Timeline
 	if err := ds.db.Where("era = ?", era).Order("\"order\" ASC").Find(&timelines).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -433,7 +474,7 @@ func (ds *SqliteService) GetTimelineByEra(era string) ([]model.Timeline, error) 
 
 // ==================== USER PROGRESS METHODS ====================
 
-func (ds *SqliteService) CreateUserProgress(progress *model.UserProgress) (*model.UserProgress, error) {
+func (ds *PostgresService) CreateUserProgress(progress *model.UserProgress) (*model.UserProgress, error) {
 	if progress.ID == "" {
 		id, _ := uuid.NewV7()
 		progress.ID = id.String()
@@ -447,7 +488,7 @@ func (ds *SqliteService) CreateUserProgress(progress *model.UserProgress) (*mode
 	return progress, nil
 }
 
-func (ds *SqliteService) GetUserProgress(userID string) (*model.UserProgress, error) {
+func (ds *PostgresService) GetUserProgress(userID string) (*model.UserProgress, error) {
 	var progress model.UserProgress
 	if err := ds.db.Where("user_id = ?", userID).First(&progress).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -455,7 +496,7 @@ func (ds *SqliteService) GetUserProgress(userID string) (*model.UserProgress, er
 	return &progress, nil
 }
 
-func (ds *SqliteService) UpdateUserProgress(progress *model.UserProgress) error {
+func (ds *PostgresService) UpdateUserProgress(progress *model.UserProgress) error {
 	progress.UpdatedAt = time.Now()
 	if err := ds.db.Save(progress).Error; err != nil {
 		return ds.HandleError(err)
@@ -463,7 +504,7 @@ func (ds *SqliteService) UpdateUserProgress(progress *model.UserProgress) error 
 	return nil
 }
 
-func (ds *SqliteService) GetUsersForHeartReset(since time.Time) ([]model.UserProgress, error) {
+func (ds *PostgresService) GetUsersForHeartReset(since time.Time) ([]model.UserProgress, error) {
 	var users []model.UserProgress
 	if err := ds.db.Where("last_heart_reset < ? OR last_heart_reset IS NULL", since).
 		Find(&users).Error; err != nil {
@@ -474,7 +515,7 @@ func (ds *SqliteService) GetUsersForHeartReset(since time.Time) ([]model.UserPro
 
 // ==================== SPIRIT METHODS ====================
 
-func (ds *SqliteService) CreateSpirit(spirit *model.Spirit) (*model.Spirit, error) {
+func (ds *PostgresService) CreateSpirit(spirit *model.Spirit) (*model.Spirit, error) {
 	if spirit.ID == "" {
 		id, _ := uuid.NewV7()
 		spirit.ID = id.String()
@@ -488,7 +529,7 @@ func (ds *SqliteService) CreateSpirit(spirit *model.Spirit) (*model.Spirit, erro
 	return spirit, nil
 }
 
-func (ds *SqliteService) GetUserSpirit(userID string) (*model.Spirit, error) {
+func (ds *PostgresService) GetUserSpirit(userID string) (*model.Spirit, error) {
 	var spirit model.Spirit
 	if err := ds.db.Where("user_id = ?", userID).First(&spirit).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -496,7 +537,7 @@ func (ds *SqliteService) GetUserSpirit(userID string) (*model.Spirit, error) {
 	return &spirit, nil
 }
 
-func (ds *SqliteService) UpdateSpirit(spirit *model.Spirit) error {
+func (ds *PostgresService) UpdateSpirit(spirit *model.Spirit) error {
 	spirit.UpdatedAt = time.Now()
 	if err := ds.db.Save(spirit).Error; err != nil {
 		return ds.HandleError(err)
@@ -506,7 +547,7 @@ func (ds *SqliteService) UpdateSpirit(spirit *model.Spirit) error {
 
 // ==================== ACHIEVEMENT METHODS ====================
 
-func (ds *SqliteService) CreateAchievement(achievement *model.Achievement) (*model.Achievement, error) {
+func (ds *PostgresService) CreateAchievement(achievement *model.Achievement) (*model.Achievement, error) {
 	if achievement.ID == "" {
 		id, _ := uuid.NewV7()
 		achievement.ID = id.String()
@@ -520,7 +561,7 @@ func (ds *SqliteService) CreateAchievement(achievement *model.Achievement) (*mod
 	return achievement, nil
 }
 
-func (ds *SqliteService) GetActiveAchievements() ([]model.Achievement, error) {
+func (ds *PostgresService) GetActiveAchievements() ([]model.Achievement, error) {
 	var achievements []model.Achievement
 	if err := ds.db.Where("is_active = ?", true).Find(&achievements).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -528,7 +569,7 @@ func (ds *SqliteService) GetActiveAchievements() ([]model.Achievement, error) {
 	return achievements, nil
 }
 
-func (ds *SqliteService) CreateUserAchievement(userAchievement *model.UserAchievement) error {
+func (ds *PostgresService) CreateUserAchievement(userAchievement *model.UserAchievement) error {
 	if userAchievement.ID == "" {
 		id, _ := uuid.NewV7()
 		userAchievement.ID = id.String()
@@ -542,7 +583,7 @@ func (ds *SqliteService) CreateUserAchievement(userAchievement *model.UserAchiev
 	return nil
 }
 
-func (ds *SqliteService) GetUserAchievements(userID string) ([]model.UserAchievement, error) {
+func (ds *PostgresService) GetUserAchievements(userID string) ([]model.UserAchievement, error) {
 	var userAchievements []model.UserAchievement
 	if err := ds.db.Preload("Achievement").Where("user_id = ?", userID).
 		Find(&userAchievements).Error; err != nil {
@@ -553,7 +594,7 @@ func (ds *SqliteService) GetUserAchievements(userID string) ([]model.UserAchieve
 
 // ==================== LEADERBOARD METHODS ====================
 
-func (ds *SqliteService) GetWeeklyLeaderboard(limit int) ([]model.UserProgress, error) {
+func (ds *PostgresService) GetWeeklyLeaderboard(limit int) ([]model.UserProgress, error) {
 	var users []model.UserProgress
 	weekAgo := time.Now().AddDate(0, 0, -7)
 
@@ -564,7 +605,7 @@ func (ds *SqliteService) GetWeeklyLeaderboard(limit int) ([]model.UserProgress, 
 	return users, nil
 }
 
-func (ds *SqliteService) GetMonthlyLeaderboard(limit int) ([]model.UserProgress, error) {
+func (ds *PostgresService) GetMonthlyLeaderboard(limit int) ([]model.UserProgress, error) {
 	var users []model.UserProgress
 	monthAgo := time.Now().AddDate(0, -1, 0)
 
@@ -575,7 +616,7 @@ func (ds *SqliteService) GetMonthlyLeaderboard(limit int) ([]model.UserProgress,
 	return users, nil
 }
 
-func (ds *SqliteService) GetAllTimeLeaderboard(limit int) ([]model.UserProgress, error) {
+func (ds *PostgresService) GetAllTimeLeaderboard(limit int) ([]model.UserProgress, error) {
 	var users []model.UserProgress
 	if err := ds.db.Order("xp DESC").Limit(limit).Find(&users).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -583,7 +624,7 @@ func (ds *SqliteService) GetAllTimeLeaderboard(limit int) ([]model.UserProgress,
 	return users, nil
 }
 
-func (ds *SqliteService) GetUserRank(userID string) (int, error) {
+func (ds *PostgresService) GetUserRank(userID string) (int, error) {
 	var rank int64
 	userProgress, err := ds.GetUserProgress(userID)
 	if err != nil {
@@ -600,7 +641,7 @@ func (ds *SqliteService) GetUserRank(userID string) (int, error) {
 
 // ==================== CONTENT SEARCH AND FILTERING ====================
 
-func (ds *SqliteService) SearchCharacters(query string, era string, dynasty string, rarity string, limit int) ([]model.Character, error) {
+func (ds *PostgresService) SearchCharacters(query string, era string, dynasty string, rarity string, limit int) ([]model.Character, error) {
 	var characters []model.Character
 	dbQuery := ds.db.Model(&model.Character{})
 
@@ -632,7 +673,7 @@ func (ds *SqliteService) SearchCharacters(query string, era string, dynasty stri
 
 // ==================== ANALYTICS METHODS ====================
 
-func (ds *SqliteService) HasUserUnlockedAchievement(userID, achievementID string) (bool, error) {
+func (ds *PostgresService) HasUserUnlockedAchievement(userID, achievementID string) (bool, error) {
 	var count int64
 	if err := ds.db.Model(&model.UserAchievement{}).
 		Where("user_id = ? AND achievement_id = ?", userID, achievementID).
@@ -646,7 +687,7 @@ func (ds *SqliteService) HasUserUnlockedAchievement(userID, achievementID string
 
 // ==================== MISSING USER METHODS ====================
 
-func (ds *SqliteService) GetUser(userID string) (*model.User, error) {
+func (ds *PostgresService) GetUser(userID string) (*model.User, error) {
 	var user model.User
 	if err := ds.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -654,7 +695,7 @@ func (ds *SqliteService) GetUser(userID string) (*model.User, error) {
 	return &user, nil
 }
 
-func (ds *SqliteService) UpdateUser(user *model.User) error {
+func (ds *PostgresService) UpdateUser(user *model.User) error {
 	user.UpdatedAt = time.Now()
 	if err := ds.db.Save(user).Error; err != nil {
 		return ds.HandleError(err)
@@ -665,7 +706,7 @@ func (ds *SqliteService) UpdateUser(user *model.User) error {
 // ==================== ACHIEVEMENT PRELOAD METHODS ====================
 
 // Update the existing GetUserAchievements method to include Achievement preloading
-func (ds *SqliteService) GetUserAchievementsWithDetails(userID string) ([]struct {
+func (ds *PostgresService) GetUserAchievementsWithDetails(userID string) ([]struct {
 	UserAchievement model.UserAchievement
 	Achievement     model.Achievement
 }, error) {
@@ -687,7 +728,7 @@ func (ds *SqliteService) GetUserAchievementsWithDetails(userID string) ([]struct
 
 // ==================== ADVANCED QUERY METHODS ====================
 
-func (ds *SqliteService) GetUserProgressWithJoins(userID string) (*model.UserProgress, error) {
+func (ds *PostgresService) GetUserProgressWithJoins(userID string) (*model.UserProgress, error) {
 	var progress model.UserProgress
 	if err := ds.db.Where("user_id = ?", userID).First(&progress).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -695,7 +736,7 @@ func (ds *SqliteService) GetUserProgressWithJoins(userID string) (*model.UserPro
 	return &progress, nil
 }
 
-func (ds *SqliteService) GetCharactersWithLessonCount() ([]struct {
+func (ds *PostgresService) GetCharactersWithLessonCount() ([]struct {
 	Character   model.Character
 	LessonCount int64
 }, error) {
@@ -717,7 +758,7 @@ func (ds *SqliteService) GetCharactersWithLessonCount() ([]struct {
 
 // ==================== BATCH OPERATIONS ====================
 
-func (ds *SqliteService) BatchUpdateCharacterUnlockStatus(characterIDs []string, unlocked bool) error {
+func (ds *PostgresService) BatchUpdateCharacterUnlockStatus(characterIDs []string, unlocked bool) error {
 	if len(characterIDs) == 0 {
 		return nil
 	}
@@ -730,7 +771,7 @@ func (ds *SqliteService) BatchUpdateCharacterUnlockStatus(characterIDs []string,
 	return nil
 }
 
-func (ds *SqliteService) GetMultipleCharacters(characterIDs []string) ([]model.Character, error) {
+func (ds *PostgresService) GetMultipleCharacters(characterIDs []string) ([]model.Character, error) {
 	var characters []model.Character
 	if err := ds.db.Where("id IN ?", characterIDs).Find(&characters).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -740,7 +781,7 @@ func (ds *SqliteService) GetMultipleCharacters(characterIDs []string) ([]model.C
 
 // ==================== LESSON ATTEMPT TRACKING ====================
 
-func (ds *SqliteService) CreateUserLessonAttempt(attempt *model.UserLessonAttempt) error {
+func (ds *PostgresService) CreateUserLessonAttempt(attempt *model.UserLessonAttempt) error {
 	id, _ := uuid.NewV7()
 	attempt.ID = id.String()
 	attempt.CreatedAt = time.Now()
@@ -752,7 +793,7 @@ func (ds *SqliteService) CreateUserLessonAttempt(attempt *model.UserLessonAttemp
 	return nil
 }
 
-func (ds *SqliteService) GetUserLessonAttempts(userID, lessonID string) ([]model.UserLessonAttempt, error) {
+func (ds *PostgresService) GetUserLessonAttempts(userID, lessonID string) ([]model.UserLessonAttempt, error) {
 	var attempts []model.UserLessonAttempt
 	if err := ds.db.Where("user_id = ? AND lesson_id = ?", userID, lessonID).
 		Order("created_at DESC").Find(&attempts).Error; err != nil {
@@ -763,7 +804,7 @@ func (ds *SqliteService) GetUserLessonAttempts(userID, lessonID string) ([]model
 
 // ==================== ANALYTICS HELPERS ====================
 
-func (ds *SqliteService) GetDailyActiveUsers(date time.Time) (int64, error) {
+func (ds *PostgresService) GetDailyActiveUsers(date time.Time) (int64, error) {
 	var count int64
 	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	endOfDay := startOfDay.Add(24 * time.Hour)
@@ -776,7 +817,7 @@ func (ds *SqliteService) GetDailyActiveUsers(date time.Time) (int64, error) {
 	return count, nil
 }
 
-func (ds *SqliteService) GetLessonCompletionStats() (map[string]interface{}, error) {
+func (ds *PostgresService) GetLessonCompletionStats() (map[string]interface{}, error) {
 	var totalLessons int64
 	var totalCompletions int64
 
@@ -801,7 +842,7 @@ func (ds *SqliteService) GetLessonCompletionStats() (map[string]interface{}, err
 
 // ==================== MEDIA ASSET METHODS ====================
 
-func (ds *SqliteService) CreateMediaAsset(asset *model.MediaAsset) error {
+func (ds *PostgresService) CreateMediaAsset(asset *model.MediaAsset) error {
 	if asset.ID == "" {
 		id, _ := uuid.NewV7()
 		asset.ID = id.String()
@@ -815,7 +856,7 @@ func (ds *SqliteService) CreateMediaAsset(asset *model.MediaAsset) error {
 	return nil
 }
 
-func (ds *SqliteService) GetMediaAsset(id string) (*model.MediaAsset, error) {
+func (ds *PostgresService) GetMediaAsset(id string) (*model.MediaAsset, error) {
 	var asset model.MediaAsset
 	if err := ds.db.Where("id = ?", id).First(&asset).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -823,7 +864,7 @@ func (ds *SqliteService) GetMediaAsset(id string) (*model.MediaAsset, error) {
 	return &asset, nil
 }
 
-func (ds *SqliteService) UpdateMediaAsset(asset *model.MediaAsset) error {
+func (ds *PostgresService) UpdateMediaAsset(asset *model.MediaAsset) error {
 	asset.UpdatedAt = time.Now()
 	if err := ds.db.Save(asset).Error; err != nil {
 		return ds.HandleError(err)
@@ -831,7 +872,7 @@ func (ds *SqliteService) UpdateMediaAsset(asset *model.MediaAsset) error {
 	return nil
 }
 
-func (ds *SqliteService) DeleteMediaAsset(id string) error {
+func (ds *PostgresService) DeleteMediaAsset(id string) error {
 	// Delete related lesson media records first
 	if err := ds.db.Where("media_asset_id = ?", id).Delete(&model.LessonMedia{}).Error; err != nil {
 		return ds.HandleError(err)
@@ -844,7 +885,7 @@ func (ds *SqliteService) DeleteMediaAsset(id string) error {
 	return nil
 }
 
-func (ds *SqliteService) GetMediaAssetsByType(fileType string) ([]model.MediaAsset, error) {
+func (ds *PostgresService) GetMediaAssetsByType(fileType string) ([]model.MediaAsset, error) {
 	var assets []model.MediaAsset
 	if err := ds.db.Where("file_type = ?", fileType).Find(&assets).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -852,7 +893,7 @@ func (ds *SqliteService) GetMediaAssetsByType(fileType string) ([]model.MediaAss
 	return assets, nil
 }
 
-func (ds *SqliteService) GetUnprocessedMediaAssets() ([]model.MediaAsset, error) {
+func (ds *PostgresService) GetUnprocessedMediaAssets() ([]model.MediaAsset, error) {
 	var assets []model.MediaAsset
 	if err := ds.db.Where("is_processed = ?", false).Find(&assets).Error; err != nil {
 		return nil, ds.HandleError(err)
@@ -862,7 +903,7 @@ func (ds *SqliteService) GetUnprocessedMediaAssets() ([]model.MediaAsset, error)
 
 // ==================== LESSON MEDIA METHODS ====================
 
-func (ds *SqliteService) CreateLessonMedia(lessonMedia *model.LessonMedia) error {
+func (ds *PostgresService) CreateLessonMedia(lessonMedia *model.LessonMedia) error {
 	if lessonMedia.ID == "" {
 		id, _ := uuid.NewV7()
 		lessonMedia.ID = id.String()
@@ -875,7 +916,7 @@ func (ds *SqliteService) CreateLessonMedia(lessonMedia *model.LessonMedia) error
 	return nil
 }
 
-func (ds *SqliteService) GetLessonMediaAssets(lessonID string) ([]model.LessonMedia, error) {
+func (ds *PostgresService) GetLessonMediaAssets(lessonID string) ([]model.LessonMedia, error) {
 	var lessonMedia []model.LessonMedia
 	if err := ds.db.Where("lesson_id = ? AND is_active = ?", lessonID, true).
 		Preload("MediaAsset").
@@ -885,7 +926,7 @@ func (ds *SqliteService) GetLessonMediaAssets(lessonID string) ([]model.LessonMe
 	return lessonMedia, nil
 }
 
-func (ds *SqliteService) GetLessonMediaByType(lessonID, mediaType string) (*model.LessonMedia, error) {
+func (ds *PostgresService) GetLessonMediaByType(lessonID, mediaType string) (*model.LessonMedia, error) {
 	var lessonMedia model.LessonMedia
 	if err := ds.db.Where("lesson_id = ? AND media_type = ? AND is_active = ?", lessonID, mediaType, true).
 		Preload("MediaAsset").
@@ -895,21 +936,21 @@ func (ds *SqliteService) GetLessonMediaByType(lessonID, mediaType string) (*mode
 	return &lessonMedia, nil
 }
 
-func (ds *SqliteService) UpdateLessonMedia(lessonMedia *model.LessonMedia) error {
+func (ds *PostgresService) UpdateLessonMedia(lessonMedia *model.LessonMedia) error {
 	if err := ds.db.Save(lessonMedia).Error; err != nil {
 		return ds.HandleError(err)
 	}
 	return nil
 }
 
-func (ds *SqliteService) DeleteLessonMedia(id string) error {
+func (ds *PostgresService) DeleteLessonMedia(id string) error {
 	if err := ds.db.Where("id = ?", id).Delete(&model.LessonMedia{}).Error; err != nil {
 		return ds.HandleError(err)
 	}
 	return nil
 }
 
-func (ds *SqliteService) DeactivateLessonMediaByType(lessonID, mediaType string) error {
+func (ds *PostgresService) DeactivateLessonMediaByType(lessonID, mediaType string) error {
 	if err := ds.db.Model(&model.LessonMedia{}).
 		Where("lesson_id = ? AND media_type = ?", lessonID, mediaType).
 		Update("is_active", false).Error; err != nil {
@@ -920,7 +961,7 @@ func (ds *SqliteService) DeactivateLessonMediaByType(lessonID, mediaType string)
 
 // ==================== USER QUESTION ANSWER METHODS ====================
 
-func (ds *SqliteService) SaveUserQuestionAnswer(answer *model.UserQuestionAnswer) error {
+func (ds *PostgresService) SaveUserQuestionAnswer(answer *model.UserQuestionAnswer) error {
 	if answer.ID == "" {
 		id, _ := uuid.NewV7()
 		answer.ID = id.String()
@@ -948,7 +989,7 @@ func (ds *SqliteService) SaveUserQuestionAnswer(answer *model.UserQuestionAnswer
 	return ds.HandleError(err)
 }
 
-func (ds *SqliteService) GetUserQuestionAnswers(userID, lessonID string) ([]model.UserQuestionAnswer, error) {
+func (ds *PostgresService) GetUserQuestionAnswers(userID, lessonID string) ([]model.UserQuestionAnswer, error) {
 	var answers []model.UserQuestionAnswer
 	if err := ds.db.Where("user_id = ? AND lesson_id = ?", userID, lessonID).
 		Find(&answers).Error; err != nil {
@@ -957,7 +998,7 @@ func (ds *SqliteService) GetUserQuestionAnswers(userID, lessonID string) ([]mode
 	return answers, nil
 }
 
-func (ds *SqliteService) GetUserQuestionAnswer(userID, lessonID, questionID string) (*model.UserQuestionAnswer, error) {
+func (ds *PostgresService) GetUserQuestionAnswer(userID, lessonID, questionID string) (*model.UserQuestionAnswer, error) {
 	var answer model.UserQuestionAnswer
 	if err := ds.db.Where("user_id = ? AND lesson_id = ? AND question_id = ?",
 		userID, lessonID, questionID).First(&answer).Error; err != nil {
@@ -966,7 +1007,7 @@ func (ds *SqliteService) GetUserQuestionAnswer(userID, lessonID, questionID stri
 	return &answer, nil
 }
 
-func (ds *SqliteService) DeleteUserQuestionAnswers(userID, lessonID string) error {
+func (ds *PostgresService) DeleteUserQuestionAnswers(userID, lessonID string) error {
 	if err := ds.db.Where("user_id = ? AND lesson_id = ?", userID, lessonID).
 		Delete(&model.UserQuestionAnswer{}).Error; err != nil {
 		return ds.HandleError(err)
@@ -976,7 +1017,7 @@ func (ds *SqliteService) DeleteUserQuestionAnswers(userID, lessonID string) erro
 
 // ==================== ENHANCED LESSON METHODS WITH MEDIA ====================
 
-func (ds *SqliteService) GetLessonWithMedia(id string) (*model.Lesson, []model.LessonMedia, error) {
+func (ds *PostgresService) GetLessonWithMedia(id string) (*model.Lesson, []model.LessonMedia, error) {
 	var lesson model.Lesson
 	if err := ds.db.Where("id = ?", id).Preload("Character").First(&lesson).Error; err != nil {
 		return nil, nil, ds.HandleError(err)
@@ -990,7 +1031,7 @@ func (ds *SqliteService) GetLessonWithMedia(id string) (*model.Lesson, []model.L
 	return &lesson, mediaAssets, nil
 }
 
-func (ds *SqliteService) GetLessonsWithMediaByCharacter(characterID string) ([]model.Lesson, map[string][]model.LessonMedia, error) {
+func (ds *PostgresService) GetLessonsWithMediaByCharacter(characterID string) ([]model.Lesson, map[string][]model.LessonMedia, error) {
 	var lessons []model.Lesson
 	if err := ds.db.Where("character_id = ? AND is_active = ?", characterID, true).
 		Order("\"order\" ASC").
@@ -1014,7 +1055,7 @@ func (ds *SqliteService) GetLessonsWithMediaByCharacter(characterID string) ([]m
 
 // ==================== MEDIA STATISTICS METHODS ====================
 
-func (ds *SqliteService) GetMediaStatistics() (map[string]interface{}, error) {
+func (ds *PostgresService) GetMediaStatistics() (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 
 	// Count total media assets by type
@@ -1054,7 +1095,7 @@ func (ds *SqliteService) GetMediaStatistics() (map[string]interface{}, error) {
 	return stats, nil
 }
 
-func (ds *SqliteService) GetLessonsWithoutMedia() ([]model.Lesson, error) {
+func (ds *PostgresService) GetLessonsWithoutMedia() ([]model.Lesson, error) {
 	var lessons []model.Lesson
 
 	// Find lessons that don't have any active media
@@ -1073,7 +1114,7 @@ func (ds *SqliteService) GetLessonsWithoutMedia() ([]model.Lesson, error) {
 
 // ==================== BULK OPERATIONS ====================
 
-func (ds *SqliteService) BulkCreateMediaAssets(assets []model.MediaAsset) error {
+func (ds *PostgresService) BulkCreateMediaAssets(assets []model.MediaAsset) error {
 	if len(assets) == 0 {
 		return nil
 	}
@@ -1095,7 +1136,7 @@ func (ds *SqliteService) BulkCreateMediaAssets(assets []model.MediaAsset) error 
 	return nil
 }
 
-func (ds *SqliteService) BulkCreateLessonMedia(lessonMedia []model.LessonMedia) error {
+func (ds *PostgresService) BulkCreateLessonMedia(lessonMedia []model.LessonMedia) error {
 	if len(lessonMedia) == 0 {
 		return nil
 	}
@@ -1116,11 +1157,11 @@ func (ds *SqliteService) BulkCreateLessonMedia(lessonMedia []model.LessonMedia) 
 	return nil
 }
 
-// Add these methods to your existing SqliteService
+// Add these methods to your existing PostgresService
 
 // ==================== ENHANCED USER METHODS ====================
 
-func (ds *SqliteService) CreateUser(req dto.RegisterRequest, verificationCode string) (*model.User, error) {
+func (ds *PostgresService) CreateUser(req dto.RegisterRequest, verificationCode string) (*model.User, error) {
 	codeExpiry := time.Now().Add(15 * time.Minute) // Code expires in 15 minutes
 	user := &model.User{
 		ID:                     uuid.New().String(),
@@ -1145,7 +1186,7 @@ func (ds *SqliteService) CreateUser(req dto.RegisterRequest, verificationCode st
 	return user, nil
 }
 
-func (ds *SqliteService) GetUserByID(userID string) (*model.User, error) {
+func (ds *PostgresService) GetUserByID(userID string) (*model.User, error) {
 	var user model.User
 	err := ds.db.Where("id = ?", userID).First(&user).Error
 	if err != nil {
@@ -1154,7 +1195,7 @@ func (ds *SqliteService) GetUserByID(userID string) (*model.User, error) {
 	return &user, nil
 }
 
-func (ds *SqliteService) GetUserByVerificationCode(email, code string) (*model.User, error) {
+func (ds *PostgresService) GetUserByVerificationCode(email, code string) (*model.User, error) {
 	var user model.User
 	err := ds.db.Where("email = ? AND verification_code = ?", email, code).First(&user).Error
 	if err != nil {
@@ -1163,7 +1204,7 @@ func (ds *SqliteService) GetUserByVerificationCode(email, code string) (*model.U
 	return &user, nil
 }
 
-func (ds *SqliteService) UpdateUserPassword(userID, hashedPassword string) error {
+func (ds *PostgresService) UpdateUserPassword(userID, hashedPassword string) error {
 	now := time.Now()
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"password":             hashedPassword,
@@ -1172,7 +1213,7 @@ func (ds *SqliteService) UpdateUserPassword(userID, hashedPassword string) error
 	}).Error
 }
 
-func (ds *SqliteService) UpdateLastLogin(userID, ip string) error {
+func (ds *PostgresService) UpdateLastLogin(userID, ip string) error {
 	now := time.Now()
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"last_login_at": &now,
@@ -1181,14 +1222,14 @@ func (ds *SqliteService) UpdateLastLogin(userID, ip string) error {
 	}).Error
 }
 
-func (ds *SqliteService) IncrementFailedAttempts(userID string) error {
+func (ds *PostgresService) IncrementFailedAttempts(userID string) error {
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"failed_attempts": gorm.Expr("failed_attempts + 1"),
 		"updated_at":      time.Now(),
 	}).Error
 }
 
-func (ds *SqliteService) ResetFailedAttempts(userID string) error {
+func (ds *PostgresService) ResetFailedAttempts(userID string) error {
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"failed_attempts": 0,
 		"locked_until":    nil,
@@ -1196,14 +1237,14 @@ func (ds *SqliteService) ResetFailedAttempts(userID string) error {
 	}).Error
 }
 
-func (ds *SqliteService) LockAccount(userID string, lockUntil time.Time) error {
+func (ds *PostgresService) LockAccount(userID string, lockUntil time.Time) error {
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"locked_until": &lockUntil,
 		"updated_at":   time.Now(),
 	}).Error
 }
 
-func (ds *SqliteService) VerifyUserEmail(userID string) error {
+func (ds *PostgresService) VerifyUserEmail(userID string) error {
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"email_verified":           true,
 		"verification_code":        nil,
@@ -1212,7 +1253,7 @@ func (ds *SqliteService) VerifyUserEmail(userID string) error {
 	}).Error
 }
 
-func (ds *SqliteService) UpdateVerificationCode(userID, code string) error {
+func (ds *PostgresService) UpdateVerificationCode(userID, code string) error {
 	codeExpiry := time.Now().Add(15 * time.Minute) // Code expires in 15 minutes
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"verification_code":        code,
@@ -1221,7 +1262,7 @@ func (ds *SqliteService) UpdateVerificationCode(userID, code string) error {
 	}).Error
 }
 
-func (ds *SqliteService) IsUsernameAvailable(username string) (bool, error) {
+func (ds *PostgresService) IsUsernameAvailable(username string) (bool, error) {
 	var count int64
 	err := ds.db.Model(&model.User{}).Where("LOWER(username) = LOWER(?) AND deleted_at IS NULL", username).Count(&count).Error
 	if err != nil {
@@ -1230,7 +1271,7 @@ func (ds *SqliteService) IsUsernameAvailable(username string) (bool, error) {
 	return count == 0, nil
 }
 
-func (ds *SqliteService) IsEmailAvailable(email string) (bool, error) {
+func (ds *PostgresService) IsEmailAvailable(email string) (bool, error) {
 	var count int64
 	err := ds.db.Model(&model.User{}).Where("LOWER(email) = LOWER(?) AND deleted_at IS NULL", email).Count(&count).Error
 	if err != nil {
@@ -1241,7 +1282,7 @@ func (ds *SqliteService) IsEmailAvailable(email string) (bool, error) {
 
 // ==================== USER SESSION METHODS ====================
 
-func (ds *SqliteService) CreateUserSession(session dto.UserSession) (string, error) {
+func (ds *PostgresService) CreateUserSession(session dto.UserSession) (string, error) {
 	dbSession := &model.UserSession{
 		ID:        uuid.New().String(),
 		UserID:    session.UserID,
@@ -1261,7 +1302,7 @@ func (ds *SqliteService) CreateUserSession(session dto.UserSession) (string, err
 	return dbSession.ID, nil
 }
 
-func (ds *SqliteService) GetActiveSession(userID, tokenHash string) (*model.UserSession, error) {
+func (ds *PostgresService) GetActiveSession(userID, tokenHash string) (*model.UserSession, error) {
 	var session model.UserSession
 	err := ds.db.Where("user_id = ? AND token_hash = ? AND is_active = ? AND expires_at > ?",
 		userID, tokenHash, true, time.Now()).First(&session).Error
@@ -1271,25 +1312,25 @@ func (ds *SqliteService) GetActiveSession(userID, tokenHash string) (*model.User
 	return &session, nil
 }
 
-func (ds *SqliteService) UpdateSessionLastUsed(sessionID string) error {
+func (ds *PostgresService) UpdateSessionLastUsed(sessionID string) error {
 	return ds.db.Model(&model.UserSession{}).Where("id = ?", sessionID).Update("last_used", time.Now()).Error
 }
 
-func (ds *SqliteService) UpdateSessionToken(sessionID, newTokenHash string) error {
+func (ds *PostgresService) UpdateSessionToken(sessionID, newTokenHash string) error {
 	return ds.db.Model(&model.UserSession{}).Where("id = ?", sessionID).Updates(map[string]interface{}{
 		"token_hash": newTokenHash,
 		"last_used":  time.Now(),
 	}).Error
 }
 
-func (ds *SqliteService) DeactivateSession(sessionID, userID string) error {
+func (ds *PostgresService) DeactivateSession(sessionID, userID string) error {
 	return ds.db.Model(&model.UserSession{}).Where("id = ? AND user_id = ?", sessionID, userID).Updates(map[string]interface{}{
 		"is_active": false,
 		"last_used": time.Now(),
 	}).Error
 }
 
-func (ds *SqliteService) DeactivateAllUserSessions(userID, exceptSessionID string) error {
+func (ds *PostgresService) DeactivateAllUserSessions(userID, exceptSessionID string) error {
 	query := ds.db.Model(&model.UserSession{}).Where("user_id = ?", userID)
 	if exceptSessionID != "" {
 		query = query.Where("id != ?", exceptSessionID)
@@ -1301,7 +1342,7 @@ func (ds *SqliteService) DeactivateAllUserSessions(userID, exceptSessionID strin
 	}).Error
 }
 
-func (ds *SqliteService) GetUserSessions(userID string) ([]model.UserSession, error) {
+func (ds *PostgresService) GetUserSessions(userID string) ([]model.UserSession, error) {
 	var sessions []model.UserSession
 	err := ds.db.Where("user_id = ? AND is_active = ?", userID, true).
 		Order("last_used DESC").Find(&sessions).Error
@@ -1311,7 +1352,7 @@ func (ds *SqliteService) GetUserSessions(userID string) ([]model.UserSession, er
 	return sessions, nil
 }
 
-func (ds *SqliteService) CleanupExpiredSessions() error {
+func (ds *PostgresService) CleanupExpiredSessions() error {
 	return ds.db.Model(&model.UserSession{}).
 		Where("expires_at < ?", time.Now()).
 		Update("is_active", false).Error
@@ -1319,7 +1360,7 @@ func (ds *SqliteService) CleanupExpiredSessions() error {
 
 // ==================== PASSWORD RESET METHODS ====================
 
-func (ds *SqliteService) CreatePasswordResetCode(userID, code string, expiresAt time.Time) error {
+func (ds *PostgresService) CreatePasswordResetCode(userID, code string, expiresAt time.Time) error {
 	resetToken := &model.PasswordResetCode{
 		ID:        uuid.New().String(),
 		UserID:    userID,
@@ -1332,7 +1373,7 @@ func (ds *SqliteService) CreatePasswordResetCode(userID, code string, expiresAt 
 	return ds.db.Create(resetToken).Error
 }
 
-func (ds *SqliteService) GetPasswordResetCode(code string) (*model.PasswordResetCode, error) {
+func (ds *PostgresService) GetPasswordResetCode(code string) (*model.PasswordResetCode, error) {
 	var resetCode model.PasswordResetCode
 	err := ds.db.Where("code = ? AND used = ?", code, false).First(&resetCode).Error
 	if err != nil {
@@ -1341,17 +1382,17 @@ func (ds *SqliteService) GetPasswordResetCode(code string) (*model.PasswordReset
 	return &resetCode, nil
 }
 
-func (ds *SqliteService) InvalidatePasswordResetCode(code string) error {
+func (ds *PostgresService) InvalidatePasswordResetCode(code string) error {
 	return ds.db.Model(&model.PasswordResetCode{}).Where("code = ?", code).Update("used", true).Error
 }
 
-func (ds *SqliteService) CleanupExpiredPasswordCodes() error {
+func (ds *PostgresService) CleanupExpiredPasswordCodes() error {
 	return ds.db.Where("expires_at < ?", time.Now()).Delete(&model.PasswordResetCode{}).Error
 }
 
 // ==================== TOKEN BLACKLIST METHODS ====================
 
-func (ds *SqliteService) BlacklistToken(jti string, expiresAt time.Time) error {
+func (ds *PostgresService) BlacklistToken(jti string, expiresAt time.Time) error {
 	blacklistedToken := &model.BlacklistedToken{
 		JTI:       jti,
 		ExpiresAt: expiresAt,
@@ -1361,19 +1402,19 @@ func (ds *SqliteService) BlacklistToken(jti string, expiresAt time.Time) error {
 	return ds.db.Create(blacklistedToken).Error
 }
 
-func (ds *SqliteService) IsTokenBlacklisted(jti string) bool {
+func (ds *PostgresService) IsTokenBlacklisted(jti string) bool {
 	var count int64
 	ds.db.Model(&model.BlacklistedToken{}).Where("jti = ? AND expires_at > ?", jti, time.Now()).Count(&count)
 	return count > 0
 }
 
-func (ds *SqliteService) CleanupExpiredBlacklistedTokens() error {
+func (ds *PostgresService) CleanupExpiredBlacklistedTokens() error {
 	return ds.db.Where("expires_at < ?", time.Now()).Delete(&model.BlacklistedToken{}).Error
 }
 
 // ==================== AUDIT LOG METHODS ====================
 
-func (ds *SqliteService) CreateAuthAuditLog(log dto.AuthAuditLog) error {
+func (ds *PostgresService) CreateAuthAuditLog(log dto.AuthAuditLog) error {
 	auditLog := &model.AuthAuditLog{
 		ID:        uuid.New().String(),
 		UserID:    log.UserID,
@@ -1388,7 +1429,7 @@ func (ds *SqliteService) CreateAuthAuditLog(log dto.AuthAuditLog) error {
 	return ds.db.Create(auditLog).Error
 }
 
-func (ds *SqliteService) GetUserAuditLogs(userID string, page, limit int) ([]model.AuthAuditLog, int64, error) {
+func (ds *PostgresService) GetUserAuditLogs(userID string, page, limit int) ([]model.AuthAuditLog, int64, error) {
 	var logs []model.AuthAuditLog
 	var total int64
 
@@ -1410,7 +1451,7 @@ func (ds *SqliteService) GetUserAuditLogs(userID string, page, limit int) ([]mod
 	return logs, total, nil
 }
 
-func (ds *SqliteService) GetAuditLogs(page, limit int, userID, action string) ([]model.AuthAuditLog, int64, error) {
+func (ds *PostgresService) GetAuditLogs(page, limit int, userID, action string) ([]model.AuthAuditLog, int64, error) {
 	var logs []model.AuthAuditLog
 	var total int64
 
@@ -1440,13 +1481,13 @@ func (ds *SqliteService) GetAuditLogs(page, limit int, userID, action string) ([
 	return logs, total, nil
 }
 
-func (ds *SqliteService) CleanupOldAuditLogs(olderThan time.Time) error {
+func (ds *PostgresService) CleanupOldAuditLogs(olderThan time.Time) error {
 	return ds.db.Where("timestamp < ?", olderThan).Delete(&model.AuthAuditLog{}).Error
 }
 
 // ==================== TRUSTED DEVICE METHODS ====================
 
-func (ds *SqliteService) CreateTrustedDevice(device *model.TrustedDevice) error {
+func (ds *PostgresService) CreateTrustedDevice(device *model.TrustedDevice) error {
 	device.ID = uuid.New().String()
 	device.CreatedAt = time.Now()
 	device.LastUsed = time.Now()
@@ -1454,7 +1495,7 @@ func (ds *SqliteService) CreateTrustedDevice(device *model.TrustedDevice) error 
 	return ds.db.Create(device).Error
 }
 
-func (ds *SqliteService) GetTrustedDevice(userID, deviceID string) (*model.TrustedDevice, error) {
+func (ds *PostgresService) GetTrustedDevice(userID, deviceID string) (*model.TrustedDevice, error) {
 	var device model.TrustedDevice
 	err := ds.db.Where("user_id = ? AND device_id = ?", userID, deviceID).First(&device).Error
 	if err != nil {
@@ -1463,12 +1504,12 @@ func (ds *SqliteService) GetTrustedDevice(userID, deviceID string) (*model.Trust
 	return &device, nil
 }
 
-func (ds *SqliteService) UpdateTrustedDevice(device *model.TrustedDevice) error {
+func (ds *PostgresService) UpdateTrustedDevice(device *model.TrustedDevice) error {
 	device.LastUsed = time.Now()
 	return ds.db.Save(device).Error
 }
 
-func (ds *SqliteService) GetUserTrustedDevices(userID string) ([]model.TrustedDevice, error) {
+func (ds *PostgresService) GetUserTrustedDevices(userID string) ([]model.TrustedDevice, error) {
 	var devices []model.TrustedDevice
 	err := ds.db.Where("user_id = ?", userID).Order("last_used DESC").Find(&devices).Error
 	if err != nil {
@@ -1477,13 +1518,13 @@ func (ds *SqliteService) GetUserTrustedDevices(userID string) ([]model.TrustedDe
 	return devices, nil
 }
 
-func (ds *SqliteService) RemoveTrustedDevice(userID, deviceID string) error {
+func (ds *PostgresService) RemoveTrustedDevice(userID, deviceID string) error {
 	return ds.db.Where("user_id = ? AND device_id = ?", userID, deviceID).Delete(&model.TrustedDevice{}).Error
 }
 
 // ==================== LOGIN ATTEMPT METHODS ====================
 
-func (ds *SqliteService) RecordLoginAttempt(ip, email, userAgent string, success bool) error {
+func (ds *PostgresService) RecordLoginAttempt(ip, email, userAgent string, success bool) error {
 	attempt := &model.LoginAttempt{
 		ID:        uuid.New().String(),
 		IP:        ip,
@@ -1496,7 +1537,7 @@ func (ds *SqliteService) RecordLoginAttempt(ip, email, userAgent string, success
 	return ds.db.Create(attempt).Error
 }
 
-func (ds *SqliteService) GetRecentLoginAttempts(ip string, since time.Time) ([]model.LoginAttempt, error) {
+func (ds *PostgresService) GetRecentLoginAttempts(ip string, since time.Time) ([]model.LoginAttempt, error) {
 	var attempts []model.LoginAttempt
 	err := ds.db.Where("ip = ? AND timestamp > ?", ip, since).
 		Order("timestamp DESC").Find(&attempts).Error
@@ -1506,13 +1547,13 @@ func (ds *SqliteService) GetRecentLoginAttempts(ip string, since time.Time) ([]m
 	return attempts, nil
 }
 
-func (ds *SqliteService) CleanupOldLoginAttempts(olderThan time.Time) error {
+func (ds *PostgresService) CleanupOldLoginAttempts(olderThan time.Time) error {
 	return ds.db.Where("timestamp < ?", olderThan).Delete(&model.LoginAttempt{}).Error
 }
 
 // ==================== ADMIN USER MANAGEMENT ====================
 
-func (ds *SqliteService) AdminGetUsers(page, limit int, search string) ([]model.User, int64, error) {
+func (ds *PostgresService) AdminGetUsers(page, limit int, search string) ([]model.User, int64, error) {
 	var users []model.User
 	var total int64
 
@@ -1540,12 +1581,12 @@ func (ds *SqliteService) AdminGetUsers(page, limit int, search string) ([]model.
 	return users, total, nil
 }
 
-func (ds *SqliteService) AdminUpdateUser(userID string, updates map[string]interface{}) error {
+func (ds *PostgresService) AdminUpdateUser(userID string, updates map[string]interface{}) error {
 	updates["updated_at"] = time.Now()
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
 }
 
-func (ds *SqliteService) AdminDeleteUser(userID string) error {
+func (ds *PostgresService) AdminDeleteUser(userID string) error {
 	now := time.Now()
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"deleted_at": &now,
@@ -1556,7 +1597,7 @@ func (ds *SqliteService) AdminDeleteUser(userID string) error {
 
 // ==================== USER PROFILE & SECURITY METHODS ====================
 
-func (ds *SqliteService) GetUserProfile(userID string) (*model.User, error) {
+func (ds *PostgresService) GetUserProfile(userID string) (*model.User, error) {
 	var user model.User
 	err := ds.db.Where("id = ? AND deleted_at IS NULL", userID).First(&user).Error
 	if err != nil {
@@ -1565,12 +1606,12 @@ func (ds *SqliteService) GetUserProfile(userID string) (*model.User, error) {
 	return &user, nil
 }
 
-func (ds *SqliteService) UpdateUserProfile(userID string, updates map[string]interface{}) error {
+func (ds *PostgresService) UpdateUserProfile(userID string, updates map[string]interface{}) error {
 	updates["updated_at"] = time.Now()
 	return ds.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
 }
 
-func (ds *SqliteService) GetSecuritySettings(userID string) (*dto.SecuritySettings, error) {
+func (ds *PostgresService) GetSecuritySettings(userID string) (*dto.SecuritySettings, error) {
 	var user model.User
 	err := ds.db.Where("id = ?", userID).First(&user).Error
 	if err != nil {
@@ -1588,7 +1629,7 @@ func (ds *SqliteService) GetSecuritySettings(userID string) (*dto.SecuritySettin
 	return settings, nil
 }
 
-func (ds *SqliteService) UpdateSecuritySettings(userID string, settings dto.UpdateSecuritySettingsRequest) error {
+func (ds *PostgresService) UpdateSecuritySettings(userID string, settings dto.UpdateSecuritySettingsRequest) error {
 	updates := make(map[string]interface{})
 	updates["updated_at"] = time.Now()
 
@@ -1604,7 +1645,7 @@ func (ds *SqliteService) UpdateSecuritySettings(userID string, settings dto.Upda
 
 // ==================== CLEANUP AND MAINTENANCE ====================
 
-func (ds *SqliteService) CleanupExpiredData() error {
+func (ds *PostgresService) CleanupExpiredData() error {
 	now := time.Now()
 
 	// Cleanup expired sessions
@@ -1627,7 +1668,7 @@ func (ds *SqliteService) CleanupExpiredData() error {
 
 // ==================== STATISTICS METHODS ====================
 
-func (ds *SqliteService) GetUserStats(userID string) (*dto.UserStats, error) {
+func (ds *PostgresService) GetUserStats(userID string) (*dto.UserStats, error) {
 	var user model.User
 	err := ds.db.Where("id = ?", userID).First(&user).Error
 	if err != nil {
@@ -1655,7 +1696,7 @@ func (ds *SqliteService) GetUserStats(userID string) (*dto.UserStats, error) {
 }
 
 // Seed initial data for the enhanced auth system
-func (ds *SqliteService) seedInitialData() error {
+func (ds *PostgresService) seedInitialData() error {
 	// Create default admin user if it doesn't exist
 	err := ds.createDefaultAdmin()
 	if err != nil {
@@ -1672,7 +1713,7 @@ func (ds *SqliteService) seedInitialData() error {
 }
 
 // Create default admin user
-func (ds *SqliteService) createDefaultAdmin() error {
+func (ds *PostgresService) createDefaultAdmin() error {
 	var count int64
 	ds.db.Model(&model.User{}).Where("role = ?", model.RoleAdmin).Count(&count)
 
@@ -1710,7 +1751,7 @@ func (ds *SqliteService) createDefaultAdmin() error {
 }
 
 // Create default rate limit configurations
-func (ds *SqliteService) createDefaultRateLimitConfigs() error {
+func (ds *PostgresService) createDefaultRateLimitConfigs() error {
 	configs := []model.RateLimitConfig{
 		{
 			ID:           "login-config",

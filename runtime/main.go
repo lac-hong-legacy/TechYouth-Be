@@ -15,7 +15,7 @@ func main() {
 	}
 
 	ctx, err := context.NewCtx(
-		&services.SqliteService{},
+		&services.PostgresService{},
 		&services.MinIOService{},
 		&services.JWTService{},
 		&services.RateLimitService{},

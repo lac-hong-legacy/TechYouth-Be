@@ -15,7 +15,7 @@ import (
 type GuestService struct {
 	context.DefaultService
 
-	sqlSvc *SqliteService
+	sqlSvc *PostgresService
 }
 
 const GUEST_SVC = "guest_svc"
@@ -29,7 +29,7 @@ func (svc *GuestService) Configure(ctx *context.Context) error {
 }
 
 func (svc *GuestService) Start() error {
-	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqlSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
 	return nil
 }
 

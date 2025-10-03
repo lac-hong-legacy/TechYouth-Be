@@ -18,7 +18,7 @@ import (
 
 type MediaService struct {
 	context.DefaultService
-	sqlSvc   *SqliteService
+	sqlSvc   *PostgresService
 	minioSvc *MinIOService
 	baseURL  string
 }
@@ -39,7 +39,7 @@ func (svc *MediaService) Configure(ctx *context.Context) error {
 }
 
 func (svc *MediaService) Start() error {
-	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqlSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
 	svc.minioSvc = svc.Service(MINIO_SVC).(*MinIOService)
 	return nil
 }

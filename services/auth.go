@@ -44,7 +44,7 @@ type LoginNotificationEmail struct {
 type AuthService struct {
 	context.DefaultService
 
-	sqlSvc       *SqliteService
+	sqlSvc       *PostgresService
 	jwtSvc       *JWTService
 	emailSvc     *EmailService
 	rateLimitSvc *RateLimitService
@@ -83,7 +83,7 @@ func (svc *AuthService) Configure(ctx *context.Context) error {
 }
 
 func (svc *AuthService) Start() error {
-	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqlSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
 	svc.jwtSvc = svc.Service(JWT_SVC).(*JWTService)
 	svc.emailSvc = svc.Service(EMAIL_SVC).(*EmailService)
 	svc.rateLimitSvc = svc.Service(RATE_LIMIT_SVC).(*RateLimitService)

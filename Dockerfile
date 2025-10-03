@@ -3,7 +3,7 @@ FROM golang:1.24-alpine AS builder
 WORKDIR /app
 
 # Install git and ca-certificates
-RUN apk add --no-cache git ca-certificates gcc musl-dev openssh-client
+RUN apk add --no-cache git ca-certificates openssh-client
 
 # Configure SSH for private repositories
 RUN mkdir -p /root/.ssh && \
@@ -24,7 +24,7 @@ RUN --mount=type=secret,id=ssh_key,target=/tmp/ssh_key \
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main ./runtime/
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./runtime/
 
 # Final stage
 FROM alpine:latest
@@ -37,7 +37,7 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8000
 
 # Run the application
 CMD ["./main"]

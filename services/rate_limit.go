@@ -23,7 +23,7 @@ type RateLimitService struct {
 	configs map[string]*RateLimitConfig
 	mutex   sync.RWMutex
 
-	sqlSvc *SqliteService
+	sqlSvc *PostgresService
 }
 
 // RateLimitConfig represents rate limiting configuration
@@ -48,7 +48,7 @@ func (svc *RateLimitService) Configure(ctx *context.Context) error {
 }
 
 func (svc *RateLimitService) Start() error {
-	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqlSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
 	svc.initDefaultConfigs()
 
 	// Start background cleanup job

@@ -14,7 +14,7 @@ import (
 
 type ContentService struct {
 	context.DefaultService
-	sqlSvc *SqliteService
+	sqlSvc *PostgresService
 }
 
 const CONTENT_SVC = "content_svc"
@@ -28,7 +28,7 @@ func (svc *ContentService) Configure(ctx *context.Context) error {
 }
 
 func (svc *ContentService) Start() error {
-	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqlSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
 	return nil
 }
 

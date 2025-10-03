@@ -19,7 +19,7 @@ type JWTService struct {
 	RefreshTokenDuration time.Duration
 	jwtSecretKey         string
 	refreshSecretKey     string
-	sqlSvc               *SqliteService
+	sqlSvc               *PostgresService
 }
 
 type CustomClaims struct {
@@ -36,7 +36,7 @@ func (svc JWTService) Id() string {
 }
 
 func (svc *JWTService) Configure(ctx *context.Context) error {
-	svc.sqlSvc = ctx.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqlSvc = ctx.Service(POSTGRES_SVC).(*PostgresService)
 
 	// Access tokens: 15 minutes (short-lived for security)
 	svc.AccessTokenDuration = time.Duration(15 * time.Minute)

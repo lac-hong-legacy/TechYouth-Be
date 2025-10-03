@@ -19,7 +19,7 @@ type UserService struct {
 	context.DefaultService
 
 	contentSvc *ContentService
-	sqlSvc     *SqliteService
+	sqlSvc     *PostgresService
 }
 
 const USER_SVC = "user_svc"
@@ -33,7 +33,7 @@ func (svc *UserService) Configure(ctx *context.Context) error {
 }
 
 func (svc *UserService) Start() error {
-	svc.sqlSvc = svc.Service(SQLITE_SVC).(*SqliteService)
+	svc.sqlSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
 	svc.contentSvc = svc.Service(CONTENT_SVC).(*ContentService)
 
 	go svc.startHeartResetScheduler()
