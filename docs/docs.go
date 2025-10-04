@@ -667,6 +667,14 @@ const docTemplate = `{
                 "summary": "Change password",
                 "parameters": [
                     {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Current and new password",
                         "name": "changeRequest",
                         "in": "body",
@@ -1672,13 +1680,6 @@ const docTemplate = `{
                         "name": "Authorization",
                         "in": "header",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "session_id",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -1728,13 +1729,6 @@ const docTemplate = `{
                         "description": "User Bearer Token",
                         "name": "Authorization",
                         "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "session_id",
-                        "in": "path",
                         "required": true
                     }
                 ],
@@ -2051,6 +2045,132 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/devices": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get list of all user's trusted devices",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get user devices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dto.DeviceInfo"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/devices/{deviceId}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Remove a device from user's device list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Remove user device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "deviceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/shared.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/devices/{deviceId}/trust": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Trust or untrust a specific device",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Update device trust status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "deviceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Trust status",
+                        "name": "trustRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.TrustDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/shared.Response"
                         }
                     }
                 }
@@ -3458,6 +3578,43 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.DeviceInfo": {
+            "type": "object",
+            "properties": {
+                "browser": {
+                    "type": "string",
+                    "example": "Safari"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "dev_123456789"
+                },
+                "ip": {
+                    "type": "string",
+                    "example": "192.168.1.1"
+                },
+                "is_trusted": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "last_used": {
+                    "type": "string",
+                    "example": "2023-01-15T10:30:00Z"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "iPhone 14"
+                },
+                "os": {
+                    "type": "string",
+                    "example": "iOS 16.0"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "mobile"
+                }
+            }
+        },
         "dto.ForgotPasswordRequest": {
             "type": "object",
             "required": [
@@ -4045,6 +4202,22 @@ const docTemplate = `{
                 },
                 "progress": {
                     "type": "number"
+                }
+            }
+        },
+        "dto.TrustDeviceRequest": {
+            "type": "object",
+            "required": [
+                "device_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "example": "device_12345"
+                },
+                "trust": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },

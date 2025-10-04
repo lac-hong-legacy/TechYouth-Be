@@ -379,6 +379,33 @@ definitions:
     required:
     - device_id
     type: object
+  dto.DeviceInfo:
+    properties:
+      browser:
+        example: Safari
+        type: string
+      id:
+        example: dev_123456789
+        type: string
+      ip:
+        example: 192.168.1.1
+        type: string
+      is_trusted:
+        example: true
+        type: boolean
+      last_used:
+        example: "2023-01-15T10:30:00Z"
+        type: string
+      name:
+        example: iPhone 14
+        type: string
+      os:
+        example: iOS 16.0
+        type: string
+      type:
+        example: mobile
+        type: string
+    type: object
   dto.ForgotPasswordRequest:
     properties:
       email:
@@ -777,6 +804,17 @@ definitions:
         type: boolean
       progress:
         type: number
+    type: object
+  dto.TrustDeviceRequest:
+    properties:
+      device_id:
+        example: device_12345
+        type: string
+      trust:
+        example: true
+        type: boolean
+    required:
+    - device_id
     type: object
   dto.UpdateProfileRequest:
     properties:
@@ -1365,6 +1403,12 @@ paths:
       - application/json
       description: Change user password (requires authentication)
       parameters:
+      - default: Bearer <user_token>
+        description: User Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       - description: Current and new password
         in: body
         name: changeRequest
@@ -1971,11 +2015,6 @@ paths:
         name: Authorization
         required: true
         type: string
-      - description: Session ID
-        in: path
-        name: session_id
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -2003,11 +2042,6 @@ paths:
         description: User Bearer Token
         in: header
         name: Authorization
-        required: true
-        type: string
-      - description: Session ID
-        in: path
-        name: session_id
         required: true
         type: string
       produces:
@@ -2199,6 +2233,82 @@ paths:
       security:
       - Bearer: []
       summary: Get User Collection
+      tags:
+      - user
+  /api/v1/user/devices:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all user's trusted devices
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.DeviceInfo'
+                  type: array
+              type: object
+      security:
+      - Bearer: []
+      summary: Get user devices
+      tags:
+      - user
+  /api/v1/user/devices/{deviceId}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a device from user's device list
+      parameters:
+      - description: Device ID
+        in: path
+        name: deviceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shared.Response'
+      security:
+      - Bearer: []
+      summary: Remove user device
+      tags:
+      - user
+  /api/v1/user/devices/{deviceId}/trust:
+    put:
+      consumes:
+      - application/json
+      description: Trust or untrust a specific device
+      parameters:
+      - description: Device ID
+        in: path
+        name: deviceId
+        required: true
+        type: string
+      - description: Trust status
+        in: body
+        name: trustRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TrustDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shared.Response'
+      security:
+      - Bearer: []
+      summary: Update device trust status
       tags:
       - user
   /api/v1/user/hearts:

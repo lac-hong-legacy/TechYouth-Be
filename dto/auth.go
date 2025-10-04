@@ -33,6 +33,14 @@ func (r RefreshTokenRequest) Validate() error {
 	return GetValidator().Struct(r)
 }
 
+type LogoutRequest struct {
+	SessionID string `json:"session_id" validate:"required" example:"sess_123456789"`
+}
+
+func (l LogoutRequest) Validate() error {
+	return GetValidator().Struct(l)
+}
+
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required" example:"OldPass123!"`
 	NewPassword     string `json:"new_password" validate:"required,strong_password" example:"NewPass123!"`
@@ -142,15 +150,17 @@ func (u UpdateProfileRequest) Validate() error {
 // ==================== SESSION MANAGEMENT DTOs ====================
 
 type UserSession struct {
-	ID        string    `json:"id" example:"sess_123456789"`
-	UserID    string    `json:"user_id" example:"usr_123456789"`
-	TokenHash string    `json:"token_hash" example:"hash_abc123"`
-	DeviceID  string    `json:"device_id,omitempty" example:"device_12345"`
-	IP        string    `json:"ip" example:"192.168.1.1"`
-	UserAgent string    `json:"user_agent" example:"Mozilla/5.0..."`
-	CreatedAt time.Time `json:"created_at" example:"2023-01-15T10:30:00Z"`
-	LastUsed  time.Time `json:"last_used" example:"2023-01-15T11:30:00Z"`
-	IsActive  bool      `json:"is_active" example:"true"`
+	ID               string    `json:"id" example:"sess_123456789"`
+	UserID           string    `json:"user_id" example:"usr_123456789"`
+	TokenHash        string    `json:"token_hash" example:"hash_abc123"`
+	RefreshTokenJTI  string    `json:"refresh_token_jti,omitempty" example:"jti_123456789"`
+	RefreshExpiresAt time.Time `json:"refresh_expires_at,omitempty" example:"2023-01-22T10:30:00Z"`
+	DeviceID         string    `json:"device_id,omitempty" example:"device_12345"`
+	IP               string    `json:"ip" example:"192.168.1.1"`
+	UserAgent        string    `json:"user_agent" example:"Mozilla/5.0..."`
+	CreatedAt        time.Time `json:"created_at" example:"2023-01-15T10:30:00Z"`
+	LastUsed         time.Time `json:"last_used" example:"2023-01-15T11:30:00Z"`
+	IsActive         bool      `json:"is_active" example:"true"`
 }
 
 type SessionListResponse struct {
@@ -306,6 +316,11 @@ type TrustDeviceRequest struct {
 
 func (t TrustDeviceRequest) Validate() error {
 	return GetValidator().Struct(t)
+}
+
+type DeviceListResponse struct {
+	Devices []DeviceInfo `json:"devices"`
+	Total   int          `json:"total" example:"5"`
 }
 
 // ==================== ERROR RESPONSE DTOs ====================

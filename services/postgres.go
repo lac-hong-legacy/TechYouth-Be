@@ -1284,16 +1284,18 @@ func (ds *PostgresService) IsEmailAvailable(email string) (bool, error) {
 
 func (ds *PostgresService) CreateUserSession(session dto.UserSession) (string, error) {
 	dbSession := &model.UserSession{
-		ID:        uuid.New().String(),
-		UserID:    session.UserID,
-		TokenHash: session.TokenHash,
-		DeviceID:  session.DeviceID,
-		IP:        session.IP,
-		UserAgent: session.UserAgent,
-		CreatedAt: session.CreatedAt,
-		LastUsed:  session.LastUsed,
-		IsActive:  session.IsActive,
-		ExpiresAt: session.CreatedAt.Add(7 * 24 * time.Hour), // 7 days
+		ID:               uuid.New().String(),
+		UserID:           session.UserID,
+		TokenHash:        session.TokenHash,
+		RefreshTokenJTI:  session.RefreshTokenJTI,
+		RefreshExpiresAt: session.RefreshExpiresAt,
+		DeviceID:         session.DeviceID,
+		IP:               session.IP,
+		UserAgent:        session.UserAgent,
+		CreatedAt:        session.CreatedAt,
+		LastUsed:         session.LastUsed,
+		IsActive:         session.IsActive,
+		ExpiresAt:        session.CreatedAt.Add(7 * 24 * time.Hour), // 7 days
 	}
 
 	if err := ds.db.Create(dbSession).Error; err != nil {
@@ -1342,9 +1344,28 @@ func (ds *PostgresService) DeactivateAllUserSessions(userID, exceptSessionID str
 	}).Error
 }
 
+func (ds *PostgresService) GetSessionByID(sessionID string) (*model.UserSession, error) {
+	var session model.UserSession
+	err := ds.db.Where("id = ?", sessionID).First(&session).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return &session, nil
+}
+
 func (ds *PostgresService) GetUserSessions(userID string) ([]model.UserSession, error) {
 	var sessions []model.UserSession
 	err := ds.db.Where("user_id = ? AND is_active = ?", userID, true).
+		Order("last_used DESC").Find(&sessions).Error
+	if err != nil {
+		return nil, ds.HandleError(err)
+	}
+	return sessions, nil
+}
+
+func (ds *PostgresService) GetUserActiveSessions(userID string) ([]model.UserSession, error) {
+	var sessions []model.UserSession
+	err := ds.db.Where("user_id = ? AND is_active = ? AND expires_at > ?", userID, true, time.Now()).
 		Order("last_used DESC").Find(&sessions).Error
 	if err != nil {
 		return nil, ds.HandleError(err)
@@ -1398,8 +1419,11 @@ func (ds *PostgresService) BlacklistToken(jti string, expiresAt time.Time) error
 		ExpiresAt: expiresAt,
 		CreatedAt: time.Now(),
 	}
+	if err := ds.db.Create(blacklistedToken).Error; err != nil {
+		log.WithError(err).Errorf("Failed to persist blacklisted token to DB: %s", jti)
+	}
 
-	return ds.db.Create(blacklistedToken).Error
+	return nil
 }
 
 func (ds *PostgresService) IsTokenBlacklisted(jti string) bool {

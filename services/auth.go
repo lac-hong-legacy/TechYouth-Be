@@ -186,10 +186,10 @@ func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.Regi
 	}, nil
 }
 
-func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent, location string) (*dto.LoginResponse, error) {
-	if blocked := svc.rateLimitSvc.IsBlocked(clientIP, "login"); blocked {
-		return nil, shared.NewTooManyRequestsError(errors.New("too many login attempts"), "Too many login attempts. Please try again later.")
-	}
+func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent string) (*dto.LoginResponse, error) {
+	// if blocked := svc.rateLimitSvc.IsBlocked(clientIP, "login"); blocked {
+	// 	return nil, shared.NewTooManyRequestsError(errors.New("too many login attempts"), "Too many login attempts. Please try again later.")
+	// }
 
 	user, err := svc.sqlSvc.GetUserByEmailOrUsername(loginRequest.EmailOrUsername)
 	if err != nil {
@@ -247,26 +247,42 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 		svc.sqlSvc.ResetFailedAttempts(user.ID)
 	}
 
+	// Generate tokens
 	tokenPair, err := svc.jwtSvc.GenerateTokenPair(user.ID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to generate tokens")
 	}
 
+	refreshClaims, err := svc.jwtSvc.GetTokenClaims(tokenPair.RefreshToken)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to extract refresh token claims")
+	}
+
+	// Create session with refresh token hash and JTI
 	session := dto.UserSession{
-		UserID:    user.ID,
-		TokenHash: svc.hashToken(tokenPair.RefreshToken),
-		DeviceID:  loginRequest.DeviceID,
-		IP:        clientIP,
-		UserAgent: userAgent,
-		CreatedAt: time.Now(),
-		LastUsed:  time.Now(),
-		IsActive:  true,
+		UserID:           user.ID,
+		TokenHash:        svc.hashToken(tokenPair.RefreshToken),
+		RefreshTokenJTI:  refreshClaims.ID,
+		RefreshExpiresAt: refreshClaims.ExpiresAt.Time,
+		DeviceID:         loginRequest.DeviceID,
+		IP:               clientIP,
+		UserAgent:        userAgent,
+		CreatedAt:        time.Now(),
+		LastUsed:         time.Now(),
+		IsActive:         true,
 	}
 
 	sessionID, err := svc.sqlSvc.CreateUserSession(session)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to create session")
 	}
+
+	accessToken, err := svc.jwtSvc.GenerateAccessTokenWithSession(user.ID, sessionID)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to generate access token with session")
+	}
+
+	tokenPair.AccessToken = accessToken
 
 	svc.logAuthEventCh <- dto.AuthAuditLog{
 		UserID:    user.ID,
@@ -290,7 +306,7 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 	svc.sendLoginNotificationEmailAsync <- LoginNotificationEmail{
 		Email:     user.Email,
 		Username:  user.Username,
-		LoginTime: time.Now().Format("2006-01-02 15:04:05"),
+		LoginTime: time.Now().Local().Format("2006-01-02 15:04:05"),
 		IP:        clientIP,
 		Device:    userAgent,
 		Location:  location,
@@ -326,7 +342,8 @@ func (svc *AuthService) RefreshToken(refreshRequest dto.RefreshTokenRequest, cli
 		svc.sqlSvc.UpdateSessionLastUsed(session.ID)
 	}
 
-	tokenPair, err := svc.jwtSvc.GenerateTokenPair(userID)
+	// Generate tokens with session_id
+	tokenPair, err := svc.jwtSvc.GenerateTokenPairWithSession(userID, session.ID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to generate tokens")
 	}
@@ -364,8 +381,32 @@ func (svc *AuthService) RefreshToken(refreshRequest dto.RefreshTokenRequest, cli
 	}, nil
 }
 
-func (svc *AuthService) Logout(userID, sessionID, clientIP, userAgent string) error {
-	err := svc.sqlSvc.DeactivateSession(sessionID, userID)
+func (svc *AuthService) BlacklistToken(accessToken, refreshToken string) error {
+	if err := svc.jwtSvc.BlacklistToken(accessToken); err != nil {
+		return shared.NewInternalError(err, "Failed to blacklist access token")
+	}
+
+	if err := svc.jwtSvc.BlacklistToken(refreshToken); err != nil {
+		return shared.NewInternalError(err, "Failed to blacklist refresh token")
+	}
+	return nil
+}
+
+func (svc *AuthService) Logout(userID, sessionID, accessToken, clientIP, userAgent string) error {
+	if accessToken != "" {
+		if err := svc.jwtSvc.BlacklistToken(accessToken); err != nil {
+			log.WithError(err).Error("Failed to blacklist access token")
+		}
+	}
+
+	session, err := svc.sqlSvc.GetSessionByID(sessionID)
+	if err == nil && session != nil && session.RefreshTokenJTI != "" {
+		if err := svc.sqlSvc.BlacklistToken(session.RefreshTokenJTI, session.RefreshExpiresAt); err != nil {
+			log.WithError(err).Error("Failed to blacklist refresh token")
+		}
+	}
+
+	err = svc.sqlSvc.DeactivateSession(sessionID, userID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to logout")
 	}
@@ -377,12 +418,30 @@ func (svc *AuthService) Logout(userID, sessionID, clientIP, userAgent string) er
 		UserAgent: userAgent,
 		Timestamp: time.Now(),
 		Success:   true,
+		Details:   "Access & Refresh tokens blacklisted, session deactivated",
 	}
 	return nil
 }
 
-func (svc *AuthService) LogoutAllDevices(userID, currentSessionID, clientIP, userAgent string) error {
-	err := svc.sqlSvc.DeactivateAllUserSessions(userID, currentSessionID)
+func (svc *AuthService) LogoutAllDevices(userID, currentSessionID, accessToken, clientIP, userAgent string) error {
+	if accessToken != "" {
+		if err := svc.jwtSvc.BlacklistToken(accessToken); err != nil {
+			log.WithError(err).Error("Failed to blacklist current access token")
+		}
+	}
+
+	sessions, err := svc.sqlSvc.GetUserActiveSessions(userID)
+	if err == nil {
+		for _, session := range sessions {
+			if session.RefreshTokenJTI != "" {
+				if err := svc.sqlSvc.BlacklistToken(session.RefreshTokenJTI, session.RefreshExpiresAt); err != nil {
+					log.WithError(err).Errorf("Failed to blacklist refresh token for session %s", session.ID)
+				}
+			}
+		}
+	}
+
+	err = svc.sqlSvc.DeactivateAllUserSessions(userID, currentSessionID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to logout from all devices")
 	}
@@ -394,6 +453,7 @@ func (svc *AuthService) LogoutAllDevices(userID, currentSessionID, clientIP, use
 		UserAgent: userAgent,
 		Timestamp: time.Now(),
 		Success:   true,
+		Details:   "All access & refresh tokens blacklisted, all sessions deactivated",
 	}
 	return nil
 }
@@ -584,23 +644,24 @@ func (svc *AuthService) RequiredAuth() fiber.Handler {
 			return shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", err.Error())
 		}
 
-		userID, err := svc.jwtSvc.VerifyJWTToken(token)
+		claims, err := svc.jwtSvc.VerifyAndGetClaims(token)
 		if err != nil {
 			return shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid JWT token")
 		}
 
-		if userID == "" {
+		if claims.UserID == "" {
 			return shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "Invalid user ID in token")
 		}
 
 		// Check if user exists and is active
-		user, err := svc.sqlSvc.GetUserByID(userID)
+		user, err := svc.sqlSvc.GetUserByID(claims.UserID)
 		if err != nil || !user.IsActive {
 			return shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "User account is inactive")
 		}
 
-		c.Locals(shared.UserID, userID)
+		c.Locals(shared.UserID, claims.UserID)
 		c.Locals("user", user)
+		c.Locals("session_id", claims.SessionID)
 		return c.Next()
 	}
 }
@@ -677,4 +738,92 @@ func (svc *AuthService) hashToken(token string) string {
 
 func (svc *AuthService) GetDetailedLocationInfo(ip string) (*GeolocationResponse, error) {
 	return svc.geolocationSvc.GetDetailedLocationByIP(ip)
+}
+
+func (svc *AuthService) GetUserDevices(userID string) ([]dto.DeviceInfo, error) {
+	devices, err := svc.sqlSvc.GetUserTrustedDevices(userID)
+	if err != nil {
+		return nil, shared.NewInternalError(err, "Failed to get user devices")
+	}
+
+	deviceInfos := make([]dto.DeviceInfo, 0, len(devices))
+	for _, device := range devices {
+		deviceInfos = append(deviceInfos, dto.DeviceInfo{
+			ID:        device.ID,
+			Name:      device.Name,
+			Type:      device.Type,
+			OS:        device.OS,
+			Browser:   device.Browser,
+			IP:        device.IP,
+			LastUsed:  device.LastUsed,
+			IsTrusted: device.IsTrusted,
+		})
+	}
+
+	return deviceInfos, nil
+}
+
+func (svc *AuthService) UpdateDeviceTrust(userID, deviceID string, trust bool) error {
+	device, err := svc.sqlSvc.GetTrustedDevice(userID, deviceID)
+	if err != nil {
+		return shared.NewNotFoundError(err, "Device not found")
+	}
+
+	device.IsTrusted = trust
+	if err := svc.sqlSvc.UpdateTrustedDevice(device); err != nil {
+		return shared.NewInternalError(err, "Failed to update device trust")
+	}
+
+	action := "device_untrusted"
+	if trust {
+		action = "device_trusted"
+	}
+
+	svc.logAuthEventCh <- dto.AuthAuditLog{
+		UserID:    userID,
+		Action:    action,
+		Timestamp: time.Now(),
+		Success:   true,
+		Details:   fmt.Sprintf("Device %s", deviceID),
+	}
+
+	return nil
+}
+
+func (svc *AuthService) RemoveDevice(userID, deviceID string) error {
+	if err := svc.sqlSvc.RemoveTrustedDevice(userID, deviceID); err != nil {
+		return shared.NewInternalError(err, "Failed to remove device")
+	}
+
+	svc.logAuthEventCh <- dto.AuthAuditLog{
+		UserID:    userID,
+		Action:    "device_removed",
+		Timestamp: time.Now(),
+		Success:   true,
+		Details:   fmt.Sprintf("Device %s", deviceID),
+	}
+
+	return nil
+}
+
+func (svc *AuthService) RegisterOrUpdateDevice(userID, deviceID, name, deviceType, os, browser, ip string) error {
+	device, err := svc.sqlSvc.GetTrustedDevice(userID, deviceID)
+	if err == nil {
+		device.LastUsed = time.Now()
+		device.IP = ip
+		return svc.sqlSvc.UpdateTrustedDevice(device)
+	}
+
+	newDevice := &model.TrustedDevice{
+		UserID:    userID,
+		DeviceID:  deviceID,
+		Name:      name,
+		Type:      deviceType,
+		OS:        os,
+		Browser:   browser,
+		IP:        ip,
+		IsTrusted: false,
+	}
+
+	return svc.sqlSvc.CreateTrustedDevice(newDevice)
 }

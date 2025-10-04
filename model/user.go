@@ -57,16 +57,18 @@ type User struct {
 
 // UserSession represents an active user session
 type UserSession struct {
-	ID        string    `json:"id" gorm:"primaryKey;type:text;not null"`
-	UserID    string    `json:"user_id" gorm:"not null;index;size:50"`
-	TokenHash string    `json:"token_hash" gorm:"not null;index;size:255"`
-	DeviceID  string    `json:"device_id,omitempty" gorm:"index;size:100"`
-	IP        string    `json:"ip" gorm:"not null;size:45"`
-	UserAgent string    `json:"user_agent" gorm:"type:text"`
-	CreatedAt time.Time `json:"created_at" gorm:"not null"`
-	LastUsed  time.Time `json:"last_used" gorm:"not null;index"`
-	IsActive  bool      `json:"is_active" gorm:"default:true;not null;index"`
-	ExpiresAt time.Time `json:"expires_at" gorm:"not null;index"`
+	ID               string    `json:"id" gorm:"primaryKey;type:text;not null"`
+	UserID           string    `json:"user_id" gorm:"not null;index;size:50"`
+	TokenHash        string    `json:"token_hash" gorm:"not null;index;size:255"`
+	RefreshTokenJTI  string    `json:"refresh_token_jti" gorm:"index;size:255"` // Nullable for existing sessions
+	RefreshExpiresAt time.Time `json:"refresh_expires_at" gorm:"not null"`
+	DeviceID         string    `json:"device_id,omitempty" gorm:"index;size:100"`
+	IP               string    `json:"ip" gorm:"not null;size:45"`
+	UserAgent        string    `json:"user_agent" gorm:"type:text"`
+	CreatedAt        time.Time `json:"created_at" gorm:"not null"`
+	LastUsed         time.Time `json:"last_used" gorm:"not null;index"`
+	IsActive         bool      `json:"is_active" gorm:"default:true;not null;index"`
+	ExpiresAt        time.Time `json:"expires_at" gorm:"not null;index"`
 
 	// Relationships
 	User User `json:"-" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`

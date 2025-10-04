@@ -1,6 +1,7 @@
 package services
 
 import (
+	stdContext "context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lac-hong-legacy/ven_api/dto"
+	"github.com/lac-hong-legacy/ven_api/model"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/alphabatem/common/context"
 )
@@ -20,6 +23,7 @@ type JWTService struct {
 	jwtSecretKey         string
 	refreshSecretKey     string
 	sqlSvc               *PostgresService
+	redisSvc             *RedisService
 }
 
 type CustomClaims struct {
@@ -37,7 +41,7 @@ func (svc JWTService) Id() string {
 
 func (svc *JWTService) Configure(ctx *context.Context) error {
 	svc.sqlSvc = ctx.Service(POSTGRES_SVC).(*PostgresService)
-
+	svc.redisSvc = ctx.Service(REDIS_SVC).(*RedisService)
 	// Access tokens: 15 minutes (short-lived for security)
 	svc.AccessTokenDuration = time.Duration(15 * time.Minute)
 
@@ -58,13 +62,21 @@ func (svc *JWTService) Configure(ctx *context.Context) error {
 }
 
 func (svc *JWTService) Start() error {
+
+	go svc.syncBlacklistToRedis()
+
 	return nil
 }
 
 // Generate both access and refresh tokens
 func (svc *JWTService) GenerateTokenPair(userID string) (*dto.TokenPair, error) {
+	return svc.GenerateTokenPairWithSession(userID, "")
+}
+
+// Generate both access and refresh tokens with session ID
+func (svc *JWTService) GenerateTokenPairWithSession(userID, sessionID string) (*dto.TokenPair, error) {
 	// Generate access token
-	accessToken, err := svc.generateAccessToken(userID)
+	accessToken, err := svc.generateAccessToken(userID, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %v", err)
 	}
@@ -82,13 +94,19 @@ func (svc *JWTService) GenerateTokenPair(userID string) (*dto.TokenPair, error) 
 	}, nil
 }
 
+// Generate only access token with session ID
+func (svc *JWTService) GenerateAccessTokenWithSession(userID, sessionID string) (string, error) {
+	return svc.generateAccessToken(userID, sessionID)
+}
+
 // Generate access token (short-lived)
-func (svc *JWTService) generateAccessToken(userID string) (string, error) {
+func (svc *JWTService) generateAccessToken(userID, sessionID string) (string, error) {
 	now := time.Now()
 	expirationTime := now.Add(svc.AccessTokenDuration)
 
 	claims := &CustomClaims{
 		UserID:    userID,
+		SessionID: sessionID,
 		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
@@ -138,39 +156,48 @@ func (svc *JWTService) generateRefreshToken(userID string) (string, error) {
 
 // Verify access token
 func (svc *JWTService) VerifyJWTToken(jwtToken string) (string, error) {
+	claims, err := svc.VerifyAndGetClaims(jwtToken)
+	if err != nil {
+		return "", err
+	}
+	return claims.UserID, nil
+}
+
+// Verify access token and return full claims
+func (svc *JWTService) VerifyAndGetClaims(jwtToken string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(jwtToken, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return svc.getAccessTokenKey(token)
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to parse token: %v", err)
+		return nil, fmt.Errorf("failed to parse token: %v", err)
 	}
 
 	if !token.Valid {
-		return "", errors.New("invalid token")
+		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(*CustomClaims)
 	if !ok {
-		return "", errors.New("invalid token claims")
+		return nil, errors.New("invalid token claims")
 	}
 
 	// Verify token type
 	if claims.TokenType != "access" {
-		return "", errors.New("invalid token type")
+		return nil, errors.New("invalid token type")
 	}
 
 	// Check if token is blacklisted
 	if svc.isTokenBlacklisted(claims.ID) {
-		return "", errors.New("token has been revoked")
+		return nil, errors.New("token has been revoked")
 	}
 
 	// Validate expiration
 	if claims.ExpiresAt.Time.Before(time.Now()) {
-		return "", errors.New("token has expired")
+		return nil, errors.New("token has expired")
 	}
 
-	return claims.UserID, nil
+	return claims, nil
 }
 
 func (svc *JWTService) VerifyRefreshToken(refreshToken string) (string, error) {
@@ -244,7 +271,50 @@ func (svc *JWTService) generateJTI() string {
 
 // Check if token is blacklisted
 func (svc *JWTService) isTokenBlacklisted(jti string) bool {
-	return svc.sqlSvc.IsTokenBlacklisted(jti)
+	ctx := stdContext.Background()
+	exists, err := svc.redisSvc.Exists(ctx, fmt.Sprintf("blacklist:%s", jti))
+	if err != nil {
+		log.WithError(err).Warnf("Redis check failed for JTI %s, falling back to DB", jti)
+		return svc.sqlSvc.IsTokenBlacklisted(jti)
+	}
+	return exists
+}
+
+func (svc *JWTService) blacklistToken(jti string, expiresAt time.Time) error {
+	ctx := stdContext.Background()
+	ttl := time.Until(expiresAt)
+	if ttl <= 0 {
+		return nil
+	}
+
+	if err := svc.redisSvc.Set(ctx, fmt.Sprintf("blacklist:%s", jti), "1", ttl); err != nil {
+		return fmt.Errorf("failed to blacklist token in redis: %w", err)
+	}
+
+	return svc.sqlSvc.BlacklistToken(jti, expiresAt)
+}
+
+func (svc *JWTService) syncBlacklistToRedis() {
+	var tokens []model.BlacklistedToken
+	if err := svc.sqlSvc.db.Where("expires_at > ?", time.Now()).Find(&tokens).Error; err != nil {
+		log.WithError(err).Error("Failed to load blacklisted tokens from DB")
+		return
+	}
+
+	ctx := stdContext.Background()
+	synced := 0
+	for _, token := range tokens {
+		ttl := time.Until(token.ExpiresAt)
+		if ttl > 0 {
+			if err := svc.redisSvc.Set(ctx, fmt.Sprintf("blacklist:%s", token.JTI), "1", ttl); err != nil {
+				log.WithError(err).Warnf("Failed to sync token %s to Redis", token.JTI)
+			} else {
+				synced++
+			}
+		}
+	}
+
+	log.Infof("Synced %d blacklisted tokens to Redis", synced)
 }
 
 // Blacklist token (for logout)
@@ -263,7 +333,7 @@ func (svc *JWTService) BlacklistToken(jwtToken string) error {
 	}
 
 	// Add to blacklist with expiration time
-	return svc.sqlSvc.BlacklistToken(claims.ID, claims.ExpiresAt.Time)
+	return svc.blacklistToken(claims.ID, claims.ExpiresAt.Time)
 }
 
 // Get token claims without verification (for logout)

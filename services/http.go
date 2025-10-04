@@ -160,6 +160,11 @@ func (svc *HttpService) Start() error {
 	// Audit logs
 	user.Get("/audit-logs", svc.GetAuditLogs)
 
+	// Trusted devices
+	user.Get("/devices", svc.GetUserDevices)
+	user.Put("/devices/:deviceId/trust", svc.UpdateDeviceTrust)
+	user.Delete("/devices/:deviceId", svc.RemoveUserDevice)
+
 	// Social features
 	user.Post("/share", svc.ShareAchievement)
 
@@ -272,9 +277,8 @@ func (h *HttpService) Login(c *fiber.Ctx) error {
 
 	clientIP := c.IP()
 	userAgent := c.Get("User-Agent")
-	location := c.Get("X-Location")
 
-	resp, err := h.authSvc.Login(req, clientIP, userAgent, location)
+	resp, err := h.authSvc.Login(req, clientIP, userAgent)
 	if err != nil {
 		return h.HandleError(c, err)
 	}
@@ -319,7 +323,6 @@ func (h *HttpService) RefreshToken(c *fiber.Ctx) error {
 // @Produce json
 // @Security Bearer
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
-// @Param session_id path string true "Session ID"
 // @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/logout [post]
 func (h *HttpService) Logout(c *fiber.Ctx) error {
@@ -328,7 +331,10 @@ func (h *HttpService) Logout(c *fiber.Ctx) error {
 	clientIP := c.IP()
 	userAgent := c.Get("User-Agent")
 
-	err := h.authSvc.Logout(userID, sessionID, clientIP, userAgent)
+	authHeader := c.Get("Authorization")
+	accessToken, _ := h.jwtSvc.ExtractTokenFromHeader(authHeader)
+
+	err := h.authSvc.Logout(userID, sessionID, accessToken, clientIP, userAgent)
 	if err != nil {
 		return h.HandleError(c, err)
 	}
@@ -343,7 +349,6 @@ func (h *HttpService) Logout(c *fiber.Ctx) error {
 // @Produce json
 // @Security Bearer
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
-// @Param session_id path string true "Session ID"
 // @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/logout-all [post]
 func (h *HttpService) LogoutAll(c *fiber.Ctx) error {
@@ -352,7 +357,10 @@ func (h *HttpService) LogoutAll(c *fiber.Ctx) error {
 	clientIP := c.IP()
 	userAgent := c.Get("User-Agent")
 
-	err := h.authSvc.LogoutAllDevices(userID, sessionID, clientIP, userAgent)
+	authHeader := c.Get("Authorization")
+	accessToken, _ := h.jwtSvc.ExtractTokenFromHeader(authHeader)
+
+	err := h.authSvc.LogoutAllDevices(userID, sessionID, accessToken, clientIP, userAgent)
 	if err != nil {
 		return h.HandleError(c, err)
 	}
@@ -473,6 +481,7 @@ func (h *HttpService) ResetPassword(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
 // @Param changeRequest body dto.ChangePasswordRequest true "Current and new password"
 // @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/change-password [post]
@@ -739,6 +748,86 @@ func (h *HttpService) GetAuditLogs(c *fiber.Ctx) error {
 	}
 
 	return shared.ResponseJSON(c, http.StatusOK, "Audit logs retrieved successfully", logs)
+}
+
+// @Summary Get user devices
+// @Description Get list of all user's trusted devices
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} shared.Response{data=[]dto.DeviceInfo}
+// @Router /api/v1/user/devices [get]
+func (h *HttpService) GetUserDevices(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+
+	devices, err := h.authSvc.GetUserDevices(userID)
+	if err != nil {
+		return h.HandleError(c, err)
+	}
+
+	response := dto.DeviceListResponse{
+		Devices: devices,
+		Total:   len(devices),
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Devices retrieved successfully", response)
+}
+
+// @Summary Update device trust status
+// @Description Trust or untrust a specific device
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param deviceId path string true "Device ID"
+// @Param trustRequest body dto.TrustDeviceRequest true "Trust status"
+// @Success 200 {object} shared.Response
+// @Router /api/v1/user/devices/{deviceId}/trust [put]
+func (h *HttpService) UpdateDeviceTrust(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+	deviceID := c.Params("deviceId")
+
+	var req dto.TrustDeviceRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
+	}
+
+	if err := h.authSvc.UpdateDeviceTrust(userID, deviceID, req.Trust); err != nil {
+		return h.HandleError(c, err)
+	}
+
+	message := "Device untrusted successfully"
+	if req.Trust {
+		message = "Device trusted successfully"
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, message, nil)
+}
+
+// @Summary Remove user device
+// @Description Remove a device from user's device list
+// @Tags user
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param deviceId path string true "Device ID"
+// @Success 200 {object} shared.Response
+// @Router /api/v1/user/devices/{deviceId} [delete]
+func (h *HttpService) RemoveUserDevice(c *fiber.Ctx) error {
+	userID := c.Locals(shared.UserID).(string)
+	deviceID := c.Params("deviceId")
+
+	if err := h.authSvc.RemoveDevice(userID, deviceID); err != nil {
+		return h.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, http.StatusOK, "Device removed successfully", nil)
 }
 
 // @Summary Create or Get Guest Session
