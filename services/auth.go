@@ -44,10 +44,11 @@ type LoginNotificationEmail struct {
 type AuthService struct {
 	context.DefaultService
 
-	sqlSvc       *PostgresService
-	jwtSvc       *JWTService
-	emailSvc     *EmailService
-	rateLimitSvc *RateLimitService
+	sqlSvc         *PostgresService
+	jwtSvc         *JWTService
+	emailSvc       *EmailService
+	rateLimitSvc   *RateLimitService
+	geolocationSvc *GeolocationService
 
 	maxLoginAttempts   int
 	lockoutDuration    time.Duration
@@ -87,6 +88,7 @@ func (svc *AuthService) Start() error {
 	svc.jwtSvc = svc.Service(JWT_SVC).(*JWTService)
 	svc.emailSvc = svc.Service(EMAIL_SVC).(*EmailService)
 	svc.rateLimitSvc = svc.Service(RATE_LIMIT_SVC).(*RateLimitService)
+	svc.geolocationSvc = svc.Service(GEOLOCATION_SVC).(*GeolocationService)
 
 	go svc.startVerificationEmailJob()
 	go svc.startPasswordResetEmailJob()
@@ -184,7 +186,7 @@ func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.Regi
 	}, nil
 }
 
-func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent string) (*dto.LoginResponse, error) {
+func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent, location string) (*dto.LoginResponse, error) {
 	if blocked := svc.rateLimitSvc.IsBlocked(clientIP, "login"); blocked {
 		return nil, shared.NewTooManyRequestsError(errors.New("too many login attempts"), "Too many login attempts. Please try again later.")
 	}
@@ -279,6 +281,11 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 		svc.sqlSvc.UpdateLastLogin(user.ID, clientIP)
 	}
 
+	location, geoErr := svc.geolocationSvc.GetLocationByIP(clientIP)
+	if geoErr != nil {
+		location = "Unknown"
+	}
+
 	// Send login notification email
 	svc.sendLoginNotificationEmailAsync <- LoginNotificationEmail{
 		Email:     user.Email,
@@ -286,7 +293,7 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 		LoginTime: time.Now().Format("2006-01-02 15:04:05"),
 		IP:        clientIP,
 		Device:    userAgent,
-		Location:  "Unknown", // You can integrate with IP geolocation service
+		Location:  location,
 	}
 
 	return &dto.LoginResponse{
@@ -666,4 +673,8 @@ func (svc *AuthService) startLogAuthEventJob() {
 func (svc *AuthService) hashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+func (svc *AuthService) GetDetailedLocationInfo(ip string) (*GeolocationResponse, error) {
+	return svc.geolocationSvc.GetDetailedLocationByIP(ip)
 }

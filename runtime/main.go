@@ -16,9 +16,11 @@ func main() {
 
 	ctx, err := context.NewCtx(
 		&services.PostgresService{},
+		&services.RedisService{},
 		&services.MinIOService{},
 		&services.JWTService{},
 		&services.RateLimitService{},
+		&services.GeolocationService{},
 		&services.AuthService{},
 		&services.GuestService{},
 		&services.ContentService{},

@@ -272,8 +272,9 @@ func (h *HttpService) Login(c *fiber.Ctx) error {
 
 	clientIP := c.IP()
 	userAgent := c.Get("User-Agent")
+	location := c.Get("X-Location")
 
-	resp, err := h.authSvc.Login(req, clientIP, userAgent)
+	resp, err := h.authSvc.Login(req, clientIP, userAgent, location)
 	if err != nil {
 		return h.HandleError(c, err)
 	}
