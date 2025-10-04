@@ -42,7 +42,15 @@ func (svc *RedisService) Start() error {
 func (svc *RedisService) initRedisClient() {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
-		redisAddr = "localhost:6379"
+		redisHost := os.Getenv("REDIS_HOST")
+		redisPort := os.Getenv("REDIS_PORT")
+		if redisHost == "" {
+			redisHost = "localhost"
+		}
+		if redisPort == "" {
+			redisPort = "6379"
+		}
+		redisAddr = fmt.Sprintf("%s:%s", redisHost, redisPort)
 	}
 
 	redisPassword := os.Getenv("REDIS_PASSWORD")
