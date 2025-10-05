@@ -22,7 +22,7 @@ type GuestProgress struct {
 	MaxHearts        int             `json:"max_hearts" gorm:"not null"`
 	XP               int             `json:"xp" gorm:"not null"`
 	Level            int             `json:"level" gorm:"not null"`
-	CompletedLessons json.RawMessage `json:"completed_lessons" gorm:"not null"`
+	CompletedLessons json.RawMessage `json:"completed_lessons" gorm:"type:jsonb;not null"`
 	Streak           int             `json:"streak" gorm:"not null"`
 	TotalPlayTime    int             `json:"total_play_time" gorm:"not null"` // in minutes
 	AdsWatched       int             `json:"ads_watched" gorm:"not null"`

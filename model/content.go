@@ -17,7 +17,7 @@ type Character struct {
 	DeathYear    *int            `json:"death_year"`
 	Description  string          `json:"description" gorm:"type:text"`
 	FamousQuote  string          `json:"famous_quote"`
-	Achievements json.RawMessage `json:"achievements" gorm:"type:text"` // JSON array of achievements
+	Achievements json.RawMessage `json:"achievements" gorm:"type:jsonb"` // JSON array of achievements
 	ImageURL     string          `json:"image_url"`
 	IsUnlocked   bool            `json:"is_unlocked" gorm:"default:false"`
 	CreatedAt    time.Time       `json:"created_at"`
@@ -42,7 +42,7 @@ type Lesson struct {
 	CanSkipAfter int  `json:"can_skip_after" gorm:"default:5"` // Seconds before skip allowed
 	HasSubtitles bool `json:"has_subtitles" gorm:"default:true"`
 
-	Questions json.RawMessage `json:"questions" gorm:"type:text"` // JSON array of questions
+	Questions json.RawMessage `json:"questions" gorm:"type:jsonb"` // JSON array of questions
 	XPReward  int             `json:"xp_reward" gorm:"default:50"`
 	MinScore  int             `json:"min_score" gorm:"default:60"` // Minimum score to pass
 	IsActive  bool            `json:"is_active" gorm:"default:true"`
@@ -73,8 +73,8 @@ type Timeline struct {
 	EndYear      *int            `json:"end_year"`
 	Order        int             `json:"order"`
 	Description  string          `json:"description"`
-	KeyEvents    json.RawMessage `json:"key_events" gorm:"type:text"`    // JSON array of key events
-	CharacterIds json.RawMessage `json:"character_ids" gorm:"type:text"` // JSON array of character IDs
+	KeyEvents    json.RawMessage `json:"key_events" gorm:"type:jsonb"`    // JSON array of key events
+	CharacterIds json.RawMessage `json:"character_ids" gorm:"type:jsonb"` // JSON array of character IDs
 	ImageURL     string          `json:"image_url"`
 	IsUnlocked   bool            `json:"is_unlocked" gorm:"default:false"`
 	CreatedAt    time.Time       `json:"created_at"`
@@ -89,8 +89,8 @@ type UserProgress struct {
 	MaxHearts          int             `json:"max_hearts" gorm:"default:5"`
 	XP                 int             `json:"xp" gorm:"default:0"`
 	Level              int             `json:"level" gorm:"default:1"`
-	CompletedLessons   json.RawMessage `json:"completed_lessons" gorm:"type:text"`
-	UnlockedCharacters json.RawMessage `json:"unlocked_characters" gorm:"type:text"`
+	CompletedLessons   json.RawMessage `json:"completed_lessons" gorm:"type:jsonb"`
+	UnlockedCharacters json.RawMessage `json:"unlocked_characters" gorm:"type:jsonb"`
 	Streak             int             `json:"streak" gorm:"default:0"`
 	StreakFreezeUsed   bool            `json:"streak_freeze_used" gorm:"default:false"`
 	TotalPlayTime      int             `json:"total_play_time" gorm:"default:0"` // in minutes
