@@ -61,8 +61,15 @@ func (svc *UserService) startHeartResetScheduler() {
 
 // Initialize user profile after registration
 func (svc *UserService) InitializeUserProfile(userID string, birthYear int) error {
+	// Check if user already has progress
+	existingProgress, err := svc.sqlSvc.GetUserProgress(userID)
+	if err == nil && existingProgress != nil {
+		// Progress already exists, check if we need to update the spirit
+		return svc.updateUserSpirit(userID, birthYear)
+	}
+
 	progressID, _ := uuid.NewV7()
-	emptyArray, _ := json.Marshal([]string{})
+	emptyArray := model.JSONB("[]")
 	now := time.Now()
 	progress := &model.UserProgress{
 		ID:                 progressID.String(),
@@ -71,8 +78,8 @@ func (svc *UserService) InitializeUserProfile(userID string, birthYear int) erro
 		MaxHearts:          5,
 		XP:                 0,
 		Level:              1,
-		CompletedLessons:   json.RawMessage(emptyArray),
-		UnlockedCharacters: json.RawMessage(emptyArray),
+		CompletedLessons:   emptyArray,
+		UnlockedCharacters: emptyArray,
 		Streak:             0,
 		TotalPlayTime:      0,
 		LastHeartReset:     &now,
@@ -162,7 +169,7 @@ func (svc *UserService) CompleteLesson(userID, lessonID string, score, timeSpent
 
 	// Parse completed lessons
 	var completedLessons []string
-	if err := json.Unmarshal(progress.CompletedLessons, &completedLessons); err != nil {
+	if err := json.Unmarshal([]byte(progress.CompletedLessons), &completedLessons); err != nil {
 		return err
 	}
 
@@ -182,7 +189,7 @@ func (svc *UserService) CompleteLesson(userID, lessonID string, score, timeSpent
 		if err != nil {
 			return err
 		}
-		progress.CompletedLessons = completedLessonsJSON
+		progress.CompletedLessons = model.JSONB(completedLessonsJSON)
 
 		// Award XP
 		xpGained := svc.calculateXP(score)
@@ -359,12 +366,12 @@ func (svc *UserService) GetUserProgress(userID string) (*dto.UserProgressRespons
 	}
 
 	var completedLessons []string
-	if err := json.Unmarshal(progress.CompletedLessons, &completedLessons); err != nil {
+	if err := json.Unmarshal([]byte(progress.CompletedLessons), &completedLessons); err != nil {
 		completedLessons = []string{}
 	}
 
 	var unlockedCharacters []string
-	if err := json.Unmarshal(progress.UnlockedCharacters, &unlockedCharacters); err != nil {
+	if err := json.Unmarshal([]byte(progress.UnlockedCharacters), &unlockedCharacters); err != nil {
 		unlockedCharacters = []string{}
 	}
 
@@ -568,7 +575,7 @@ func (svc *UserService) GetUserCollection(userID string) (*dto.CollectionRespons
 
 	// Get user's unlocked characters
 	var unlockedCharacterIDs []string
-	if err := json.Unmarshal(progress.UnlockedCharacters, &unlockedCharacterIDs); err != nil {
+	if err := json.Unmarshal([]byte(progress.UnlockedCharacters), &unlockedCharacterIDs); err != nil {
 		unlockedCharacterIDs = []string{}
 	}
 

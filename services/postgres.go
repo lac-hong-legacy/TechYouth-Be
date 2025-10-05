@@ -149,6 +149,12 @@ func (ds *PostgresService) Start() (err error) {
 		&model.LoginAttempt{},
 	}
 
+	// Pre-migration: Fix existing bytea columns before AutoMigrate tries to change them
+	if err := ds.fixJSONBColumns(); err != nil {
+		log.Printf("Failed to fix JSONB columns: %v", err)
+		return err
+	}
+
 	err = ds.db.AutoMigrate(models...)
 	if err != nil {
 		log.Printf("Failed to migrate database: %v", err)
@@ -172,6 +178,74 @@ func (ds *PostgresService) Start() (err error) {
 	}()
 
 	log.Println("Database connected and migrated successfully")
+	return nil
+}
+
+// fixJSONBColumns handles the migration of bytea columns to jsonb
+func (ds *PostgresService) fixJSONBColumns() error {
+	tables := []struct {
+		table  string
+		column string
+	}{
+		{"user_progresses", "completed_lessons"},
+		{"user_progresses", "unlocked_characters"},
+		{"guest_progresses", "completed_lessons"},
+	}
+
+	for _, t := range tables {
+		// Check if column exists and its type
+		var dataType string
+		err := ds.db.Raw(`
+			SELECT data_type 
+			FROM information_schema.columns 
+			WHERE table_name = ? AND column_name = ?
+		`, t.table, t.column).Scan(&dataType).Error
+
+		if err != nil || dataType == "" {
+			// Column doesn't exist yet, skip
+			continue
+		}
+
+		if dataType == "bytea" || dataType == "text" || dataType == "character varying" {
+			log.Printf("Migrating %s.%s from %s to jsonb...", t.table, t.column, dataType)
+
+			// First, ensure all values are valid JSON or convert them
+			err = ds.db.Exec(fmt.Sprintf(`
+				UPDATE %s 
+				SET %s = '[]'::bytea 
+				WHERE %s IS NULL OR %s = ''::bytea
+			`, t.table, t.column, t.column, t.column)).Error
+
+			if err != nil {
+				log.Printf("Warning: Failed to update NULL/empty values in %s.%s: %v", t.table, t.column, err)
+			}
+
+			// Drop the column and recreate it as jsonb
+			err = ds.db.Exec(fmt.Sprintf(`
+				ALTER TABLE %s 
+				DROP COLUMN IF EXISTS %s CASCADE
+			`, t.table, t.column)).Error
+
+			if err != nil {
+				log.Printf("Failed to drop column %s.%s: %v", t.table, t.column, err)
+				return err
+			}
+
+			// Add the column back as jsonb with default value
+			err = ds.db.Exec(fmt.Sprintf(`
+				ALTER TABLE %s 
+				ADD COLUMN %s jsonb DEFAULT '[]'::jsonb
+			`, t.table, t.column)).Error
+
+			if err != nil {
+				log.Printf("Failed to add jsonb column %s.%s: %v", t.table, t.column, err)
+				return err
+			}
+
+			log.Printf("Successfully migrated %s.%s to jsonb", t.table, t.column)
+		}
+	}
+
 	return nil
 }
 

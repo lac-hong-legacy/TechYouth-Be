@@ -2,9 +2,74 @@
 package model
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
+
+// JSONB is a custom type for handling PostgreSQL JSONB columns
+type JSONB []byte
+
+// Scan implements the sql.Scanner interface for JSONB
+func (j *JSONB) Scan(value interface{}) error {
+	if value == nil {
+		*j = []byte("[]")
+		return nil
+	}
+
+	var data []byte
+	switch v := value.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return fmt.Errorf("unsupported type for JSONB: %T", value)
+	}
+
+	// Handle empty data
+	if len(data) == 0 {
+		*j = []byte("[]")
+		return nil
+	}
+
+	// Validate JSON
+	if !json.Valid(data) {
+		// If invalid JSON, try to treat it as an empty array
+		*j = []byte("[]")
+		return nil
+	}
+
+	*j = data
+	return nil
+}
+
+// Value implements the driver.Valuer interface for JSONB
+func (j JSONB) Value() (driver.Value, error) {
+	if len(j) == 0 {
+		return []byte("[]"), nil
+	}
+	return []byte(j), nil
+}
+
+// MarshalJSON implements json.Marshaler
+func (j JSONB) MarshalJSON() ([]byte, error) {
+	if len(j) == 0 {
+		return []byte("[]"), nil
+	}
+	return j, nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (j *JSONB) UnmarshalJSON(data []byte) error {
+	if data == nil {
+		*j = []byte("[]")
+		return nil
+	}
+	*j = data
+	return nil
+}
 
 // Character represents historical Vietnamese characters
 type Character struct {
@@ -83,21 +148,21 @@ type Timeline struct {
 
 // UserProgress represents registered user progress (different from guest)
 type UserProgress struct {
-	ID                 string          `json:"id" gorm:"primaryKey"`
-	UserID             string          `json:"user_id" gorm:"not null"`
-	Hearts             int             `json:"hearts" gorm:"default:5"`
-	MaxHearts          int             `json:"max_hearts" gorm:"default:5"`
-	XP                 int             `json:"xp" gorm:"default:0"`
-	Level              int             `json:"level" gorm:"default:1"`
-	CompletedLessons   json.RawMessage `json:"completed_lessons" gorm:"type:jsonb"`
-	UnlockedCharacters json.RawMessage `json:"unlocked_characters" gorm:"type:jsonb"`
-	Streak             int             `json:"streak" gorm:"default:0"`
-	StreakFreezeUsed   bool            `json:"streak_freeze_used" gorm:"default:false"`
-	TotalPlayTime      int             `json:"total_play_time" gorm:"default:0"` // in minutes
-	LastHeartReset     *time.Time      `json:"last_heart_reset"`
-	LastActivityDate   *time.Time      `json:"last_activity_date"`
-	CreatedAt          time.Time       `json:"created_at"`
-	UpdatedAt          time.Time       `json:"updated_at"`
+	ID                 string     `json:"id" gorm:"primaryKey"`
+	UserID             string     `json:"user_id" gorm:"not null"`
+	Hearts             int        `json:"hearts" gorm:"default:5"`
+	MaxHearts          int        `json:"max_hearts" gorm:"default:5"`
+	XP                 int        `json:"xp" gorm:"default:0"`
+	Level              int        `json:"level" gorm:"default:1"`
+	CompletedLessons   JSONB      `json:"completed_lessons" gorm:"type:jsonb"`
+	UnlockedCharacters JSONB      `json:"unlocked_characters" gorm:"type:jsonb"`
+	Streak             int        `json:"streak" gorm:"default:0"`
+	StreakFreezeUsed   bool       `json:"streak_freeze_used" gorm:"default:false"`
+	TotalPlayTime      int        `json:"total_play_time" gorm:"default:0"` // in minutes
+	LastHeartReset     *time.Time `json:"last_heart_reset"`
+	LastActivityDate   *time.Time `json:"last_activity_date"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 // Achievement represents unlockable achievements

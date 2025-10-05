@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -16,18 +15,18 @@ type GuestSession struct {
 }
 
 type GuestProgress struct {
-	ID               string          `json:"id" gorm:"primaryKey"`
-	GuestSessionID   string          `json:"guest_session_id" gorm:"not null"`
-	Hearts           int             `json:"hearts" gorm:"not null"`
-	MaxHearts        int             `json:"max_hearts" gorm:"not null"`
-	XP               int             `json:"xp" gorm:"not null"`
-	Level            int             `json:"level" gorm:"not null"`
-	CompletedLessons json.RawMessage `json:"completed_lessons" gorm:"type:jsonb;not null"`
-	Streak           int             `json:"streak" gorm:"not null"`
-	TotalPlayTime    int             `json:"total_play_time" gorm:"not null"` // in minutes
-	AdsWatched       int             `json:"ads_watched" gorm:"not null"`
-	CreatedAt        time.Time       `json:"created_at" gorm:"not null"`
-	UpdatedAt        time.Time       `json:"updated_at" gorm:"not null"`
+	ID               string    `json:"id" gorm:"primaryKey"`
+	GuestSessionID   string    `json:"guest_session_id" gorm:"not null"`
+	Hearts           int       `json:"hearts" gorm:"not null"`
+	MaxHearts        int       `json:"max_hearts" gorm:"not null"`
+	XP               int       `json:"xp" gorm:"not null"`
+	Level            int       `json:"level" gorm:"not null"`
+	CompletedLessons JSONB     `json:"completed_lessons" gorm:"type:jsonb;not null"`
+	Streak           int       `json:"streak" gorm:"not null"`
+	TotalPlayTime    int       `json:"total_play_time" gorm:"not null"` // in minutes
+	AdsWatched       int       `json:"ads_watched" gorm:"not null"`
+	CreatedAt        time.Time `json:"created_at" gorm:"not null"`
+	UpdatedAt        time.Time `json:"updated_at" gorm:"not null"`
 }
 
 type GuestLessonAttempt struct {

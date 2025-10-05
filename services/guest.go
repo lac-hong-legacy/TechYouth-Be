@@ -94,7 +94,7 @@ func (svc *GuestService) CanAccessLesson(sessionID, lessonID string) (bool, stri
 	}
 
 	var completedLessons []string
-	if err := json.Unmarshal(progress.CompletedLessons, &completedLessons); err != nil {
+	if err := json.Unmarshal([]byte(progress.CompletedLessons), &completedLessons); err != nil {
 		return false, "Failed to parse completed lessons", err
 	}
 
@@ -137,7 +137,7 @@ func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeS
 	}
 
 	var completedLessons []string
-	if err := json.Unmarshal(progress.CompletedLessons, &completedLessons); err != nil {
+	if err := json.Unmarshal([]byte(progress.CompletedLessons), &completedLessons); err != nil {
 		return shared.NewInternalError(err, "Failed to parse completed lessons")
 	}
 
@@ -155,7 +155,7 @@ func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeS
 		if err != nil {
 			return shared.NewInternalError(err, "Failed to marshal completed lessons")
 		}
-		progress.CompletedLessons = completedLessonsJSON
+		progress.CompletedLessons = model.JSONB(completedLessonsJSON)
 
 		// Award XP for new completion
 		progress.XP += calculateXP(score)
