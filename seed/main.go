@@ -3,12 +3,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/lac-hong-legacy/ven_api/seed/seeders"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -21,35 +22,56 @@ func main() {
 
 	// Parse command line flags
 	var (
-		seedType = flag.String("type", "all", "Type of seeding: all, characters, lessons, timelines")
-		dbPath   = flag.String("db", "", "Database path (overrides DB_NAME env var)")
-		help     = flag.Bool("help", false, "Show help message")
+		seedType = flag.String("type", "all", "Type of seeding: all")
 	)
 	flag.Parse()
 
-	if *help {
-		showHelp()
-		return
-	}
-
-	// Get database path
-	databasePath := *dbPath
-	if databasePath == "" {
-		databasePath = os.Getenv("DB_NAME")
-		if databasePath == "" {
-			databasePath = "app.db" // Default database name
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		// Fallback to individual environment variables
+		host := os.Getenv("DB_HOST")
+		if host == "" {
+			host = "localhost"
 		}
+		port := os.Getenv("DB_PORT")
+		if port == "" {
+			port = "5432"
+		}
+		user := os.Getenv("DB_USER")
+		if user == "" {
+			user = "postgres"
+		}
+		password := os.Getenv("DB_PASSWORD")
+		if password == "" {
+			password = "postgres"
+		}
+		dbname := os.Getenv("DB_NAME")
+		if dbname == "" {
+			dbname = "ven_api"
+		}
+		sslmode := os.Getenv("DB_SSLMODE")
+		if sslmode == "" {
+			sslmode = "disable"
+		}
+		timezone := os.Getenv("DB_TIMEZONE")
+		if timezone == "" {
+			timezone = "UTC"
+		}
+
+		databaseURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
+			host, user, password, dbname, port, sslmode, timezone)
 	}
 
 	// Connect to database
-	db, err := gorm.Open(sqlite.Open(databasePath), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+	db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
+		return
 	}
 
-	log.Printf("Connected to database: %s", databasePath)
+	log.Printf("Connected to database: %s", databaseURL)
 
 	// Create main seeder
 	mainSeeder := seeders.NewMainSeeder(db)
@@ -61,93 +83,9 @@ func main() {
 		if err := mainSeeder.SeedAll(); err != nil {
 			log.Fatalf("Failed to seed database: %v", err)
 		}
-	case "characters":
-		log.Println("Seeding characters only...")
-		if err := mainSeeder.SeedCharactersOnly(); err != nil {
-			log.Fatalf("Failed to seed characters: %v", err)
-		}
-	case "lessons":
-		log.Println("Seeding lessons only...")
-		if err := mainSeeder.SeedLessonsOnly(); err != nil {
-			log.Fatalf("Failed to seed lessons: %v", err)
-		}
-	case "timelines":
-		log.Println("Seeding timelines only...")
-		if err := mainSeeder.SeedTimelinesOnly(); err != nil {
-			log.Fatalf("Failed to seed timelines: %v", err)
-		}
 	default:
-		log.Fatalf("Unknown seed type: %s. Use 'all', 'characters', 'lessons', or 'timelines'", *seedType)
+		log.Fatalf("Unknown seed type: %s. Use 'all'", *seedType)
 	}
 
 	log.Println("Seeding operation completed successfully!")
 }
-
-func showHelp() {
-	log.Println(`
-Database Seeding Tool for Vietnamese History Learning App
-
-Usage: go run cmd/seed/main.go [flags]
-
-Flags:
-  -type string
-        Type of seeding to perform (default "all")
-        Options: all, characters, lessons, timelines
-  -db string
-        Database path (overrides DB_NAME environment variable)
-  -help
-        Show this help message
-
-Examples:
-  # Seed everything
-  go run cmd/seed/main.go
-
-  # Seed only characters
-  go run cmd/seed/main.go -type=characters
-
-  # Seed with custom database path
-  go run cmd/seed/main.go -db=./custom.db
-
-  # Seed only lessons
-  go run cmd/seed/main.go -type=lessons
-
-Environment Variables:
-  DB_NAME - Default database path (default: app.db)
-`)
-}
-
-// Makefile addition for easy seeding
-/*
-Add these targets to your Makefile:
-
-.PHONY: seed seed-characters seed-lessons seed-timelines
-
-# Seed all data
-seed:
-	@echo "Seeding database..."
-	@go run cmd/seed/main.go -type=all
-
-# Seed only characters
-seed-characters:
-	@echo "Seeding characters..."
-	@go run cmd/seed/main.go -type=characters
-
-# Seed only lessons
-seed-lessons:
-	@echo "Seeding lessons..."
-	@go run cmd/seed/main.go -type=lessons
-
-# Seed only timelines
-seed-timelines:
-	@echo "Seeding timelines..."
-	@go run cmd/seed/main.go -type=timelines
-
-# Clean and reseed database
-reseed: clean-db seed
-	@echo "Database reseeded successfully!"
-
-# Remove database file
-clean-db:
-	@echo "Cleaning database..."
-	@rm -f app.db *.db
-*/

@@ -44,6 +44,7 @@ func (svc RateLimitService) Id() string {
 
 func (svc *RateLimitService) Configure(ctx *context.Context) error {
 	svc.configs = make(map[string]*RateLimitConfig)
+	svc.mutex = sync.RWMutex{}
 	return svc.DefaultService.Configure(ctx)
 }
 

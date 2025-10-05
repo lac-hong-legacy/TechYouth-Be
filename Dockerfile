@@ -3,22 +3,17 @@ FROM golang:1.24-alpine AS builder
 WORKDIR /app
 
 # Install git and ca-certificates
-RUN apk add --no-cache git ca-certificates openssh-client
-
-# Configure SSH for private repositories
-RUN mkdir -p /root/.ssh && \
-    chmod 0700 /root/.ssh && \
-    ssh-keyscan github.com > /root/.ssh/known_hosts
+RUN apk add --no-cache git ca-certificates
 
 # Copy go mod files
 COPY go.mod go.sum ./
 
-# Add SSH key and download dependencies (mount as secret)
-RUN --mount=type=secret,id=ssh_key,target=/tmp/ssh_key \
-    cp /tmp/ssh_key /root/.ssh/id_rsa && \
-    chmod 600 /root/.ssh/id_rsa && \
-    git config --global url."git@github.com:".insteadOf "https://github.com/" && \
-    go mod download
+# Download dependencies using GitHub token
+# The token is passed as a build arg
+ARG GITHUB_TOKEN
+RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    go mod download && \
+    git config --global --unset url."https://${GITHUB_TOKEN}@github.com/".insteadOf
 
 # Copy source code
 COPY . .
