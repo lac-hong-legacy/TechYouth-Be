@@ -78,11 +78,45 @@ func (ds *PostgresService) Configure(ctx *context.Context) error {
 }
 
 func (ds *PostgresService) Start() (err error) {
-	ds.db, err = gorm.Open(postgres.Open(ds.database), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Error),
-	})
-	if err != nil {
-		return err
+	// Retry connection with exponential backoff
+	maxRetries := 10
+	retryDelay := time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		log.Printf("Attempting to connect to database (attempt %d/%d)...", attempt, maxRetries)
+
+		ds.db, err = gorm.Open(postgres.Open(ds.database), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Error),
+		})
+
+		if err == nil {
+			// Test the connection
+			sqlDB, dbErr := ds.db.DB()
+			if dbErr == nil {
+				pingErr := sqlDB.Ping()
+				if pingErr == nil {
+					log.Println("Successfully connected to database")
+					break
+				}
+				err = pingErr
+			} else {
+				err = dbErr
+			}
+		}
+
+		if attempt == maxRetries {
+			log.Printf("Failed to connect to database after %d attempts: %v", maxRetries, err)
+			return err
+		}
+
+		log.Printf("Database connection failed: %v. Retrying in %v...", err, retryDelay)
+		time.Sleep(retryDelay)
+
+		// Exponential backoff with max delay of 10 seconds
+		retryDelay *= 2
+		if retryDelay > 10*time.Second {
+			retryDelay = 10 * time.Second
+		}
 	}
 
 	models := []interface{}{
