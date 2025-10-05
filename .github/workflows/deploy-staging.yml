@@ -19,23 +19,38 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           port: 22
-          script_stop: true
+          script_stop: false
+          command_timeout: 15m
           script: |
             cd /opt/ven-api
+            
             echo "Pulling latest code..."
             git pull origin main
             
-            echo "Pulling Docker images..."
-            docker compose pull
+            # Set environment variables for docker-compose
+            export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
+            export IMAGE_TAG="latest"
             
-            echo "Restarting services..."
-            docker compose up -d --force-recreate
+            echo "Pulling latest app image: $DOCKER_USERNAME/ven-api:$IMAGE_TAG"
+            docker pull $DOCKER_USERNAME/ven-api:$IMAGE_TAG || echo "Warning: Failed to pull app image"
+            
+            echo "Pulling other service images (with timeout and retry)..."
+            for service in postgres redis minio mailhog; do
+              echo "Pulling $service..."
+              timeout 60 docker compose pull $service 2>&1 || echo "Failed to pull $service, will use cached version"
+            done
+            
+            echo "Restarting services with new app image..."
+            DOCKER_USERNAME=$DOCKER_USERNAME IMAGE_TAG=$IMAGE_TAG docker compose up -d --force-recreate --remove-orphans
             
             echo "Waiting for services to start..."
-            sleep 15
+            sleep 20
             
             echo "Checking service status..."
             docker compose ps
+            
+            echo "Checking app logs..."
+            docker compose logs --tail=50 ven-api
 
       - name: Health check
         run: |
