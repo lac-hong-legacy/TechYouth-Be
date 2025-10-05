@@ -37,7 +37,6 @@ linters-settings:
     simplify: true
   
   govet:
-    check-shadowing: true
     enable-all: true
   
   errcheck:
@@ -108,6 +107,5 @@ issues:
   max-same-issues: 0
 
 output:
-  format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
