@@ -63,6 +63,7 @@ func (svc *UserService) startHeartResetScheduler() {
 func (svc *UserService) InitializeUserProfile(userID string, birthYear int) error {
 	// Create user progress
 	progressID, _ := uuid.NewV7()
+	emptyArray, _ := json.Marshal([]string{})
 	progress := &model.UserProgress{
 		ID:                 progressID.String(),
 		UserID:             userID,
@@ -70,8 +71,8 @@ func (svc *UserService) InitializeUserProfile(userID string, birthYear int) erro
 		MaxHearts:          5,
 		XP:                 0,
 		Level:              1,
-		CompletedLessons:   json.RawMessage("[]"),
-		UnlockedCharacters: json.RawMessage("[]"),
+		CompletedLessons:   emptyArray,
+		UnlockedCharacters: emptyArray,
 		Streak:             0,
 		TotalPlayTime:      0,
 		LastHeartReset:     &[]time.Time{time.Now()}[0],

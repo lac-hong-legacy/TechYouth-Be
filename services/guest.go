@@ -60,6 +60,7 @@ func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSessio
 	}
 
 	// Create initial progress
+	emptyArray, _ := json.Marshal([]string{})
 	progress := &model.GuestProgress{
 		ID:               id.String(),
 		GuestSessionID:   session.ID,
@@ -67,7 +68,7 @@ func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSessio
 		MaxHearts:        5,
 		XP:               0,
 		Level:            1,
-		CompletedLessons: json.RawMessage("[]"),
+		CompletedLessons: emptyArray,
 		Streak:           0,
 		TotalPlayTime:    0,
 		AdsWatched:       0,
