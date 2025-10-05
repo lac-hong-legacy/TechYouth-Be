@@ -1,0 +1,51 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: 22
+          script: |
+            cd /opt/ven-api
+            echo "Pulling latest code..."
+            git pull origin main
+            
+            echo "Pulling Docker images..."
+            docker compose pull
+            
+            echo "Restarting services..."
+            docker compose up -d --force-recreate
+            
+            echo "Waiting for services to start..."
+            sleep 15
+            
+            echo "Checking service status..."
+            docker compose ps
+
+      - name: Health check
+        run: |
+          echo "Waiting for app to be ready..."
+          sleep 10
+          
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.STAGING_HOST }}:8000/health || echo "000")
+          
+          if [ "$response" = "200" ]; then
+            echo "✅ Deployment successful! Health check passed."
+          else
+            echo "❌ Health check failed! Got HTTP $response"
+            exit 1
+          fi
