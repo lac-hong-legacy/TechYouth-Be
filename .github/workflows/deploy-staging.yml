@@ -19,6 +19,7 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           port: 22
+          script_stop: true
           script: |
             cd /opt/ven-api
             echo "Pulling latest code..."
