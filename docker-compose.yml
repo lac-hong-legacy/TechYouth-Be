@@ -1,11 +1,6 @@
 services:
   ven-api:
     image: ${DOCKER_USERNAME:-yourusername}/ven-api:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
       - "8000:8000"
     environment:

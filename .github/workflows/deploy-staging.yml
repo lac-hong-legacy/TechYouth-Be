@@ -57,7 +57,7 @@ jobs:
           echo "Waiting for app to be ready..."
           sleep 10
           
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.STAGING_HOST }}:8000/health || echo "000")
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.STAGING_HOST }}:8000/ping || echo "000")
           
           if [ "$response" = "200" ]; then
             echo "✅ Deployment successful! Health check passed."
