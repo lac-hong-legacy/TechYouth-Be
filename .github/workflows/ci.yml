@@ -56,14 +56,14 @@ jobs:
           # Use GO_PRIVATE_TOKEN if available, otherwise fall back to GITHUB_TOKEN
           GH_TOKEN: ${{ secrets.GO_PRIVATE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          git config --global url."https://${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Download dependencies
         env:
           GOPRIVATE: github.com/alphabatem/*
           GH_TOKEN: ${{ secrets.GO_PRIVATE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          git config --global url."https://${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
           go env -w GOPRIVATE=github.com/alphabatem/*
           go mod download
           go mod verify
@@ -118,14 +118,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GO_PRIVATE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          git config --global url."https://${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Download dependencies
         env:
           GOPRIVATE: github.com/alphabatem/*
           GH_TOKEN: ${{ secrets.GO_PRIVATE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          git config --global url."https://${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
           go env -w GOPRIVATE=github.com/alphabatem/*
           go mod download
 
