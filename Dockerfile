@@ -9,11 +9,17 @@ RUN apk add --no-cache git ca-certificates
 COPY go.mod go.sum ./
 
 # Download dependencies using GitHub token
-# The token is passed as a build arg
+# The token is passed as a build arg or secret
 ARG GITHUB_TOKEN
-RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+RUN --mount=type=secret,id=GIT_AUTH_TOKEN \
+    TOKEN=${GITHUB_TOKEN:-$(cat /run/secrets/GIT_AUTH_TOKEN 2>/dev/null || echo "")} && \
+    if [ -n "$TOKEN" ]; then \
+      git config --global url."https://${TOKEN}@github.com/".insteadOf "https://github.com/" && \
+      echo "machine github.com login ${TOKEN}" > ~/.netrc; \
+    fi && \
+    go env -w GOPRIVATE=github.com/alphabatem/* && \
     go mod download && \
-    git config --global --unset url."https://${GITHUB_TOKEN}@github.com/".insteadOf
+    git config --global --unset url."https://${TOKEN}@github.com/".insteadOf 2>/dev/null || true
 
 # Copy source code
 COPY . .
