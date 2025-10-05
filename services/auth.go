@@ -183,6 +183,7 @@ func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.Regi
 	return &dto.RegisterResponse{
 		UserID:               user.ID,
 		RequiresVerification: svc.requireEmailVerify,
+		Message:              "Registration successful. Please check your email for verification.",
 	}, nil
 }
 

@@ -61,9 +61,9 @@ func (svc *UserService) startHeartResetScheduler() {
 
 // Initialize user profile after registration
 func (svc *UserService) InitializeUserProfile(userID string, birthYear int) error {
-	// Create user progress
 	progressID, _ := uuid.NewV7()
 	emptyArray, _ := json.Marshal([]string{})
+	now := time.Now()
 	progress := &model.UserProgress{
 		ID:                 progressID.String(),
 		UserID:             userID,
@@ -71,21 +71,20 @@ func (svc *UserService) InitializeUserProfile(userID string, birthYear int) erro
 		MaxHearts:          5,
 		XP:                 0,
 		Level:              1,
-		CompletedLessons:   emptyArray,
-		UnlockedCharacters: emptyArray,
+		CompletedLessons:   json.RawMessage(emptyArray),
+		UnlockedCharacters: json.RawMessage(emptyArray),
 		Streak:             0,
 		TotalPlayTime:      0,
-		LastHeartReset:     &[]time.Time{time.Now()}[0],
-		LastActivityDate:   &[]time.Time{time.Now()}[0],
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
+		LastHeartReset:     &now,
+		LastActivityDate:   &now,
+		CreatedAt:          now,
+		UpdatedAt:          now,
 	}
 
 	if _, err := svc.sqlSvc.CreateUserProgress(progress); err != nil {
 		return err
 	}
 
-	// Create zodiac-based spirit
 	spiritType := svc.getZodiacAnimal(birthYear)
 	spiritID, _ := uuid.NewV7()
 	spirit := &model.Spirit{
@@ -97,8 +96,8 @@ func (svc *UserService) InitializeUserProfile(userID string, birthYear int) erro
 		XPToNext:  500,
 		Name:      "",
 		ImageURL:  svc.getSpiritImageURL(spiritType, 1),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if _, err := svc.sqlSvc.CreateSpirit(spirit); err != nil {

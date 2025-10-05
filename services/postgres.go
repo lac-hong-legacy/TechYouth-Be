@@ -1475,13 +1475,16 @@ func (ds *PostgresService) CleanupExpiredBlacklistedTokens() error {
 func (ds *PostgresService) CreateAuthAuditLog(log dto.AuthAuditLog) error {
 	auditLog := &model.AuthAuditLog{
 		ID:        uuid.New().String(),
-		UserID:    log.UserID,
 		Action:    log.Action,
 		IP:        log.IP,
 		UserAgent: log.UserAgent,
 		Timestamp: log.Timestamp,
 		Success:   log.Success,
 		Details:   log.Details,
+	}
+
+	if log.UserID != "" {
+		auditLog.UserID = log.UserID
 	}
 
 	return ds.db.Create(auditLog).Error
