@@ -38,7 +38,7 @@ type RateLimitConfig struct {
 
 const RATE_LIMIT_SVC = "rate_limit_svc"
 
-func (svc RateLimitService) Id() string {
+func (svc *RateLimitService) Id() string {
 	return RATE_LIMIT_SVC
 }
 
