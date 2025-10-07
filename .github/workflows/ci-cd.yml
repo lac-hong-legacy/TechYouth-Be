@@ -40,6 +40,7 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/ven-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64
           build-args: |
             GITHUB_TOKEN=${{ secrets.GO_PRIVATE_TOKEN || secrets.GITHUB_TOKEN }}
           secrets: |
@@ -74,17 +75,14 @@ jobs:
             echo "Pulling latest app image: $DOCKER_USERNAME/ven-api:$IMAGE_TAG"
             docker pull $DOCKER_USERNAME/ven-api:$IMAGE_TAG || echo "Warning: Failed to pull app image"
             
-            echo "Pulling other service images (with timeout and retry)..."
-            for service in postgres redis minio mailhog; do
-              echo "Pulling $service..."
-              timeout 60 docker compose pull $service 2>&1 || echo "Failed to pull $service, will use cached version"
-            done
+            echo "Pulling other service images (parallel)..."
+            docker compose pull postgres redis minio mailhog --ignore-pull-failures 2>&1 || echo "Some pulls failed, using cached"
             
             echo "Restarting services with new app image..."
-            DOCKER_USERNAME=$DOCKER_USERNAME IMAGE_TAG=$IMAGE_TAG docker compose up -d --force-recreate --remove-orphans
+            DOCKER_USERNAME=$DOCKER_USERNAME IMAGE_TAG=$IMAGE_TAG docker compose up -d --force-recreate --remove-orphans ven-api
             
-            echo "Waiting for services to start..."
-            sleep 20
+            echo "Waiting for app to start..."
+            sleep 10
             
             echo "Checking service status..."
             docker compose ps
@@ -95,13 +93,14 @@ jobs:
       - name: Health check
         run: |
           echo "Waiting for app to be ready..."
-          sleep 10
-          
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.STAGING_HOST }}:8000/ping || echo "000")
-          
-          if [ "$response" = "200" ]; then
-            echo "✅ Deployment successful! Health check passed."
-          else
-            echo "❌ Health check failed! Got HTTP $response"
-            exit 1
-          fi
+          for i in {1..30}; do
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.STAGING_HOST }}:8000/ping 2>/dev/null || echo "000")
+            if [ "$response" = "200" ]; then
+              echo "✅ Deployment successful! Health check passed after ${i}s"
+              exit 0
+            fi
+            echo "Attempt $i/30: Got HTTP $response, retrying..."
+            sleep 1
+          done
+          echo "❌ Health check failed after 30s"
+          exit 1
