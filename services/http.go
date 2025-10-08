@@ -196,9 +196,6 @@ func (svc *HttpService) Start() error {
 	admin.Put("/users/:userId", svc.AdminUpdateUser)
 	admin.Delete("/users/:userId", svc.AdminDeleteUser)
 
-	// Static file serving for uploaded media
-	svc.app.Static("/uploads", "./uploads")
-
 	// 404 handler
 	svc.app.Use(func(c *fiber.Ctx) error {
 		return svc.HandleError(c, errors.New("page not found"))
