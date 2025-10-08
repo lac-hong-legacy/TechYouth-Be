@@ -46,74 +46,12 @@ func (svc *MediaService) Start() error {
 
 // ==================== MEDIA UPLOAD METHODS ====================
 
-func (svc *MediaService) UploadLessonVideo(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
-	// Validate file type
-	if !svc.isValidVideoFile(file.Filename) {
-		return nil, shared.NewBadRequestError(nil, "Invalid video file format. Supported: MP4, MOV, AVI")
-	}
-
-	// Check file size (max 100MB for videos)
-	if file.Size > 100*1024*1024 {
-		return nil, shared.NewBadRequestError(nil, "Video file too large. Maximum size: 100MB")
-	}
-
-	return svc.uploadFile(file, "video", lessonID)
-}
-
 func (svc *MediaService) UploadLessonSubtitle(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
 	if !svc.isValidSubtitleFile(file.Filename) {
 		return nil, shared.NewBadRequestError(nil, "Invalid subtitle file format. Supported: VTT, SRT")
 	}
 
 	return svc.uploadFile(file, "subtitle", lessonID)
-}
-
-func (svc *MediaService) UploadBackgroundMusic(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
-	if !svc.isValidAudioFile(file.Filename) {
-		return nil, shared.NewBadRequestError(nil, "Invalid audio file format. Supported: MP3, WAV, AAC")
-	}
-
-	if file.Size > 10*1024*1024 {
-		return nil, shared.NewBadRequestError(nil, "Audio file too large. Maximum size: 10MB")
-	}
-
-	return svc.uploadFile(file, "background_music", lessonID)
-}
-
-func (svc *MediaService) UploadVoiceOver(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
-	if !svc.isValidAudioFile(file.Filename) {
-		return nil, shared.NewBadRequestError(nil, "Invalid audio file format. Supported: MP3, WAV, AAC")
-	}
-
-	if file.Size > 20*1024*1024 {
-		return nil, shared.NewBadRequestError(nil, "Voice-over file too large. Maximum size: 20MB")
-	}
-
-	return svc.uploadFile(file, "voice_over", lessonID)
-}
-
-func (svc *MediaService) UploadAnimation(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
-	if !svc.isValidVideoFile(file.Filename) {
-		return nil, shared.NewBadRequestError(nil, "Invalid animation file format. Supported: MP4, MOV, WEBM")
-	}
-
-	if file.Size > 50*1024*1024 {
-		return nil, shared.NewBadRequestError(nil, "Animation file too large. Maximum size: 50MB")
-	}
-
-	return svc.uploadFile(file, "animation", lessonID)
-}
-
-func (svc *MediaService) UploadIllustration(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
-	if !svc.isValidImageFile(file.Filename) {
-		return nil, shared.NewBadRequestError(nil, "Invalid image file format. Supported: JPG, PNG, WEBP")
-	}
-
-	if file.Size > 5*1024*1024 {
-		return nil, shared.NewBadRequestError(nil, "Image file too large. Maximum size: 5MB")
-	}
-
-	return svc.uploadFile(file, "illustration", lessonID)
 }
 
 func (svc *MediaService) UploadThumbnail(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
@@ -327,6 +265,70 @@ func (svc *MediaService) GenerateVideoThumbnail(mediaAssetID string) error {
 
 	log.Printf("Generating thumbnail for video asset %s", mediaAssetID)
 	return nil
+}
+
+// ==================== PRODUCTION WORKFLOW METHODS ====================
+
+func (svc *MediaService) UploadLessonAudio(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return nil, shared.NewNotFoundError(err, "Lesson not found")
+	}
+
+	if lesson.ScriptStatus != "finalized" {
+		return nil, shared.NewBadRequestError(nil, "Cannot upload audio: script must be finalized first")
+	}
+
+	if !svc.isValidAudioFile(file.Filename) {
+		return nil, shared.NewBadRequestError(nil, "Invalid audio file format. Supported: MP3, WAV, AAC, M4A")
+	}
+
+	if file.Size > 50*1024*1024 {
+		return nil, shared.NewBadRequestError(nil, "Audio file too large. Maximum size: 50MB")
+	}
+
+	response, err := svc.uploadFile(file, "audio", lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	lesson.AudioURL = response.URL
+	if err := svc.sqlSvc.UpdateLesson(lesson); err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (svc *MediaService) UploadLessonAnimation(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return nil, shared.NewNotFoundError(err, "Lesson not found")
+	}
+
+	if lesson.AudioStatus != "uploaded" && lesson.AudioStatus != "approved" {
+		return nil, shared.NewBadRequestError(nil, "Cannot upload animation: audio must be uploaded first")
+	}
+
+	if !svc.isValidVideoFile(file.Filename) {
+		return nil, shared.NewBadRequestError(nil, "Invalid animation file format. Supported: MP4, MOV, WEBM")
+	}
+
+	if file.Size > 100*1024*1024 {
+		return nil, shared.NewBadRequestError(nil, "Animation file too large. Maximum size: 100MB")
+	}
+
+	response, err := svc.uploadFile(file, "animation", lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	lesson.AnimationURL = response.URL
+	if err := svc.sqlSvc.UpdateLesson(lesson); err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }
 
 // ==================== CLEANUP METHODS ====================

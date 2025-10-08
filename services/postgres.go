@@ -132,6 +132,8 @@ func (ds *PostgresService) Start() (err error) {
 		&model.Character{},
 		&model.Lesson{},
 		&model.Timeline{},
+		&model.MediaAsset{},
+		&model.LessonMedia{},
 
 		// User progress models
 		&model.UserProgress{},
@@ -139,6 +141,7 @@ func (ds *PostgresService) Start() (err error) {
 		&model.Achievement{},
 		&model.UserAchievement{},
 		&model.UserLessonAttempt{},
+		&model.UserQuestionAnswer{},
 
 		// New authentication models
 		&model.UserSession{},

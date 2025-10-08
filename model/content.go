@@ -97,11 +97,20 @@ type Lesson struct {
 	Order       int    `json:"order" gorm:"not null"` // Lesson order within character
 	Story       string `json:"story" gorm:"type:text"`
 
-	// Media Content
-	VideoURL      string `json:"video_url"`      // Storytelling video with embedded voice-over (MP4)
-	SubtitleURL   string `json:"subtitle_url"`   // Subtitle file (VTT/SRT)
-	ThumbnailURL  string `json:"thumbnail_url"`  // Video thumbnail
-	VideoDuration int    `json:"video_duration"` // Duration in seconds
+	// Production Workflow Fields
+	Script              string     `json:"script" gorm:"type:text"`
+	ScriptStatus        string     `json:"script_status" gorm:"default:draft"` // draft, finalized
+	AudioURL            string     `json:"audio_url"`
+	AudioStatus         string     `json:"audio_status" gorm:"default:pending"` // pending, uploaded, approved
+	AnimationURL        string     `json:"animation_url"`
+	AnimationStatus     string     `json:"animation_status" gorm:"default:pending"` // pending, uploaded, approved
+	ScriptUpdatedAt     *time.Time `json:"script_updated_at"`
+	AudioUploadedAt     *time.Time `json:"audio_uploaded_at"`
+	AnimationUploadedAt *time.Time `json:"animation_uploaded_at"`
+
+	// Supporting Media
+	SubtitleURL  string `json:"subtitle_url"`  // Subtitle file (VTT/SRT)
+	ThumbnailURL string `json:"thumbnail_url"` // Lesson thumbnail
 
 	// Content Settings
 	CanSkipAfter int  `json:"can_skip_after" gorm:"default:5"` // Seconds before skip allowed

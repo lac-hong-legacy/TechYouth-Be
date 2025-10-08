@@ -39,11 +39,11 @@ func main() {
 		}
 		user := os.Getenv("DB_USER")
 		if user == "" {
-			user = "postgres"
+			user = "ven_user"
 		}
 		password := os.Getenv("DB_PASSWORD")
 		if password == "" {
-			password = "postgres"
+			password = "ven_password"
 		}
 		dbname := os.Getenv("DB_NAME")
 		if dbname == "" {

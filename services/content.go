@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/alphabatem/common/context"
 	"github.com/lac-hong-legacy/ven_api/dto"
@@ -225,7 +226,7 @@ func (svc *ContentService) GetCharacterLessons(characterID string) ([]dto.Lesson
 
 	responses := make([]dto.LessonResponse, len(lessons))
 	for i, lesson := range lessons {
-		responses[i] = svc.mapLessonToResponse(&lesson)
+		responses[i] = svc.MapLessonToResponse(&lesson)
 	}
 
 	return responses, nil
@@ -237,11 +238,11 @@ func (svc *ContentService) GetLessonContent(lessonID string) (*dto.LessonRespons
 		return nil, err
 	}
 
-	response := svc.mapLessonToResponse(lesson)
+	response := svc.MapLessonToResponse(lesson)
 	return &response, nil
 }
 
-func (svc *ContentService) mapLessonToResponse(lesson *model.Lesson) dto.LessonResponse {
+func (svc *ContentService) MapLessonToResponse(lesson *model.Lesson) dto.LessonResponse {
 	var questions []dto.QuestionResponse
 	if lesson.Questions != nil {
 		var rawQuestions []model.Question
@@ -270,14 +271,22 @@ func (svc *ContentService) mapLessonToResponse(lesson *model.Lesson) dto.LessonR
 		Title:       lesson.Title,
 		Order:       lesson.Order,
 		Story:       lesson.Story,
+		Script:      lesson.Script,
 
-		// Media Content
-		VideoURL:      lesson.VideoURL,
-		SubtitleURL:   lesson.SubtitleURL,
-		ThumbnailURL:  lesson.ThumbnailURL,
-		VideoDuration: lesson.VideoDuration,
-		CanSkipAfter:  lesson.CanSkipAfter,
-		HasSubtitles:  lesson.HasSubtitles,
+		// Production Workflow
+		ScriptStatus:    lesson.ScriptStatus,
+		AudioURL:        lesson.AudioURL,
+		AudioStatus:     lesson.AudioStatus,
+		AnimationURL:    lesson.AnimationURL,
+		AnimationStatus: lesson.AnimationStatus,
+
+		// Supporting Media
+		SubtitleURL:  lesson.SubtitleURL,
+		ThumbnailURL: lesson.ThumbnailURL,
+
+		// Content Settings
+		CanSkipAfter: lesson.CanSkipAfter,
+		HasSubtitles: lesson.HasSubtitles,
 
 		Questions: questions,
 		XPReward:  lesson.XPReward,
@@ -323,7 +332,7 @@ func (svc *ContentService) CreateLesson(lesson *model.Lesson) (*dto.LessonRespon
 		return nil, err
 	}
 
-	response := svc.mapLessonToResponse(created)
+	response := svc.MapLessonToResponse(created)
 	return &response, nil
 }
 
@@ -370,20 +379,20 @@ func (svc *ContentService) CreateLessonFromRequest(req dto.CreateLessonRequest) 
 	}
 
 	lesson := &model.Lesson{
-		CharacterID:   req.CharacterID,
-		Title:         req.Title,
-		Order:         req.Order,
-		Story:         req.Story,
-		VideoURL:      req.VideoURL,
-		SubtitleURL:   req.SubtitleURL,
-		ThumbnailURL:  req.ThumbnailURL,
-		VideoDuration: req.VideoDuration,
-		CanSkipAfter:  req.CanSkipAfter,
-		HasSubtitles:  req.HasSubtitles,
-		Questions:     questionsJSON,
-		XPReward:      req.XPReward,
-		MinScore:      req.MinScore,
-		IsActive:      true,
+		CharacterID:     req.CharacterID,
+		Title:           req.Title,
+		Order:           req.Order,
+		Story:           req.Story,
+		Script:          req.Script,
+		ScriptStatus:    "draft",
+		AudioStatus:     "pending",
+		AnimationStatus: "pending",
+		CanSkipAfter:    req.CanSkipAfter,
+		HasSubtitles:    req.HasSubtitles,
+		Questions:       questionsJSON,
+		XPReward:        req.XPReward,
+		MinScore:        req.MinScore,
+		IsActive:        true,
 	}
 
 	return svc.CreateLesson(lesson)
@@ -618,4 +627,84 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (svc *ContentService) UpdateLessonScript(lessonID, script string) (*model.Lesson, error) {
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	lesson.Script = script
+	lesson.ScriptStatus = "finalized"
+	lesson.ScriptUpdatedAt = &now
+
+	if err := svc.sqlSvc.UpdateLesson(lesson); err != nil {
+		return nil, err
+	}
+
+	return lesson, nil
+}
+
+func (svc *ContentService) GetLessonProductionStatus(lessonID string) (*dto.LessonProductionStatusResponse, error) {
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &dto.LessonProductionStatusResponse{
+		LessonID:           lessonID,
+		ScriptStatus:       lesson.ScriptStatus,
+		AudioStatus:        lesson.AudioStatus,
+		AnimationStatus:    lesson.AnimationStatus,
+		CanUploadAudio:     lesson.ScriptStatus == "finalized",
+		CanUploadAnimation: lesson.AudioStatus == "uploaded" || lesson.AudioStatus == "approved",
+	}
+
+	if lesson.ScriptUpdatedAt != nil {
+		response.ScriptUpdatedAt = lesson.ScriptUpdatedAt.Format(time.RFC3339)
+	}
+	if lesson.AudioUploadedAt != nil {
+		response.AudioUploadedAt = lesson.AudioUploadedAt.Format(time.RFC3339)
+	}
+	if lesson.AnimationUploadedAt != nil {
+		response.AnimationUpdatedAt = lesson.AnimationUploadedAt.Format(time.RFC3339)
+	}
+
+	return response, nil
+}
+
+func (svc *ContentService) MarkAudioUploaded(lessonID string) error {
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return err
+	}
+
+	if lesson.ScriptStatus != "finalized" {
+		return fmt.Errorf("cannot upload audio: script must be finalized first")
+	}
+
+	now := time.Now()
+	lesson.AudioStatus = "uploaded"
+	lesson.AudioUploadedAt = &now
+
+	return svc.sqlSvc.UpdateLesson(lesson)
+}
+
+func (svc *ContentService) MarkAnimationUploaded(lessonID string) error {
+	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	if err != nil {
+		return err
+	}
+
+	if lesson.AudioStatus != "uploaded" && lesson.AudioStatus != "approved" {
+		return fmt.Errorf("cannot upload animation: audio must be uploaded first")
+	}
+
+	now := time.Now()
+	lesson.AnimationStatus = "uploaded"
+	lesson.AnimationUploadedAt = &now
+
+	return svc.sqlSvc.UpdateLesson(lesson)
 }

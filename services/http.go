@@ -180,12 +180,17 @@ func (svc *HttpService) Start() error {
 	// admin.Post("/lessons", svc.CreateLesson)
 	admin.Post("/lessons/new", svc.CreateLessonFromRequest)
 
+	// Production Workflow (Admin Only) - Professional 3-step process
+	admin.Put("/lessons/:lessonId/script", svc.UpdateLessonScript)
+	admin.Post("/lessons/:lessonId/audio", svc.UploadLessonAudio)
+	admin.Post("/lessons/:lessonId/animation", svc.UploadLessonAnimation)
+	admin.Get("/lessons/:lessonId/production-status", svc.GetLessonProductionStatus)
+
 	// Media Management (Admin Only)
-	admin.Post("/lessons/:lessonId/video", svc.UploadLessonVideo)
 	admin.Post("/lessons/:lessonId/subtitle", svc.UploadLessonSubtitle)
+	admin.Post("/lessons/:lessonId/thumbnail", svc.UploadThumbnail)
 	admin.Get("/lessons/:lessonId/media", svc.GetLessonMedia)
 	admin.Delete("/media/assets/:assetId", svc.DeleteMediaAsset)
-	admin.Post("/lessons/:lessonId/media/batch", svc.BatchUploadMedia)
 	admin.Get("/media/statistics", svc.GetMediaStatistics)
 	admin.Get("/users", svc.AdminGetUsers)
 	admin.Put("/users/:userId", svc.AdminUpdateUser)
@@ -1606,33 +1611,6 @@ func (svc *HttpService) ShareAchievement(c *fiber.Ctx) error {
 
 // ==================== MEDIA ENDPOINTS ====================
 
-// @Summary Upload Lesson Video (Admin)
-// @Description Upload MP4 video file for lesson storytelling (Admin only)
-// @Tags admin
-// @Accept multipart/form-data
-// @Produce json
-// @Security Bearer
-// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
-// @Param lessonId path string true "Lesson ID"
-// @Param video formData file true "Video file (MP4, MOV, AVI)"
-// @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
-// @Router /api/v1/admin/lessons/{lessonId}/video [post]
-func (svc *HttpService) UploadLessonVideo(c *fiber.Ctx) error {
-	lessonID := c.Params("lessonId")
-
-	file, err := c.FormFile("video")
-	if err != nil {
-		return svc.HandleError(c, shared.NewBadRequestError(err, "No video file provided"))
-	}
-
-	response, err := svc.mediaSvc.UploadLessonVideo(lessonID, file)
-	if err != nil {
-		return svc.HandleError(c, err)
-	}
-
-	return shared.ResponseJSON(c, fiber.StatusOK, "Video uploaded successfully", response)
-}
-
 // @Summary Upload Lesson Subtitle (Admin)
 // @Description Upload subtitle file for lesson video (Admin only)
 // @Tags admin
@@ -1658,6 +1636,33 @@ func (svc *HttpService) UploadLessonSubtitle(c *fiber.Ctx) error {
 	}
 
 	return shared.ResponseJSON(c, fiber.StatusOK, "Subtitle uploaded successfully", response)
+}
+
+// @Summary Upload Lesson Thumbnail (Admin)
+// @Description Upload thumbnail image for lesson (Admin only)
+// @Tags admin
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Param thumbnail formData file true "Thumbnail file (JPG, PNG, WEBP)"
+// @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/thumbnail [post]
+func (svc *HttpService) UploadThumbnail(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
+
+	file, err := c.FormFile("thumbnail")
+	if err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "No thumbnail file provided"))
+	}
+
+	response, err := svc.mediaSvc.UploadThumbnail(lessonID, file)
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, fiber.StatusOK, "Thumbnail uploaded successfully", response)
 }
 
 // @Summary Get Lesson Media (Admin)
@@ -1700,52 +1705,6 @@ func (svc *HttpService) DeleteMediaAsset(c *fiber.Ctx) error {
 	return shared.ResponseJSON(c, fiber.StatusOK, "Media asset deleted successfully", "deleted")
 }
 
-// @Summary Batch Upload Media (Admin)
-// @Description Upload multiple media files for a lesson at once (Admin only)
-// @Tags admin
-// @Accept multipart/form-data
-// @Produce json
-// @Security Bearer
-// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
-// @Param lessonId path string true "Lesson ID"
-// @Param video formData file false "Video file"
-// @Param subtitle formData file false "Subtitle file"
-// @Success 200 {object} shared.Response{data=dto.BatchMediaUploadResponse}
-// @Router /api/v1/admin/lessons/{lessonId}/media/batch [post]
-func (svc *HttpService) BatchUploadMedia(c *fiber.Ctx) error {
-	lessonID := c.Params("lessonId")
-
-	response := &dto.BatchMediaUploadResponse{
-		LessonID:      lessonID,
-		UploadedFiles: []dto.MediaUploadResponse{},
-		Errors:        []string{},
-	}
-
-	// Try to upload video
-	if videoFile, err := c.FormFile("video"); err == nil {
-		if uploadResp, err := svc.mediaSvc.UploadLessonVideo(lessonID, videoFile); err == nil {
-			response.UploadedFiles = append(response.UploadedFiles, *uploadResp)
-		} else {
-			response.Errors = append(response.Errors, fmt.Sprintf("Video upload failed: %v", err))
-		}
-	}
-
-	// Try to upload subtitle
-	if subtitleFile, err := c.FormFile("subtitle"); err == nil {
-		if uploadResp, err := svc.mediaSvc.UploadLessonSubtitle(lessonID, subtitleFile); err == nil {
-			response.UploadedFiles = append(response.UploadedFiles, *uploadResp)
-		} else {
-			response.Errors = append(response.Errors, fmt.Sprintf("Subtitle upload failed: %v", err))
-		}
-	}
-
-	if len(response.UploadedFiles) == 0 && len(response.Errors) > 0 {
-		return svc.HandleError(c, shared.NewBadRequestError(nil, "All uploads failed"))
-	}
-
-	return shared.ResponseJSON(c, fiber.StatusOK, "Batch upload completed", response)
-}
-
 // @Summary Get Media Statistics (Admin)
 // @Description Get statistics about media assets and usage (Admin only)
 // @Tags admin
@@ -1761,6 +1720,123 @@ func (svc *HttpService) GetMediaStatistics(c *fiber.Ctx) error {
 	}
 
 	return shared.ResponseJSON(c, fiber.StatusOK, "Success", stats)
+}
+
+// ==================== PRODUCTION WORKFLOW ENDPOINTS ====================
+
+// @Summary Update Lesson Script (Admin)
+// @Description Finalize the lesson script - Step 1 of production workflow (Admin only)
+// @Tags admin,production
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Param scriptRequest body dto.UpdateLessonScriptRequest true "Script content"
+// @Success 200 {object} shared.Response{data=dto.LessonResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/script [put]
+func (svc *HttpService) UpdateLessonScript(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
+
+	var req dto.UpdateLessonScriptRequest
+	if err := c.BodyParser(&req); err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "Invalid request"))
+	}
+
+	if err := req.Validate(); err != nil {
+		validationResp := dto.CreateValidationErrorResponse(err)
+		return c.Status(fiber.StatusBadRequest).JSON(validationResp)
+	}
+
+	lesson, err := svc.contentSvc.UpdateLessonScript(lessonID, req.Script)
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	response := svc.contentSvc.MapLessonToResponse(lesson)
+	return shared.ResponseJSON(c, fiber.StatusOK, "Script finalized successfully", response)
+}
+
+// @Summary Upload Lesson Audio (Admin)
+// @Description Upload voice-over audio file - Step 2 of production workflow (Admin only)
+// @Tags admin,production
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Param audio formData file true "Audio file (MP3, WAV, AAC)"
+// @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/audio [post]
+func (svc *HttpService) UploadLessonAudio(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
+
+	file, err := c.FormFile("audio")
+	if err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "No audio file provided"))
+	}
+
+	response, err := svc.mediaSvc.UploadLessonAudio(lessonID, file)
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	if err := svc.contentSvc.MarkAudioUploaded(lessonID); err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, fiber.StatusOK, "Audio uploaded successfully", response)
+}
+
+// @Summary Upload Lesson Animation (Admin)
+// @Description Upload animation video file - Step 3 of production workflow (Admin only)
+// @Tags admin,production
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Param animation formData file true "Animation file (MP4, MOV, WEBM)"
+// @Success 200 {object} shared.Response{data=dto.MediaUploadResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/animation [post]
+func (svc *HttpService) UploadLessonAnimation(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
+
+	file, err := c.FormFile("animation")
+	if err != nil {
+		return svc.HandleError(c, shared.NewBadRequestError(err, "No animation file provided"))
+	}
+
+	response, err := svc.mediaSvc.UploadLessonAnimation(lessonID, file)
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	if err := svc.contentSvc.MarkAnimationUploaded(lessonID); err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, fiber.StatusOK, "Animation uploaded successfully", response)
+}
+
+// @Summary Get Lesson Production Status (Admin)
+// @Description Get current status of lesson production workflow (Admin only)
+// @Tags admin,production
+// @Produce json
+// @Security Bearer
+// @Param Authorization header string true "Admin Bearer Token" default(Bearer <admin_token>)
+// @Param lessonId path string true "Lesson ID"
+// @Success 200 {object} shared.Response{data=dto.LessonProductionStatusResponse}
+// @Router /api/v1/admin/lessons/{lessonId}/production-status [get]
+func (svc *HttpService) GetLessonProductionStatus(c *fiber.Ctx) error {
+	lessonID := c.Params("lessonId")
+
+	status, err := svc.contentSvc.GetLessonProductionStatus(lessonID)
+	if err != nil {
+		return svc.HandleError(c, err)
+	}
+
+	return shared.ResponseJSON(c, fiber.StatusOK, "Success", status)
 }
 
 // ==================== ADMIN ENDPOINTS (Optional) ====================

@@ -39,14 +39,22 @@ type LessonResponse struct {
 	Title       string `json:"title"`
 	Order       int    `json:"order"`
 	Story       string `json:"story"`
+	Script      string `json:"script"`
 
-	// Media Content
-	VideoURL      string `json:"video_url"` // Video with embedded voice-over
-	SubtitleURL   string `json:"subtitle_url"`
-	ThumbnailURL  string `json:"thumbnail_url"`
-	VideoDuration int    `json:"video_duration"`
-	CanSkipAfter  int    `json:"can_skip_after"`
-	HasSubtitles  bool   `json:"has_subtitles"`
+	// Production Workflow
+	ScriptStatus    string `json:"script_status"`
+	AudioURL        string `json:"audio_url,omitempty"`
+	AudioStatus     string `json:"audio_status"`
+	AnimationURL    string `json:"animation_url,omitempty"`
+	AnimationStatus string `json:"animation_status"`
+
+	// Supporting Media
+	SubtitleURL  string `json:"subtitle_url,omitempty"`
+	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+
+	// Content Settings
+	CanSkipAfter int  `json:"can_skip_after"`
+	HasSubtitles bool `json:"has_subtitles"`
 
 	Questions []QuestionResponse `json:"questions"`
 	XPReward  int                `json:"xp_reward"`
@@ -186,19 +194,16 @@ type SearchResponse struct {
 
 // Lesson Creation DTOs
 type CreateLessonRequest struct {
-	CharacterID   string                  `json:"character_id" validate:"required"`
-	Title         string                  `json:"title" validate:"required,min=1,max=200"`
-	Order         int                     `json:"order" validate:"required,min=1"`
-	Story         string                  `json:"story" validate:"omitempty,max=5000"`
-	VideoURL      string                  `json:"video_url" validate:"omitempty,url"`
-	SubtitleURL   string                  `json:"subtitle_url" validate:"omitempty,url"`
-	ThumbnailURL  string                  `json:"thumbnail_url" validate:"omitempty,url"`
-	VideoDuration int                     `json:"video_duration" validate:"omitempty,min=1"`
-	CanSkipAfter  int                     `json:"can_skip_after" validate:"omitempty,min=0"`
-	HasSubtitles  bool                    `json:"has_subtitles"`
-	Questions     []CreateQuestionRequest `json:"questions" validate:"omitempty,dive"`
-	XPReward      int                     `json:"xp_reward" validate:"omitempty,min=1,max=1000"`
-	MinScore      int                     `json:"min_score" validate:"omitempty,min=0,max=100"`
+	CharacterID  string                  `json:"character_id" validate:"required"`
+	Title        string                  `json:"title" validate:"required,min=1,max=200"`
+	Order        int                     `json:"order" validate:"required,min=1"`
+	Story        string                  `json:"story" validate:"omitempty,max=5000"`
+	Script       string                  `json:"script" validate:"omitempty,max=10000"`
+	CanSkipAfter int                     `json:"can_skip_after" validate:"omitempty,min=0"`
+	HasSubtitles bool                    `json:"has_subtitles"`
+	Questions    []CreateQuestionRequest `json:"questions" validate:"omitempty,dive"`
+	XPReward     int                     `json:"xp_reward" validate:"omitempty,min=1,max=1000"`
+	MinScore     int                     `json:"min_score" validate:"omitempty,min=0,max=100"`
 }
 
 func (c CreateLessonRequest) Validate() error {
@@ -217,4 +222,24 @@ type CreateQuestionRequest struct {
 
 func (c CreateQuestionRequest) Validate() error {
 	return GetValidator().Struct(c)
+}
+
+type UpdateLessonScriptRequest struct {
+	Script string `json:"script" validate:"required,min=10"`
+}
+
+func (u UpdateLessonScriptRequest) Validate() error {
+	return GetValidator().Struct(u)
+}
+
+type LessonProductionStatusResponse struct {
+	LessonID           string `json:"lesson_id"`
+	ScriptStatus       string `json:"script_status"`
+	AudioStatus        string `json:"audio_status"`
+	AnimationStatus    string `json:"animation_status"`
+	ScriptUpdatedAt    string `json:"script_updated_at,omitempty"`
+	AudioUploadedAt    string `json:"audio_uploaded_at,omitempty"`
+	AnimationUpdatedAt string `json:"animation_updated_at,omitempty"`
+	CanUploadAudio     bool   `json:"can_upload_audio"`
+	CanUploadAnimation bool   `json:"can_upload_animation"`
 }
