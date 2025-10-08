@@ -127,6 +127,136 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/lessons/{lessonId}/animation": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Upload animation video file - Step 3 of production workflow (Admin only)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "production"
+                ],
+                "summary": "Upload Lesson Animation (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Animation file (MP4, MOV, WEBM)",
+                        "name": "animation",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.MediaUploadResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/lessons/{lessonId}/audio": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Upload voice-over audio file - Step 2 of production workflow (Admin only)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "production"
+                ],
+                "summary": "Upload Lesson Audio (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Audio file (MP3, WAV, AAC)",
+                        "name": "audio",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.MediaUploadResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/lessons/{lessonId}/media": {
             "get": {
                 "security": [
@@ -181,24 +311,80 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/lessons/{lessonId}/media/batch": {
-            "post": {
+        "/api/v1/admin/lessons/{lessonId}/production-status": {
+            "get": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Upload multiple media files for a lesson at once (Admin only)",
+                "description": "Get current status of lesson production workflow (Admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "production"
+                ],
+                "summary": "Get Lesson Production Status (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/shared.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.LessonProductionStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/lessons/{lessonId}/script": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Finalize the lesson script - Step 1 of production workflow (Admin only)",
                 "consumes": [
-                    "multipart/form-data"
+                    "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin",
+                    "production"
                 ],
-                "summary": "Batch Upload Media (Admin)",
+                "summary": "Update Lesson Script (Admin)",
                 "parameters": [
                     {
                         "type": "string",
@@ -216,16 +402,13 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "file",
-                        "description": "Video file",
-                        "name": "video",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Subtitle file",
-                        "name": "subtitle",
-                        "in": "formData"
+                        "description": "Script content",
+                        "name": "scriptRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateLessonScriptRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -240,7 +423,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.BatchMediaUploadResponse"
+                                            "$ref": "#/definitions/dto.LessonResponse"
                                         }
                                     }
                                 }
@@ -314,14 +497,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/lessons/{lessonId}/video": {
+        "/api/v1/admin/lessons/{lessonId}/thumbnail": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Upload MP4 video file for lesson storytelling (Admin only)",
+                "description": "Upload thumbnail image for lesson (Admin only)",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -331,7 +514,7 @@ const docTemplate = `{
                 "tags": [
                     "admin"
                 ],
-                "summary": "Upload Lesson Video (Admin)",
+                "summary": "Upload Lesson Thumbnail (Admin)",
                 "parameters": [
                     {
                         "type": "string",
@@ -350,8 +533,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Video file (MP4, MOV, AVI)",
-                        "name": "video",
+                        "description": "Thumbnail file (JPG, PNG, WEBP)",
+                        "name": "thumbnail",
                         "in": "formData",
                         "required": true
                     }
@@ -3227,26 +3410,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.BatchMediaUploadResponse": {
-            "type": "object",
-            "properties": {
-                "errors": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "lesson_id": {
-                    "type": "string"
-                },
-                "uploaded_files": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.MediaUploadResponse"
-                    }
-                }
-            }
-        },
         "dto.ChangePasswordRequest": {
             "type": "object",
             "required": [
@@ -3492,27 +3655,18 @@ const docTemplate = `{
                         "$ref": "#/definitions/dto.CreateQuestionRequest"
                     }
                 },
+                "script": {
+                    "type": "string",
+                    "maxLength": 10000
+                },
                 "story": {
                     "type": "string",
                     "maxLength": 5000
-                },
-                "subtitle_url": {
-                    "type": "string"
-                },
-                "thumbnail_url": {
-                    "type": "string"
                 },
                 "title": {
                     "type": "string",
                     "maxLength": 200,
                     "minLength": 1
-                },
-                "video_duration": {
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "video_url": {
-                    "type": "string"
                 },
                 "xp_reward": {
                     "type": "integer",
@@ -3719,10 +3873,55 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.LessonProductionStatusResponse": {
+            "type": "object",
+            "properties": {
+                "animation_status": {
+                    "type": "string"
+                },
+                "animation_updated_at": {
+                    "type": "string"
+                },
+                "audio_status": {
+                    "type": "string"
+                },
+                "audio_uploaded_at": {
+                    "type": "string"
+                },
+                "can_upload_animation": {
+                    "type": "boolean"
+                },
+                "can_upload_audio": {
+                    "type": "boolean"
+                },
+                "lesson_id": {
+                    "type": "string"
+                },
+                "script_status": {
+                    "type": "string"
+                },
+                "script_updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.LessonResponse": {
             "type": "object",
             "properties": {
+                "animation_status": {
+                    "type": "string"
+                },
+                "animation_url": {
+                    "type": "string"
+                },
+                "audio_status": {
+                    "type": "string"
+                },
+                "audio_url": {
+                    "type": "string"
+                },
                 "can_skip_after": {
+                    "description": "Content Settings",
                     "type": "integer"
                 },
                 "character": {
@@ -3749,23 +3948,24 @@ const docTemplate = `{
                         "$ref": "#/definitions/dto.QuestionResponse"
                     }
                 },
+                "script": {
+                    "type": "string"
+                },
+                "script_status": {
+                    "description": "Production Workflow",
+                    "type": "string"
+                },
                 "story": {
                     "type": "string"
                 },
                 "subtitle_url": {
+                    "description": "Supporting Media",
                     "type": "string"
                 },
                 "thumbnail_url": {
                     "type": "string"
                 },
                 "title": {
-                    "type": "string"
-                },
-                "video_duration": {
-                    "type": "integer"
-                },
-                "video_url": {
-                    "description": "Media Content",
                     "type": "string"
                 },
                 "xp_reward": {
@@ -4218,6 +4418,18 @@ const docTemplate = `{
                 "trust": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "dto.UpdateLessonScriptRequest": {
+            "type": "object",
+            "required": [
+                "script"
+            ],
+            "properties": {
+                "script": {
+                    "type": "string",
+                    "minLength": 10
                 }
             }
         },

@@ -138,19 +138,6 @@ definitions:
         example: usr_123456789
         type: string
     type: object
-  dto.BatchMediaUploadResponse:
-    properties:
-      errors:
-        items:
-          type: string
-        type: array
-      lesson_id:
-        type: string
-      uploaded_files:
-        items:
-          $ref: '#/definitions/dto.MediaUploadResponse'
-        type: array
-    type: object
   dto.ChangePasswordRequest:
     properties:
       current_password:
@@ -312,21 +299,15 @@ definitions:
         items:
           $ref: '#/definitions/dto.CreateQuestionRequest'
         type: array
+      script:
+        maxLength: 10000
+        type: string
       story:
         maxLength: 5000
-        type: string
-      subtitle_url:
-        type: string
-      thumbnail_url:
         type: string
       title:
         maxLength: 200
         minLength: 1
-        type: string
-      video_duration:
-        minimum: 1
-        type: integer
-      video_url:
         type: string
       xp_reward:
         maximum: 1000
@@ -474,9 +455,39 @@ definitions:
         description: 'key: video, subtitle, thumbnail'
         type: object
     type: object
+  dto.LessonProductionStatusResponse:
+    properties:
+      animation_status:
+        type: string
+      animation_updated_at:
+        type: string
+      audio_status:
+        type: string
+      audio_uploaded_at:
+        type: string
+      can_upload_animation:
+        type: boolean
+      can_upload_audio:
+        type: boolean
+      lesson_id:
+        type: string
+      script_status:
+        type: string
+      script_updated_at:
+        type: string
+    type: object
   dto.LessonResponse:
     properties:
+      animation_status:
+        type: string
+      animation_url:
+        type: string
+      audio_status:
+        type: string
+      audio_url:
+        type: string
       can_skip_after:
+        description: Content Settings
         type: integer
       character:
         $ref: '#/definitions/dto.CharacterResponse'
@@ -494,18 +505,19 @@ definitions:
         items:
           $ref: '#/definitions/dto.QuestionResponse'
         type: array
+      script:
+        type: string
+      script_status:
+        description: Production Workflow
+        type: string
       story:
         type: string
       subtitle_url:
+        description: Supporting Media
         type: string
       thumbnail_url:
         type: string
       title:
-        type: string
-      video_duration:
-        type: integer
-      video_url:
-        description: Media Content
         type: string
       xp_reward:
         type: integer
@@ -816,6 +828,14 @@ definitions:
     required:
     - device_id
     type: object
+  dto.UpdateLessonScriptRequest:
+    properties:
+      script:
+        minLength: 10
+        type: string
+    required:
+    - script
+    type: object
   dto.UpdateProfileRequest:
     properties:
       email:
@@ -1052,6 +1072,88 @@ paths:
       summary: Create Character (Admin)
       tags:
       - admin
+  /api/v1/admin/lessons/{lessonId}/animation:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload animation video file - Step 3 of production workflow (Admin
+        only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      - description: Animation file (MP4, MOV, WEBM)
+        in: formData
+        name: animation
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MediaUploadResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Upload Lesson Animation (Admin)
+      tags:
+      - admin
+      - production
+  /api/v1/admin/lessons/{lessonId}/audio:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload voice-over audio file - Step 2 of production workflow (Admin
+        only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      - description: Audio file (MP3, WAV, AAC)
+        in: formData
+        name: audio
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MediaUploadResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Upload Lesson Audio (Admin)
+      tags:
+      - admin
+      - production
   /api/v1/admin/lessons/{lessonId}/media:
     get:
       description: Get all media assets for a lesson (Admin only)
@@ -1084,11 +1186,9 @@ paths:
       summary: Get Lesson Media (Admin)
       tags:
       - admin
-  /api/v1/admin/lessons/{lessonId}/media/batch:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Upload multiple media files for a lesson at once (Admin only)
+  /api/v1/admin/lessons/{lessonId}/production-status:
+    get:
+      description: Get current status of lesson production workflow (Admin only)
       parameters:
       - default: Bearer <admin_token>
         description: Admin Bearer Token
@@ -1101,14 +1201,6 @@ paths:
         name: lessonId
         required: true
         type: string
-      - description: Video file
-        in: formData
-        name: video
-        type: file
-      - description: Subtitle file
-        in: formData
-        name: subtitle
-        type: file
       produces:
       - application/json
       responses:
@@ -1119,13 +1211,56 @@ paths:
             - $ref: '#/definitions/shared.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/dto.BatchMediaUploadResponse'
+                  $ref: '#/definitions/dto.LessonProductionStatusResponse'
               type: object
       security:
       - Bearer: []
-      summary: Batch Upload Media (Admin)
+      summary: Get Lesson Production Status (Admin)
       tags:
       - admin
+      - production
+  /api/v1/admin/lessons/{lessonId}/script:
+    put:
+      consumes:
+      - application/json
+      description: Finalize the lesson script - Step 1 of production workflow (Admin
+        only)
+      parameters:
+      - default: Bearer <admin_token>
+        description: Admin Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Lesson ID
+        in: path
+        name: lessonId
+        required: true
+        type: string
+      - description: Script content
+        in: body
+        name: scriptRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateLessonScriptRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/shared.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LessonResponse'
+              type: object
+      security:
+      - Bearer: []
+      summary: Update Lesson Script (Admin)
+      tags:
+      - admin
+      - production
   /api/v1/admin/lessons/{lessonId}/subtitle:
     post:
       consumes:
@@ -1165,11 +1300,11 @@ paths:
       summary: Upload Lesson Subtitle (Admin)
       tags:
       - admin
-  /api/v1/admin/lessons/{lessonId}/video:
+  /api/v1/admin/lessons/{lessonId}/thumbnail:
     post:
       consumes:
       - multipart/form-data
-      description: Upload MP4 video file for lesson storytelling (Admin only)
+      description: Upload thumbnail image for lesson (Admin only)
       parameters:
       - default: Bearer <admin_token>
         description: Admin Bearer Token
@@ -1182,9 +1317,9 @@ paths:
         name: lessonId
         required: true
         type: string
-      - description: Video file (MP4, MOV, AVI)
+      - description: Thumbnail file (JPG, PNG, WEBP)
         in: formData
-        name: video
+        name: thumbnail
         required: true
         type: file
       produces:
@@ -1201,7 +1336,7 @@ paths:
               type: object
       security:
       - Bearer: []
-      summary: Upload Lesson Video (Admin)
+      summary: Upload Lesson Thumbnail (Admin)
       tags:
       - admin
   /api/v1/admin/lessons/new:
