@@ -5,9 +5,10 @@ import "time"
 // ==================== AUTHENTICATION REQUEST DTOs ====================
 
 type RegisterRequest struct {
-	Email    string `json:"email" validate:"required,email" example:"user@example.com"`
-	Username string `json:"username" validate:"required,min=3,max=30,alphanum" example:"johndoe"`
-	Password string `json:"password" validate:"required,strong_password" example:"SecurePass123!"`
+	Email           string `json:"email" validate:"required,email" example:"user@example.com"`
+	Username        string `json:"username" validate:"required,min=3,max=30,alphanum" example:"johndoe"`
+	Password        string `json:"password" validate:"required,strong_password" example:"SecurePass123!"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,eqfield=Password" example:"SecurePass123!"`
 }
 
 func (r RegisterRequest) Validate() error {
@@ -44,6 +45,7 @@ func (l LogoutRequest) Validate() error {
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required" example:"OldPass123!"`
 	NewPassword     string `json:"new_password" validate:"required,strong_password" example:"NewPass123!"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,eqfield=NewPassword" example:"NewPass123!"`
 }
 
 func (c ChangePasswordRequest) Validate() error {
@@ -51,8 +53,9 @@ func (c ChangePasswordRequest) Validate() error {
 }
 
 type ResetPasswordRequest struct {
-	Code        string `json:"code" validate:"required,len=6,numeric" example:"123456"`
-	NewPassword string `json:"new_password" validate:"required,strong_password" example:"NewPass123!"`
+	Code            string `json:"code" validate:"required,len=6,numeric" example:"123456"`
+	NewPassword     string `json:"new_password" validate:"required,strong_password" example:"NewPass123!"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,eqfield=NewPassword" example:"NewPass123!"`
 }
 
 func (r ResetPasswordRequest) Validate() error {

@@ -140,6 +140,9 @@ definitions:
     type: object
   dto.ChangePasswordRequest:
     properties:
+      confirm_password:
+        example: NewPass123!
+        type: string
       current_password:
         example: OldPass123!
         type: string
@@ -147,6 +150,7 @@ definitions:
         example: NewPass123!
         type: string
     required:
+    - confirm_password
     - current_password
     - new_password
     type: object
@@ -614,6 +618,9 @@ definitions:
     type: object
   dto.RegisterRequest:
     properties:
+      confirm_password:
+        example: SecurePass123!
+        type: string
       email:
         example: user@example.com
         type: string
@@ -626,6 +633,7 @@ definitions:
         minLength: 3
         type: string
     required:
+    - confirm_password
     - email
     - password
     - username
@@ -655,11 +663,15 @@ definitions:
       code:
         example: "123456"
         type: string
+      confirm_password:
+        example: NewPass123!
+        type: string
       new_password:
         example: NewPass123!
         type: string
     required:
     - code
+    - confirm_password
     - new_password
     type: object
   dto.SearchResponse:
@@ -1536,7 +1548,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Change user password (requires authentication)
+      description: Change user password with confirmation (requires authentication)
       parameters:
       - default: Bearer <user_token>
         description: User Bearer Token
@@ -1544,7 +1556,7 @@ paths:
         name: Authorization
         required: true
         type: string
-      - description: Current and new password
+      - description: Current password, new password, and confirmation
         in: body
         name: changeRequest
         required: true
@@ -2227,9 +2239,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new user account with email verification
+      description: Create a new user account with email verification and password
+        confirmation
       parameters:
-      - description: Registration details
+      - description: Registration details with password confirmation
         in: body
         name: registerRequest
         required: true
@@ -2281,9 +2294,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Reset user password with reset code
+      description: Reset user password with reset code and password confirmation
       parameters:
-      - description: Reset code and new password
+      - description: Reset code, new password, and password confirmation
         in: body
         name: resetRequest
         required: true

@@ -23,13 +23,14 @@ import (
 type HttpService struct {
 	context.DefaultService
 
-	jwtSvc     *JWTService
-	authSvc    *AuthService
-	guestSvc   *GuestService
-	contentSvc *ContentService
-	userSvc    *UserService
-	mediaSvc   *MediaService
-	sqliteSvc  *PostgresService
+	jwtSvc        *JWTService
+	authSvc       *AuthService
+	guestSvc      *GuestService
+	contentSvc    *ContentService
+	userSvc       *UserService
+	mediaSvc      *MediaService
+	sqliteSvc     *PostgresService
+	monitoringSvc *MonitoringService
 
 	internalPassword string
 
@@ -66,6 +67,7 @@ func (svc *HttpService) Start() error {
 	svc.contentSvc = svc.Service(CONTENT_SVC).(*ContentService)
 	svc.mediaSvc = svc.Service(MEDIA_SVC).(*MediaService)
 	svc.sqliteSvc = svc.Service(POSTGRES_SVC).(*PostgresService)
+	svc.monitoringSvc = svc.Service(MONITORING_SVC).(*MonitoringService)
 
 	// Create Fiber app
 	config := fiber.Config{
@@ -79,6 +81,8 @@ func (svc *HttpService) Start() error {
 
 	// Add middleware
 	svc.app.Use(recover.New())
+
+	svc.app.Use(MonitoringMiddleware(svc.monitoringSvc))
 
 	if os.Getenv("LOG_LEVEL") == "TRACE" {
 		svc.app.Use(logger.New())
@@ -232,11 +236,11 @@ func (svc *HttpService) HandleError(c *fiber.Ctx, err error) error {
 }
 
 // @Summary Register a new user
-// @Description Create a new user account with email verification
+// @Description Create a new user account with email verification and password confirmation
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param registerRequest body dto.RegisterRequest true "Registration details"
+// @Param registerRequest body dto.RegisterRequest true "Registration details with password confirmation"
 // @Success 201 {object} shared.Response{data=dto.RegisterResponse}
 // @Router /api/v1/register [post]
 func (h *HttpService) Register(c *fiber.Ctx) error {
@@ -451,11 +455,11 @@ func (h *HttpService) ForgotPassword(c *fiber.Ctx) error {
 }
 
 // @Summary Reset password
-// @Description Reset user password with reset code
+// @Description Reset user password with reset code and password confirmation
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param resetRequest body dto.ResetPasswordRequest true "Reset code and new password"
+// @Param resetRequest body dto.ResetPasswordRequest true "Reset code, new password, and password confirmation"
 // @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/reset-password [post]
 func (h *HttpService) ResetPassword(c *fiber.Ctx) error {
@@ -478,13 +482,13 @@ func (h *HttpService) ResetPassword(c *fiber.Ctx) error {
 }
 
 // @Summary Change password
-// @Description Change user password (requires authentication)
+// @Description Change user password with confirmation (requires authentication)
 // @Tags auth
 // @Accept json
 // @Produce json
 // @Security Bearer
 // @Param Authorization header string true "User Bearer Token" default(Bearer <user_token>)
-// @Param changeRequest body dto.ChangePasswordRequest true "Current and new password"
+// @Param changeRequest body dto.ChangePasswordRequest true "Current password, new password, and confirmation"
 // @Success 200 {object} shared.Response{data=nil}
 // @Router /api/v1/change-password [post]
 func (h *HttpService) ChangePassword(c *fiber.Ctx) error {

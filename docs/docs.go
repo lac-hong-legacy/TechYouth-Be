@@ -837,7 +837,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Change user password (requires authentication)",
+                "description": "Change user password with confirmation (requires authentication)",
                 "consumes": [
                     "application/json"
                 ],
@@ -858,7 +858,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Current and new password",
+                        "description": "Current password, new password, and confirmation",
                         "name": "changeRequest",
                         "in": "body",
                         "required": true,
@@ -1985,7 +1985,7 @@ const docTemplate = `{
         },
         "/api/v1/register": {
             "post": {
-                "description": "Create a new user account with email verification",
+                "description": "Create a new user account with email verification and password confirmation",
                 "consumes": [
                     "application/json"
                 ],
@@ -1998,7 +1998,7 @@ const docTemplate = `{
                 "summary": "Register a new user",
                 "parameters": [
                     {
-                        "description": "Registration details",
+                        "description": "Registration details with password confirmation",
                         "name": "registerRequest",
                         "in": "body",
                         "required": true,
@@ -2077,7 +2077,7 @@ const docTemplate = `{
         },
         "/api/v1/reset-password": {
             "post": {
-                "description": "Reset user password with reset code",
+                "description": "Reset user password with reset code and password confirmation",
                 "consumes": [
                     "application/json"
                 ],
@@ -2090,7 +2090,7 @@ const docTemplate = `{
                 "summary": "Reset password",
                 "parameters": [
                     {
-                        "description": "Reset code and new password",
+                        "description": "Reset code, new password, and password confirmation",
                         "name": "resetRequest",
                         "in": "body",
                         "required": true,
@@ -3413,10 +3413,15 @@ const docTemplate = `{
         "dto.ChangePasswordRequest": {
             "type": "object",
             "required": [
+                "confirm_password",
                 "current_password",
                 "new_password"
             ],
             "properties": {
+                "confirm_password": {
+                    "type": "string",
+                    "example": "NewPass123!"
+                },
                 "current_password": {
                     "type": "string",
                     "example": "OldPass123!"
@@ -4108,11 +4113,16 @@ const docTemplate = `{
         "dto.RegisterRequest": {
             "type": "object",
             "required": [
+                "confirm_password",
                 "email",
                 "password",
                 "username"
             ],
             "properties": {
+                "confirm_password": {
+                    "type": "string",
+                    "example": "SecurePass123!"
+                },
                 "email": {
                     "type": "string",
                     "example": "user@example.com"
@@ -4162,12 +4172,17 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "code",
+                "confirm_password",
                 "new_password"
             ],
             "properties": {
                 "code": {
                     "type": "string",
                     "example": "123456"
+                },
+                "confirm_password": {
+                    "type": "string",
+                    "example": "NewPass123!"
                 },
                 "new_password": {
                     "type": "string",
