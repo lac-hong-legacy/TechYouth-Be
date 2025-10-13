@@ -82,7 +82,7 @@ func (svc *HttpService) Start() error {
 	// Add middleware
 	svc.app.Use(recover.New())
 
-	svc.app.Use(MonitoringMiddleware(svc.monitoringSvc))
+	// svc.app.Use(MonitoringMiddleware(svc.monitoringSvc))
 
 	if os.Getenv("LOG_LEVEL") == "TRACE" {
 		svc.app.Use(logger.New())
