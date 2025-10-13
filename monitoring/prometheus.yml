@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: 'ven_backend'
+
+scrape_configs:
+  - job_name: 'ven_backend'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['host.docker.internal:2112']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'http_.*|go_.*|process_.*|memory_.*|heap_.*|gc_.*|trace_.*'
+        action: keep

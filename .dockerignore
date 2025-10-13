@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Environment files
+.env
+.env.*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts (will be regenerated in Docker)
+main
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Monitoring
+monitoring/
+
+# Scripts
+scripts/
+
+# Temporary files
+tmp/
+temp/
