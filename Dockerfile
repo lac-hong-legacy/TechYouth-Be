@@ -1,40 +1,38 @@
+# ---- Builder Stage ----
 FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates
 
+# Copy mod files first for better build caching
 COPY go.mod go.sum ./
 
+# ARG for GitHub token (passed from CI)
 ARG GITHUB_TOKEN
-RUN --mount=type=secret,id=GIT_AUTH_TOKEN \
-    TOKEN=${GITHUB_TOKEN:-$(cat /run/secrets/GIT_AUTH_TOKEN 2>/dev/null || echo "")} && \
-    if [ -n "$TOKEN" ]; then \
-      git config --global url."https://${TOKEN}@github.com/".insteadOf "https://github.com/" && \
-      echo "machine github.com login ${TOKEN}" > ~/.netrc; \
-    fi && \
-    go env -w GOPRIVATE=github.com/alphabatem/* && \
-    go mod download && \
-    if [ -n "$TOKEN" ]; then \
-      git config --global --unset url."https://${TOKEN}@github.com/".insteadOf 2>/dev/null || true; \
-    fi
 
+# Configure git auth + Go private modules
+RUN if [ -n "$GITHUB_TOKEN" ]; then \
+      git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"; \
+    fi && \
+    go env -w GOPRIVATE=github.com/alphabatem/*,github.com/lac-hong-legacy/* && \
+    go mod download
+
+# Copy the rest of the app
 COPY . .
 
+# Build binary
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main ./runtime/
 
-# Final stage
+# ---- Runtime Stage ----
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 
-# Copy the binary from builder stage
 COPY --from=builder /app/main .
 
-# Expose port
 EXPOSE 8000
 
-# Run the application
 CMD ["./main"]
