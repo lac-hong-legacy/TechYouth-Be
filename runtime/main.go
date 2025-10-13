@@ -21,6 +21,7 @@ func main() {
 		&services.JWTService{},
 		&services.RateLimitService{},
 		&services.GeolocationService{},
+		// &services.MonitoringService{},
 		&services.AuthService{},
 		&services.GuestService{},
 		&services.ContentService{},
