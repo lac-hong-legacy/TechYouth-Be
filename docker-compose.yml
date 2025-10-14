@@ -24,9 +24,7 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-password123}
       - MINIO_USE_SSL=false
-      - LOG_LEVEL=debug
-    volumes:
-      - ./uploads:/root/uploads
+      - LOG_LEVEL=TRACE
     depends_on:
       postgres:
         condition: service_healthy

@@ -43,7 +43,7 @@ sudo chown $USER:$USER /opt/ven-api
 cd /opt/ven-api
 if [ ! -d .git ]; then
     echo "📥 Cloning repository..."
-    git clone https://github.com/lac-hong-legacy/TechYouth-Be.git .
+    git clone https://github.com/lac-hong-legacy/ven_api.git .
 else
     echo "✅ Repository already cloned"
     git pull origin main

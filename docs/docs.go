@@ -31,8 +31,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Admin internal password",
-                        "name": "X-Internal-Password",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
                         "in": "header",
                         "required": true
                     },
@@ -70,12 +71,7 @@ const docTemplate = `{
         },
         "/api/v1/admin/lessons/new": {
             "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Create a new lesson using structured request (admin only)",
+                "description": "Create a new lesson from request (admin only)",
                 "consumes": [
                     "application/json"
                 ],
@@ -97,7 +93,7 @@ const docTemplate = `{
                     },
                     {
                         "description": "Lesson creation request",
-                        "name": "lessonRequest",
+                        "name": "createLessonRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -683,6 +679,14 @@ const docTemplate = `{
                 "summary": "Get all users (Admin)",
                 "parameters": [
                     {
+                        "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "type": "integer",
                         "default": 1,
                         "description": "Page number",
@@ -746,6 +750,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "User ID",
                         "name": "userId",
                         "in": "path",
@@ -802,6 +814,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "default": "Bearer \u003cadmin_token\u003e",
+                        "description": "Admin Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "User ID",
                         "name": "userId",
                         "in": "path",
@@ -837,7 +857,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Change user password with confirmation (requires authentication)",
+                "description": "Change password for authenticated user",
                 "consumes": [
                     "application/json"
                 ],
@@ -858,7 +878,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Current password, new password, and confirmation",
+                        "description": "Current and new password",
                         "name": "changeRequest",
                         "in": "body",
                         "required": true,
@@ -1031,7 +1051,7 @@ const docTemplate = `{
         },
         "/api/v1/content/dynasties": {
             "get": {
-                "description": "Get all dynasties",
+                "description": "Get list of dynasties",
                 "consumes": [
                     "application/json"
                 ],
@@ -1069,7 +1089,7 @@ const docTemplate = `{
         },
         "/api/v1/content/eras": {
             "get": {
-                "description": "Get all eras",
+                "description": "Get list of eras",
                 "consumes": [
                     "application/json"
                 ],
@@ -2077,7 +2097,7 @@ const docTemplate = `{
         },
         "/api/v1/reset-password": {
             "post": {
-                "description": "Reset user password with reset code and password confirmation",
+                "description": "Reset user password using reset token",
                 "consumes": [
                     "application/json"
                 ],
@@ -2090,7 +2110,7 @@ const docTemplate = `{
                 "summary": "Reset password",
                 "parameters": [
                     {
-                        "description": "Reset code, new password, and password confirmation",
+                        "description": "Reset token and new password",
                         "name": "resetRequest",
                         "in": "body",
                         "required": true,
@@ -2141,6 +2161,14 @@ const docTemplate = `{
                 "summary": "Get audit logs",
                 "parameters": [
                     {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "type": "integer",
                         "default": 1,
                         "description": "Page number",
@@ -2184,7 +2212,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Get user's character collection and achievements",
+                "description": "Get user collection",
                 "consumes": [
                     "application/json"
                 ],
@@ -2194,14 +2222,8 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Get User Collection",
+                "summary": "Get user collection",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "UserID",
-                        "in": "query"
-                    },
                     {
                         "type": "string",
                         "default": "Bearer \u003cuser_token\u003e",
@@ -2251,6 +2273,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get user devices",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2297,6 +2329,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "Device ID",
                         "name": "deviceId",
                         "in": "path",
@@ -2334,6 +2374,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "Device ID",
                         "name": "deviceId",
                         "in": "path",
@@ -2366,7 +2414,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Get current heart status and reset information",
+                "description": "Get user heart status",
                 "consumes": [
                     "application/json"
                 ],
@@ -2376,7 +2424,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Get Heart Status",
+                "summary": "Get user heart status",
                 "parameters": [
                     {
                         "type": "string",
@@ -2416,7 +2464,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Add hearts from ads or other sources",
+                "description": "Add user hearts",
                 "consumes": [
                     "application/json"
                 ],
@@ -2426,7 +2474,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Add User Hearts",
+                "summary": "Add user hearts",
                 "parameters": [
                     {
                         "type": "string",
@@ -2438,7 +2486,7 @@ const docTemplate = `{
                     },
                     {
                         "description": "Add hearts request",
-                        "name": "addHeartsRequest",
+                        "name": "addRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -2475,7 +2523,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Deduct a heart when user fails a lesson",
+                "description": "Lose user heart",
                 "consumes": [
                     "application/json"
                 ],
@@ -2485,7 +2533,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Lose User Heart",
+                "summary": "Lose user heart",
                 "parameters": [
                     {
                         "type": "string",
@@ -2525,7 +2573,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Initialize user profile after first login (zodiac setup)",
+                "description": "Initialize user profile",
                 "consumes": [
                     "application/json"
                 ],
@@ -2535,7 +2583,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Initialize User Profile",
+                "summary": "Initialize user profile",
                 "parameters": [
                     {
                         "type": "string",
@@ -2546,8 +2594,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Birth year for zodiac",
-                        "name": "birthYear",
+                        "description": "User profile",
+                        "name": "initializeRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -2587,7 +2635,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Complete a lesson for registered user",
+                "description": "Complete user lesson",
                 "consumes": [
                     "application/json"
                 ],
@@ -2597,17 +2645,8 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Complete User Lesson",
+                "summary": "Complete user lesson",
                 "parameters": [
-                    {
-                        "description": "Complete lesson request",
-                        "name": "completeLessonRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.CompleteLessonRequest"
-                        }
-                    },
                     {
                         "type": "string",
                         "default": "Bearer \u003cuser_token\u003e",
@@ -2615,6 +2654,15 @@ const docTemplate = `{
                         "name": "Authorization",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "description": "Complete lesson request",
+                        "name": "completeRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CompleteLessonRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -2629,7 +2677,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.CompleteLessonResponse"
+                                            "$ref": "#/definitions/dto.UserProgressResponse"
                                         }
                                     }
                                 }
@@ -2646,7 +2694,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Check if user can access a specific lesson",
+                "description": "Check user lesson access",
                 "consumes": [
                     "application/json"
                 ],
@@ -2656,21 +2704,21 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Check User Lesson Access",
+                "summary": "Check user lesson access",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Lesson ID",
-                        "name": "lessonId",
-                        "in": "path",
-                        "required": true
-                    },
                     {
                         "type": "string",
                         "default": "Bearer \u003cuser_token\u003e",
                         "description": "User Bearer Token",
                         "name": "Authorization",
                         "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lesson ID",
+                        "name": "lessonId",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -2703,7 +2751,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Get current user's profile information",
+                "description": "Get user profile",
                 "consumes": [
                     "application/json"
                 ],
@@ -2713,7 +2761,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Get User Profile",
+                "summary": "Get user profile",
                 "parameters": [
                     {
                         "type": "string",
@@ -2751,7 +2799,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Update user profile information",
+                "description": "Update user profile",
                 "consumes": [
                     "application/json"
                 ],
@@ -2761,7 +2809,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Update User Profile",
+                "summary": "Update user profile",
                 "parameters": [
                     {
                         "type": "string",
@@ -2772,8 +2820,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Update profile request",
-                        "name": "updateProfileRequest",
+                        "description": "User profile",
+                        "name": "updateRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -2810,7 +2858,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Get current user's game progress",
+                "description": "Get user progress",
                 "consumes": [
                     "application/json"
                 ],
@@ -2820,7 +2868,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Get User Progress",
+                "summary": "Get user progress",
                 "parameters": [
                     {
                         "type": "string",
@@ -2871,6 +2919,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get security settings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2910,6 +2968,14 @@ const docTemplate = `{
                 ],
                 "summary": "Update security settings",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Security settings",
                         "name": "updateRequest",
@@ -2960,6 +3026,16 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "Get user sessions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -3003,6 +3079,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "default": "Bearer \u003cuser_token\u003e",
+                        "description": "User Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
@@ -3038,7 +3122,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Share user achievement or progress on social media",
+                "description": "Share achievement",
                 "consumes": [
                     "application/json"
                 ],
@@ -3048,7 +3132,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Share Achievement",
+                "summary": "Share achievement",
                 "parameters": [
                     {
                         "type": "string",
@@ -3092,14 +3176,17 @@ const docTemplate = `{
         },
         "/api/v1/username/check/{username}": {
             "get": {
-                "description": "Check if a username is available for registration",
+                "description": "Check if username is available for registration",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "auth"
                 ],
-                "summary": "Check Username Availability",
+                "summary": "Check username availability",
                 "parameters": [
                     {
                         "type": "string",
@@ -3169,41 +3256,6 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "type": "object"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/ping": {
-            "get": {
-                "description": "This endpoint checks the health of the service",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "health"
-                ],
-                "summary": "Ping",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/shared.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "string"
                                         }
                                     }
                                 }
@@ -3604,26 +3656,6 @@ const docTemplate = `{
                 "time_spent": {
                     "type": "integer",
                     "minimum": 1
-                }
-            }
-        },
-        "dto.CompleteLessonResponse": {
-            "type": "object",
-            "properties": {
-                "character_unlock": {
-                    "type": "string"
-                },
-                "leveled_up": {
-                    "type": "boolean"
-                },
-                "new_level": {
-                    "type": "integer"
-                },
-                "spirit_evolved": {
-                    "type": "boolean"
-                },
-                "xp_gained": {
-                    "type": "integer"
                 }
             }
         },
@@ -4720,7 +4752,57 @@ const docTemplate = `{
             }
         },
         "model.Character": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "achievements": {
+                    "description": "JSON array of achievements",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "birth_year": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "death_year": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dynasty": {
+                    "type": "string"
+                },
+                "era": {
+                    "description": "\"Bac_Thuoc\", \"Doc_Lap\", etc.",
+                    "type": "string"
+                },
+                "famous_quote": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_unlocked": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rarity": {
+                    "description": "Common, Rare, Legendary",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
         },
         "shared.Response": {
             "type": "object",
