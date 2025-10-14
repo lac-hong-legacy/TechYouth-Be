@@ -1,6 +1,6 @@
 services:
   ven-api:
-    image: ${DOCKER_USERNAME:-hxuan190}/ven-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/lac-hong-legacy/ven-api:latest
     ports:
       - "8000:8000"
     environment:
