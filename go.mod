@@ -3,8 +3,8 @@ module github.com/lac-hong-legacy/ven_api
 go 1.24.2
 
 require (
-	github.com/alphabatem/common v1.2.3
 	github.com/bytedance/sonic v1.13.3
+	github.com/cloakd/common v1.0.1
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/joho/godotenv v1.5.1

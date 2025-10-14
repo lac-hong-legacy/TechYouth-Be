@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/lac-hong-legacy/ven_api/services"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 )
@@ -14,7 +14,7 @@ func main() {
 		log.Info("Error loading .env file", err)
 	}
 
-	ctx, err := context.NewCtx(
+	ctx, err := context.NewContext(
 		&services.PostgresService{},
 		&services.RedisService{},
 		&services.MinIOService{},

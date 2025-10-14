@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/google/uuid"
 	"github.com/lac-hong-legacy/ven_api/dto"
 	"github.com/lac-hong-legacy/ven_api/model"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/alphabatem/common/context"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,7 +22,7 @@ import (
 )
 
 type PostgresService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 	db *gorm.DB
 
 	database string

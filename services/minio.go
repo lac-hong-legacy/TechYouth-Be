@@ -7,14 +7,15 @@ import (
 	"os"
 	"time"
 
-	appcontext "github.com/alphabatem/common/context"
+	appcontext "github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	log "github.com/sirupsen/logrus"
 )
 
 type MinIOService struct {
-	appcontext.DefaultService
+	serviceContext.DefaultService
 	client     *minio.Client
 	bucketName string
 	endpoint   string

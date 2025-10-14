@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	appContext "github.com/alphabatem/common/context"
+	appContext "github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,7 +26,7 @@ type GeolocationResponse struct {
 }
 
 type GeolocationService struct {
-	appContext.DefaultService
+	serviceContext.DefaultService
 	httpClient  *http.Client
 	apiURL      string
 	redisSvc    *RedisService

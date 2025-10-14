@@ -7,14 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/lac-hong-legacy/ven_api/dto"
 	"github.com/lac-hong-legacy/ven_api/model"
 	log "github.com/sirupsen/logrus"
 )
 
 type ContentService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 	sqlSvc *PostgresService
 }
 

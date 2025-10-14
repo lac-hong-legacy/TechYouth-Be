@@ -8,12 +8,13 @@ import (
 	"strconv"
 	"time"
 
-	appContext "github.com/alphabatem/common/context"
+	appContext "github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/redis/go-redis/v9"
 )
 
 type RedisService struct {
-	appContext.DefaultService
+	serviceContext.DefaultService
 	redis *redis.Client
 }
 

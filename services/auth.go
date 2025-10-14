@@ -16,7 +16,8 @@ import (
 	"github.com/lac-hong-legacy/ven_api/shared"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,7 +43,7 @@ type LoginNotificationEmail struct {
 }
 
 type AuthService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 
 	sqlSvc         *PostgresService
 	jwtSvc         *JWTService

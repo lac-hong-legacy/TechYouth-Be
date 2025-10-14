@@ -7,12 +7,13 @@ import (
 	"net/smtp"
 	"os"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	log "github.com/sirupsen/logrus"
 )
 
 type EmailService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 
 	smtpHost     string
 	smtpPort     string

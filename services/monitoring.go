@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	commonCtx "github.com/alphabatem/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -128,7 +128,7 @@ var (
 )
 
 type MonitoringService struct {
-	commonCtx.DefaultService
+	serviceContext.DefaultService
 
 	port     int
 	register *prometheus.Registry

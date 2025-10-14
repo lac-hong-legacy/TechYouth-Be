@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/google/uuid"
 	"github.com/lac-hong-legacy/ven_api/dto"
 	"github.com/lac-hong-legacy/ven_api/model"
@@ -16,7 +17,7 @@ import (
 )
 
 type UserService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 
 	contentSvc *ContentService
 	sqlSvc     *PostgresService

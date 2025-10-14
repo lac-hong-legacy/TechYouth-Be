@@ -9,7 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/gofiber/fiber/v2"
 	"github.com/lac-hong-legacy/ven_api/dto"
 	"github.com/lac-hong-legacy/ven_api/model"
@@ -18,7 +19,7 @@ import (
 )
 
 type RateLimitService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 
 	configs map[string]*RateLimitConfig
 	mutex   sync.RWMutex

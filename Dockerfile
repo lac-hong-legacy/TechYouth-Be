@@ -8,15 +8,8 @@ RUN apk add --no-cache git ca-certificates
 # Copy mod files first for better build caching
 COPY go.mod go.sum ./
 
-# ARG for GitHub token (passed from CI)
-ARG GITHUB_TOKEN
-
 # Configure git auth + Go private modules
-RUN if [ -n "$GITHUB_TOKEN" ]; then \
-      git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"; \
-    fi && \
-    go env -w GOPRIVATE=github.com/alphabatem/*,github.com/lac-hong-legacy/* && \
-    go mod download
+RUN go mod download
 
 # Copy the rest of the app
 COPY . .

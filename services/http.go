@@ -7,7 +7,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -21,15 +22,15 @@ import (
 )
 
 type HttpService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 
-	jwtSvc        *JWTService
-	authSvc       *AuthService
-	guestSvc      *GuestService
-	contentSvc    *ContentService
-	userSvc       *UserService
-	mediaSvc      *MediaService
-	sqliteSvc     *PostgresService
+	jwtSvc     *JWTService
+	authSvc    *AuthService
+	guestSvc   *GuestService
+	contentSvc *ContentService
+	userSvc    *UserService
+	mediaSvc   *MediaService
+	sqliteSvc  *PostgresService
 	// monitoringSvc *MonitoringService
 
 	internalPassword string

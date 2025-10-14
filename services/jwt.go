@@ -7,16 +7,17 @@ import (
 	"os"
 	"time"
 
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lac-hong-legacy/ven_api/dto"
 	"github.com/lac-hong-legacy/ven_api/model"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
 )
 
 type JWTService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 
 	AccessTokenDuration  time.Duration
 	RefreshTokenDuration time.Duration

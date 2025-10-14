@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alphabatem/common/context"
+	"github.com/cloakd/common/context"
+	serviceContext "github.com/cloakd/common/services"
 	"github.com/google/uuid"
 	"github.com/lac-hong-legacy/ven_api/model"
 	"github.com/lac-hong-legacy/ven_api/shared"
@@ -13,7 +14,7 @@ import (
 )
 
 type GuestService struct {
-	context.DefaultService
+	serviceContext.DefaultService
 
 	sqlSvc *PostgresService
 }
