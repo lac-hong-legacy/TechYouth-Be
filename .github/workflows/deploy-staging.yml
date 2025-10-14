@@ -16,6 +16,9 @@ jobs:
   build:
     name: 🏗️ Build & Push Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: 🧾 Checkout code
