@@ -207,7 +207,7 @@ func (svc *RateLimitService) IsAllowed(identifier, endpointType string) (bool, *
 	windowStart := now.Add(-config.WindowSize)
 
 	// Get current rate limit record
-	rateLimit, err := svc.sqlSvc.GetRateLimit(identifier, endpointType)
+	rateLimit, err := svc.sqlSvc.rateLimitRepo.GetRateLimit(identifier, endpointType)
 	if err != nil {
 		return false, nil, err
 	}
@@ -234,7 +234,7 @@ func (svc *RateLimitService) IsAllowed(identifier, endpointType string) (bool, *
 			UpdatedAt:    now,
 		}
 
-		if err := svc.sqlSvc.SaveRateLimit(rateLimit); err != nil {
+		if err := svc.sqlSvc.rateLimitRepo.SaveRateLimit(rateLimit); err != nil {
 			return false, nil, err
 		}
 
@@ -253,7 +253,7 @@ func (svc *RateLimitService) IsAllowed(identifier, endpointType string) (bool, *
 		rateLimit.BlockedUntil = &blockedUntil
 		rateLimit.UpdatedAt = now
 
-		if err := svc.sqlSvc.UpdateRateLimit(rateLimit); err != nil {
+		if err := svc.sqlSvc.rateLimitRepo.UpdateRateLimit(rateLimit); err != nil {
 			return false, nil, err
 		}
 
@@ -269,7 +269,7 @@ func (svc *RateLimitService) IsAllowed(identifier, endpointType string) (bool, *
 	rateLimit.RequestCount++
 	rateLimit.UpdatedAt = now
 
-	if err := svc.sqlSvc.UpdateRateLimit(rateLimit); err != nil {
+	if err := svc.sqlSvc.rateLimitRepo.UpdateRateLimit(rateLimit); err != nil {
 		return false, nil, err
 	}
 
@@ -700,7 +700,7 @@ func (svc *RateLimitService) UpdateConfig() fiber.Handler {
 // ==================== BACKGROUND JOBS ====================
 
 func (svc *RateLimitService) CleanupOldRecords() error {
-	return svc.sqlSvc.CleanupOldRecords()
+	return svc.sqlSvc.rateLimitRepo.CleanupOldRecords()
 }
 
 func (svc *RateLimitService) startCleanupJob() {

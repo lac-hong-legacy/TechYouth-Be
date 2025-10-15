@@ -84,6 +84,7 @@ type ContentServiceInterface interface {
 	MapLessonToResponse(lesson *model.Lesson) dto.LessonResponse
 	MarkAudioUploaded(lessonID string) error
 	MarkAnimationUploaded(lessonID string) error
+	GetProgress(sessionID string) (*model.GuestProgress, error)
 }
 
 type MediaServiceInterface interface {
@@ -93,9 +94,5 @@ type MediaServiceInterface interface {
 	DeleteMediaAsset(assetID string) error
 	UploadLessonAudio(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error)
 	UploadLessonAnimation(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error)
-}
-
-type PostgresServiceInterface interface {
-	GetProgress(sessionID string) (*model.GuestProgress, error)
 	GetMediaStatistics() (map[string]interface{}, error)
 }

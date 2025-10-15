@@ -136,7 +136,7 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 	}
 
 	// Save to database
-	if err := svc.sqlSvc.CreateMediaAsset(mediaAsset); err != nil {
+	if err := svc.sqlSvc.mediaRepo.CreateMediaAsset(mediaAsset); err != nil {
 		// Clean up file if database save fails
 		svc.minioSvc.DeleteFile(objectName)
 		return nil, err
@@ -153,7 +153,7 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 			CreatedAt:    time.Now(),
 		}
 
-		if err := svc.sqlSvc.CreateLessonMedia(lessonMedia); err != nil {
+		if err := svc.sqlSvc.mediaRepo.CreateLessonMedia(lessonMedia); err != nil {
 			log.Printf("Failed to link media to lesson: %v", err)
 		}
 	}
@@ -172,7 +172,7 @@ func (svc *MediaService) uploadFile(file *multipart.FileHeader, fileType, lesson
 // ==================== MEDIA RETRIEVAL METHODS ====================
 
 func (svc *MediaService) GetLessonMedia(lessonID string) (*dto.LessonMediaResponse, error) {
-	mediaAssets, err := svc.sqlSvc.GetLessonMediaAssets(lessonID)
+	mediaAssets, err := svc.sqlSvc.mediaRepo.GetLessonMediaAssets(lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (svc *MediaService) GenerateVideoThumbnail(mediaAssetID string) error {
 // ==================== PRODUCTION WORKFLOW METHODS ====================
 
 func (svc *MediaService) UploadLessonAudio(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, shared.NewNotFoundError(err, "Lesson not found")
 	}
@@ -294,7 +294,7 @@ func (svc *MediaService) UploadLessonAudio(lessonID string, file *multipart.File
 	}
 
 	lesson.AudioURL = response.URL
-	if err := svc.sqlSvc.UpdateLesson(lesson); err != nil {
+	if err := svc.sqlSvc.contentRepo.UpdateLesson(lesson); err != nil {
 		return nil, err
 	}
 
@@ -302,7 +302,7 @@ func (svc *MediaService) UploadLessonAudio(lessonID string, file *multipart.File
 }
 
 func (svc *MediaService) UploadLessonAnimation(lessonID string, file *multipart.FileHeader) (*dto.MediaUploadResponse, error) {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, shared.NewNotFoundError(err, "Lesson not found")
 	}
@@ -325,7 +325,7 @@ func (svc *MediaService) UploadLessonAnimation(lessonID string, file *multipart.
 	}
 
 	lesson.AnimationURL = response.URL
-	if err := svc.sqlSvc.UpdateLesson(lesson); err != nil {
+	if err := svc.sqlSvc.contentRepo.UpdateLesson(lesson); err != nil {
 		return nil, err
 	}
 
@@ -335,7 +335,7 @@ func (svc *MediaService) UploadLessonAnimation(lessonID string, file *multipart.
 // ==================== CLEANUP METHODS ====================
 
 func (svc *MediaService) DeleteMediaAsset(mediaAssetID string) error {
-	asset, err := svc.sqlSvc.GetMediaAsset(mediaAssetID)
+	asset, err := svc.sqlSvc.mediaRepo.GetMediaAsset(mediaAssetID)
 	if err != nil {
 		return err
 	}
@@ -346,5 +346,13 @@ func (svc *MediaService) DeleteMediaAsset(mediaAssetID string) error {
 	}
 
 	// Delete database records
-	return svc.sqlSvc.DeleteMediaAsset(mediaAssetID)
+	return svc.sqlSvc.mediaRepo.DeleteMediaAsset(mediaAssetID)
+}
+
+func (svc *MediaService) GetMediaStatistics() (map[string]interface{}, error) {
+	stats, err := svc.sqlSvc.mediaRepo.GetMediaStatistics()
+	if err != nil {
+		return nil, err
+	}
+	return stats, nil
 }

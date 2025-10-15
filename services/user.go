@@ -63,7 +63,7 @@ func (svc *UserService) startHeartResetScheduler() {
 // Initialize user profile after registration
 func (svc *UserService) InitializeUserProfile(userID string, birthYear int) error {
 	// Check if user already has progress
-	existingProgress, err := svc.sqlSvc.GetUserProgress(userID)
+	existingProgress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err == nil && existingProgress != nil {
 		// Progress already exists, check if we need to update the spirit
 		return svc.updateUserSpirit(userID, birthYear)
@@ -89,7 +89,7 @@ func (svc *UserService) InitializeUserProfile(userID string, birthYear int) erro
 		UpdatedAt:          now,
 	}
 
-	if _, err := svc.sqlSvc.CreateUserProgress(progress); err != nil {
+	if _, err := svc.sqlSvc.contentRepo.CreateUserProgress(progress); err != nil {
 		return err
 	}
 
@@ -108,7 +108,7 @@ func (svc *UserService) InitializeUserProfile(userID string, birthYear int) erro
 		UpdatedAt: now,
 	}
 
-	if _, err := svc.sqlSvc.CreateSpirit(spirit); err != nil {
+	if _, err := svc.sqlSvc.contentRepo.CreateSpirit(spirit); err != nil {
 		return err
 	}
 
@@ -133,7 +133,7 @@ func (svc *UserService) ResetDailyHearts() error {
 	now := time.Now()
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
-	users, err := svc.sqlSvc.GetUsersForHeartReset(startOfDay)
+	users, err := svc.sqlSvc.contentRepo.GetUsersForHeartReset(startOfDay)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (svc *UserService) ResetDailyHearts() error {
 }
 
 func (svc *UserService) resetUserHearts(userID string) error {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return err
 	}
@@ -158,12 +158,12 @@ func (svc *UserService) resetUserHearts(userID string) error {
 	progress.LastHeartReset = &now
 	progress.UpdatedAt = now
 
-	return svc.sqlSvc.UpdateUserProgress(progress)
+	return svc.sqlSvc.contentRepo.UpdateUserProgress(progress)
 }
 
 // Complete lesson for registered user
 func (svc *UserService) CompleteLesson(userID, lessonID string, score, timeSpent int) error {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (svc *UserService) CompleteLesson(userID, lessonID string, score, timeSpent
 		log.Printf("Failed to update streak: %v", err)
 	}
 
-	return svc.sqlSvc.UpdateUserProgress(progress)
+	return svc.sqlSvc.contentRepo.UpdateUserProgress(progress)
 }
 
 func (svc *UserService) calculateXP(score int) int {
@@ -247,7 +247,7 @@ func (svc *UserService) calculateLevel(totalXP int) int {
 }
 
 func (svc *UserService) updateSpiritXP(userID string, xpGained int) error {
-	spirit, err := svc.sqlSvc.GetUserSpirit(userID)
+	spirit, err := svc.sqlSvc.contentRepo.GetUserSpirit(userID)
 	if err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func (svc *UserService) updateSpiritXP(userID string, xpGained int) error {
 		// TODO: Trigger evolution animation/notification
 	}
 
-	return svc.sqlSvc.UpdateSpirit(spirit)
+	return svc.sqlSvc.contentRepo.UpdateSpirit(spirit)
 }
 
 func (svc *UserService) getNextStageXPRequirement(stage int) int {
@@ -282,7 +282,7 @@ func (svc *UserService) getNextStageXPRequirement(stage int) int {
 }
 
 func (svc *UserService) updateStreak(userID string) error {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return err
 	}
@@ -315,7 +315,7 @@ func (svc *UserService) updateStreak(userID string) error {
 	}
 
 	progress.LastActivityDate = &now
-	return svc.sqlSvc.UpdateUserProgress(progress)
+	return svc.sqlSvc.contentRepo.UpdateUserProgress(progress)
 }
 
 func (svc *UserService) checkCharacterUnlock(userID, lessonID string) error {
@@ -334,7 +334,7 @@ func max(a, b int) int {
 // ==================== PROFILE METHODS ====================
 
 func (svc *UserService) updateUserSpirit(userID string, birthYear int) error {
-	spirit, err := svc.sqlSvc.GetUserSpirit(userID)
+	spirit, err := svc.sqlSvc.contentRepo.GetUserSpirit(userID)
 	if err != nil {
 		// If no spirit exists, create one
 		if strings.Contains(err.Error(), "not found") {
@@ -347,7 +347,7 @@ func (svc *UserService) updateUserSpirit(userID string, birthYear int) error {
 	if spirit.Type != newType {
 		spirit.Type = newType
 		spirit.ImageURL = svc.getSpiritImageURL(newType, spirit.Stage)
-		return svc.sqlSvc.UpdateSpirit(spirit)
+		return svc.sqlSvc.contentRepo.UpdateSpirit(spirit)
 	}
 
 	return nil
@@ -356,12 +356,12 @@ func (svc *UserService) updateUserSpirit(userID string, birthYear int) error {
 // ==================== PROGRESS METHODS ====================
 
 func (svc *UserService) GetUserProgress(userID string) (*dto.UserProgressResponse, error) {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	spirit, err := svc.sqlSvc.GetUserSpirit(userID)
+	spirit, err := svc.sqlSvc.contentRepo.GetUserSpirit(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +377,7 @@ func (svc *UserService) GetUserProgress(userID string) (*dto.UserProgressRespons
 	}
 
 	// Get recent achievements
-	achievements, err := svc.sqlSvc.GetUserAchievements(userID)
+	achievements, err := svc.sqlSvc.contentRepo.GetUserAchievements(userID)
 	if err != nil {
 		log.Printf("Failed to get user achievements: %v", err)
 		achievements = []model.UserAchievement{}
@@ -454,7 +454,7 @@ func (svc *UserService) getTotalXPForLevel(targetLevel int) int {
 // ==================== LESSON ACCESS AND COMPLETION ====================
 
 func (svc *UserService) CheckLessonAccess(userID, lessonID string) (*dto.LessonAccessResponse, error) {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +488,7 @@ func (svc *UserService) checkCharacterUnlockForLesson(userID, lessonID string) s
 // ==================== HEARTS MANAGEMENT ====================
 
 func (svc *UserService) GetHeartStatus(userID string) (*dto.HeartStatusResponse, error) {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -510,7 +510,7 @@ func (svc *UserService) GetHeartStatus(userID string) (*dto.HeartStatusResponse,
 }
 
 func (svc *UserService) AddHearts(userID, source string, amount int) (*dto.HeartStatusResponse, error) {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +536,7 @@ func (svc *UserService) AddHearts(userID, source string, amount int) (*dto.Heart
 		progress.Hearts = min(progress.Hearts+amount, progress.MaxHearts)
 	}
 
-	if err := svc.sqlSvc.UpdateUserProgress(progress); err != nil {
+	if err := svc.sqlSvc.contentRepo.UpdateUserProgress(progress); err != nil {
 		return nil, err
 	}
 
@@ -544,14 +544,14 @@ func (svc *UserService) AddHearts(userID, source string, amount int) (*dto.Heart
 }
 
 func (svc *UserService) LoseHeart(userID string) (*dto.HeartStatusResponse, error) {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return nil, err
 	}
 
 	if progress.Hearts > 0 {
 		progress.Hearts--
-		if err := svc.sqlSvc.UpdateUserProgress(progress); err != nil {
+		if err := svc.sqlSvc.contentRepo.UpdateUserProgress(progress); err != nil {
 			return nil, err
 		}
 	}
@@ -569,7 +569,7 @@ func min(a, b int) int {
 // ==================== COLLECTION METHODS ====================
 
 func (svc *UserService) GetUserCollection(userID string) (*dto.CollectionResponse, error) {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -581,7 +581,7 @@ func (svc *UserService) GetUserCollection(userID string) (*dto.CollectionRespons
 	}
 
 	// Get all characters to show collection progress
-	allCharacters, err := svc.sqlSvc.GetCharactersByDynasty("") // Get all
+	allCharacters, err := svc.sqlSvc.contentRepo.GetCharactersByDynasty("") // Get all
 	if err != nil {
 		return nil, err
 	}
@@ -618,7 +618,7 @@ func (svc *UserService) GetUserCollection(userID string) (*dto.CollectionRespons
 	}
 
 	// Get user achievements
-	userAchievements, err := svc.sqlSvc.GetUserAchievements(userID)
+	userAchievements, err := svc.sqlSvc.contentRepo.GetUserAchievements(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +667,7 @@ func (svc *UserService) isCharacterUnlocked(characterID string, unlockedIDs []st
 // ==================== LEADERBOARD METHODS ====================
 
 func (svc *UserService) GetWeeklyLeaderboard(limit int, currentUserID string) (*dto.LeaderboardResponse, error) {
-	users, err := svc.sqlSvc.GetWeeklyLeaderboard(limit)
+	users, err := svc.sqlSvc.contentRepo.GetWeeklyLeaderboard(limit)
 	if err != nil {
 		return nil, err
 	}
@@ -676,7 +676,7 @@ func (svc *UserService) GetWeeklyLeaderboard(limit int, currentUserID string) (*
 }
 
 func (svc *UserService) GetMonthlyLeaderboard(limit int, currentUserID string) (*dto.LeaderboardResponse, error) {
-	users, err := svc.sqlSvc.GetMonthlyLeaderboard(limit)
+	users, err := svc.sqlSvc.contentRepo.GetMonthlyLeaderboard(limit)
 	if err != nil {
 		return nil, err
 	}
@@ -685,7 +685,7 @@ func (svc *UserService) GetMonthlyLeaderboard(limit int, currentUserID string) (
 }
 
 func (svc *UserService) GetAllTimeLeaderboard(limit int, currentUserID string) (*dto.LeaderboardResponse, error) {
-	users, err := svc.sqlSvc.GetAllTimeLeaderboard(limit)
+	users, err := svc.sqlSvc.contentRepo.GetAllTimeLeaderboard(limit)
 	if err != nil {
 		return nil, err
 	}
@@ -699,14 +699,14 @@ func (svc *UserService) buildLeaderboardResponse(period string, users []model.Us
 
 	for i, user := range users {
 		// Get user details
-		userDetails, err := svc.sqlSvc.GetUser(user.UserID)
+		userDetails, err := svc.sqlSvc.userRepo.GetUser(user.UserID)
 		if err != nil {
 			log.Printf("Failed to get user details for %s: %v", user.UserID, err)
 			continue
 		}
 
 		// Get user's spirit
-		spirit, err := svc.sqlSvc.GetUserSpirit(user.UserID)
+		spirit, err := svc.sqlSvc.contentRepo.GetUserSpirit(user.UserID)
 		if err != nil {
 			log.Printf("Failed to get spirit for user %s: %v", user.UserID, err)
 			spirit = &model.Spirit{Type: "unknown", Stage: 1}
@@ -731,13 +731,13 @@ func (svc *UserService) buildLeaderboardResponse(period string, users []model.Us
 
 	// If current user is not in top list, get their rank
 	if currentUserID != "" && currentUser.UserID == "" {
-		rank, err := svc.sqlSvc.GetUserRank(currentUserID)
+		rank, err := svc.sqlSvc.contentRepo.GetUserRank(currentUserID)
 		if err == nil {
-			userProgress, err := svc.sqlSvc.GetUserProgress(currentUserID)
+			userProgress, err := svc.sqlSvc.contentRepo.GetUserProgress(currentUserID)
 			if err == nil {
-				userDetails, err := svc.sqlSvc.GetUser(currentUserID)
+				userDetails, err := svc.sqlSvc.userRepo.GetUser(currentUserID)
 				if err == nil {
-					spirit, err := svc.sqlSvc.GetUserSpirit(currentUserID)
+					spirit, err := svc.sqlSvc.contentRepo.GetUserSpirit(currentUserID)
 					if err != nil {
 						spirit = &model.Spirit{Type: "unknown", Stage: 1}
 					}
@@ -766,7 +766,7 @@ func (svc *UserService) buildLeaderboardResponse(period string, users []model.Us
 // ==================== SOCIAL FEATURES ====================
 
 func (svc *UserService) CreateShareContent(userID string, req dto.ShareRequest) (*dto.ShareResponse, error) {
-	progress, err := svc.sqlSvc.GetUserProgress(userID)
+	progress, err := svc.sqlSvc.contentRepo.GetUserProgress(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -820,7 +820,7 @@ func (svc *UserService) CheckUsernameAvailability(username string) (bool, error)
 	}
 
 	// Check if username is already taken
-	_, err := svc.sqlSvc.GetUserByUsername(username)
+	_, err := svc.sqlSvc.userRepo.GetUserByUsername(username)
 	if err == nil {
 		return false, nil // Username exists
 	}
@@ -831,12 +831,12 @@ func (svc *UserService) CheckUsernameAvailability(username string) (bool, error)
 // ==================== USER PROFILE METHODS ====================
 
 func (svc *UserService) GetUserProfile(userID string) (*dto.UserProfileResponse, error) {
-	user, err := svc.sqlSvc.GetUserProfile(userID)
+	user, err := svc.sqlSvc.userRepo.GetUserProfile(userID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get user profile")
 	}
 
-	stats, err := svc.sqlSvc.GetUserStats(userID)
+	stats, err := svc.sqlSvc.userRepo.GetUserStats(userID)
 	if err != nil {
 		// Don't fail if stats can't be retrieved, just log it
 		log.WithError(err).WithField("userID", userID).Error("Failed to get user stats")
@@ -891,7 +891,7 @@ func (svc *UserService) UpdateUserProfile(userID string, req dto.UpdateProfileRe
 	}
 
 	if len(updates) > 0 {
-		err := svc.sqlSvc.UpdateUserProfile(userID, updates)
+		err := svc.sqlSvc.userRepo.UpdateUserProfile(userID, updates)
 		if err != nil {
 			return nil, shared.NewInternalError(err, "Failed to update profile")
 		}
@@ -902,7 +902,7 @@ func (svc *UserService) UpdateUserProfile(userID string, req dto.UpdateProfileRe
 }
 
 func (svc *UserService) IsEmailAvailable(email string) (bool, error) {
-	available, err := svc.sqlSvc.IsEmailAvailable(email)
+	available, err := svc.sqlSvc.userRepo.IsEmailAvailable(email)
 	if err != nil {
 		return false, shared.NewInternalError(err, "Failed to check email availability")
 	}
@@ -912,7 +912,7 @@ func (svc *UserService) IsEmailAvailable(email string) (bool, error) {
 // ==================== SESSION MANAGEMENT ====================
 
 func (svc *UserService) GetUserSessions(userID, currentSessionID string) (*dto.SessionListResponse, error) {
-	sessions, err := svc.sqlSvc.GetUserSessions(userID)
+	sessions, err := svc.sqlSvc.userRepo.GetUserSessions(userID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get user sessions")
 	}
@@ -938,7 +938,7 @@ func (svc *UserService) GetUserSessions(userID, currentSessionID string) (*dto.S
 }
 
 func (svc *UserService) RevokeUserSession(userID, sessionID string) error {
-	err := svc.sqlSvc.DeactivateSession(sessionID, userID)
+	err := svc.sqlSvc.userRepo.DeactivateSession(sessionID, userID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to revoke session")
 	}
@@ -948,7 +948,7 @@ func (svc *UserService) RevokeUserSession(userID, sessionID string) error {
 // ==================== SECURITY SETTINGS ====================
 
 func (svc *UserService) GetSecuritySettings(userID string) (*dto.SecuritySettings, error) {
-	settings, err := svc.sqlSvc.GetSecuritySettings(userID)
+	settings, err := svc.sqlSvc.userRepo.GetSecuritySettings(userID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get security settings")
 	}
@@ -964,7 +964,7 @@ func (svc *UserService) UpdateSecuritySettings(userID string, req dto.UpdateSecu
 		}
 	}
 
-	err := svc.sqlSvc.UpdateSecuritySettings(userID, req)
+	err := svc.sqlSvc.userRepo.UpdateSecuritySettings(userID, req)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to update security settings")
 	}
@@ -976,7 +976,7 @@ func (svc *UserService) UpdateSecuritySettings(userID string, req dto.UpdateSecu
 // ==================== AUDIT LOGS ====================
 
 func (svc *UserService) GetUserAuditLogs(userID string, page, limit int) (*dto.AuditLogResponse, error) {
-	logs, total, err := svc.sqlSvc.GetUserAuditLogs(userID, page, limit)
+	logs, total, err := svc.sqlSvc.userRepo.GetUserAuditLogs(userID, page, limit)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get audit logs")
 	}
@@ -1006,7 +1006,7 @@ func (svc *UserService) GetUserAuditLogs(userID string, page, limit int) (*dto.A
 // ==================== ADMIN USER MANAGEMENT ====================
 
 func (svc *UserService) AdminGetUsers(page, limit int, search string) (*dto.AdminUserListResponse, error) {
-	users, total, err := svc.sqlSvc.AdminGetUsers(page, limit, search)
+	users, total, err := svc.sqlSvc.userRepo.AdminGetUsers(page, limit, search)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get users")
 	}
@@ -1059,14 +1059,14 @@ func (svc *UserService) AdminUpdateUser(userID string, req dto.AdminUpdateUserRe
 	}
 
 	if len(updates) > 0 {
-		err := svc.sqlSvc.AdminUpdateUser(userID, updates)
+		err := svc.sqlSvc.userRepo.AdminUpdateUser(userID, updates)
 		if err != nil {
 			return nil, shared.NewInternalError(err, "Failed to update user")
 		}
 	}
 
 	// Get updated user info
-	user, err := svc.sqlSvc.GetUserByID(userID)
+	user, err := svc.sqlSvc.userRepo.GetUserByID(userID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get updated user")
 	}
@@ -1086,7 +1086,7 @@ func (svc *UserService) AdminUpdateUser(userID string, req dto.AdminUpdateUserRe
 }
 
 func (svc *UserService) AdminDeleteUser(userID string) error {
-	err := svc.sqlSvc.AdminDeleteUser(userID)
+	err := svc.sqlSvc.userRepo.AdminDeleteUser(userID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to delete user")
 	}
@@ -1096,7 +1096,7 @@ func (svc *UserService) AdminDeleteUser(userID string) error {
 // ==================== UTILITY METHODS ====================
 
 func (svc *UserService) GetUserInfo(userID string) (*dto.UserInfo, error) {
-	user, err := svc.sqlSvc.GetUserByID(userID)
+	user, err := svc.sqlSvc.userRepo.GetUserByID(userID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get user info")
 	}
@@ -1113,7 +1113,7 @@ func (svc *UserService) GetUserInfo(userID string) (*dto.UserInfo, error) {
 }
 
 func (svc *UserService) ValidateUser(userID string) (*model.User, error) {
-	user, err := svc.sqlSvc.GetUserByID(userID)
+	user, err := svc.sqlSvc.userRepo.GetUserByID(userID)
 	if err != nil {
 		return nil, shared.NewUnauthorizedError(err, "User not found")
 	}

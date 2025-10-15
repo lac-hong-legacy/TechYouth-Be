@@ -35,10 +35,10 @@ func (svc *GuestService) Start() error {
 }
 
 func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSession, error) {
-	session, err := svc.sqlSvc.GetSessionByDeviceID(deviceID)
+	session, err := svc.sqlSvc.sessionRepo.GetSessionByDeviceID(deviceID)
 	if err == nil && session != nil {
 		session.LastActivity = time.Now()
-		if err := svc.sqlSvc.UpdateSession(session); err != nil {
+		if err := svc.sqlSvc.sessionRepo.UpdateSession(session); err != nil {
 			log.Printf("Failed to update session activity: %v", err)
 		}
 		return session, nil
@@ -55,7 +55,7 @@ func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSessio
 		UpdatedAt:    time.Now(),
 	}
 
-	session, err = svc.sqlSvc.CreateSession(session)
+	session, err = svc.sqlSvc.sessionRepo.CreateSession(session)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSessio
 		UpdatedAt:        time.Now(),
 	}
 
-	_, err = svc.sqlSvc.CreateProgress(progress)
+	_, err = svc.sqlSvc.contentRepo.CreateProgress(progress)
 	if err != nil {
 		log.Printf("Failed to create initial progress: %v", err)
 		// Not returning error to avoid blocking session creation
@@ -89,7 +89,7 @@ func (svc *GuestService) CreateOrGetSession(deviceID string) (*model.GuestSessio
 }
 
 func (svc *GuestService) CanAccessLesson(sessionID, lessonID string) (bool, string, error) {
-	progress, err := svc.sqlSvc.GetProgress(sessionID)
+	progress, err := svc.sqlSvc.contentRepo.GetProgress(sessionID)
 	if err != nil {
 		return false, "", err
 	}
@@ -132,7 +132,7 @@ func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeS
 		return shared.NewForbiddenError(fmt.Errorf("access denied: %s", reason), "Access denied")
 	}
 
-	progress, err := svc.sqlSvc.GetProgress(sessionID)
+	progress, err := svc.sqlSvc.contentRepo.GetProgress(sessionID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to get progress")
 	}
@@ -180,12 +180,12 @@ func (svc *GuestService) CompleteLesson(sessionID, lessonID string, score, timeS
 		UpdatedAt:      time.Now(),
 	}
 
-	if err := svc.sqlSvc.CreateLessonAttempt(attempt); err != nil {
+	if err := svc.sqlSvc.contentRepo.CreateLessonAttempt(attempt); err != nil {
 		return shared.NewInternalError(err, "Failed to create lesson attempt")
 	}
 
 	// Update progress
-	return svc.sqlSvc.UpdateProgress(progress)
+	return svc.sqlSvc.contentRepo.UpdateProgress(progress)
 }
 
 func calculateXP(score int) int {
@@ -211,7 +211,7 @@ func calculateLevel(totalXP int) int {
 }
 
 func (svc *GuestService) AddHeartsFromAd(sessionID string) error {
-	progress, err := svc.sqlSvc.GetProgress(sessionID)
+	progress, err := svc.sqlSvc.contentRepo.GetProgress(sessionID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to get progress")
 	}
@@ -219,11 +219,11 @@ func (svc *GuestService) AddHeartsFromAd(sessionID string) error {
 	progress.Hearts = min(progress.Hearts+3, progress.MaxHearts)
 	progress.AdsWatched++
 
-	return svc.sqlSvc.UpdateProgress(progress)
+	return svc.sqlSvc.contentRepo.UpdateProgress(progress)
 }
 
 func (svc *GuestService) LoseHeart(sessionID string) error {
-	progress, err := svc.sqlSvc.GetProgress(sessionID)
+	progress, err := svc.sqlSvc.contentRepo.GetProgress(sessionID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to get progress")
 	}
@@ -232,5 +232,5 @@ func (svc *GuestService) LoseHeart(sessionID string) error {
 		progress.Hearts--
 	}
 
-	return svc.sqlSvc.UpdateProgress(progress)
+	return svc.sqlSvc.contentRepo.UpdateProgress(progress)
 }

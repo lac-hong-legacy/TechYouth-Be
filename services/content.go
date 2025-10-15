@@ -37,7 +37,7 @@ func (svc *ContentService) Start() error {
 // ==================== TIMELINE METHODS ====================
 
 func (svc *ContentService) GetTimeline() (*dto.TimelineCollectionResponse, error) {
-	timelines, err := svc.sqlSvc.GetTimeline()
+	timelines, err := svc.sqlSvc.contentRepo.GetTimeline()
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (svc *ContentService) GetTimeline() (*dto.TimelineCollectionResponse, error
 			// Fetch characters by IDs
 			characters := []model.Character{}
 			for _, charID := range characterIDs {
-				char, err := svc.sqlSvc.GetCharacter(charID)
+				char, err := svc.sqlSvc.contentRepo.GetCharacter(charID)
 				if err != nil {
 					log.Printf("Failed to get character %s: %v", charID, err)
 					continue
@@ -139,11 +139,11 @@ func (svc *ContentService) GetCharacters(dynasty, rarity string) (*dto.Character
 	var err error
 
 	if dynasty != "" {
-		characters, err = svc.sqlSvc.GetCharactersByDynasty(dynasty)
+		characters, err = svc.sqlSvc.contentRepo.GetCharactersByDynasty(dynasty)
 	} else if rarity != "" {
-		characters, err = svc.sqlSvc.GetCharactersByRarity(rarity)
+		characters, err = svc.sqlSvc.contentRepo.GetCharactersByRarity(rarity)
 	} else {
-		characters, err = svc.sqlSvc.GetCharactersByDynasty("") // Get all
+		characters, err = svc.sqlSvc.contentRepo.GetCharactersByDynasty("") // Get all
 	}
 
 	if err != nil {
@@ -158,7 +158,7 @@ func (svc *ContentService) GetCharacters(dynasty, rarity string) (*dto.Character
 		if char.IsUnlocked {
 			unlockedCount++
 		}
-		lessons, err := svc.sqlSvc.GetLessonsByCharacter(char.ID)
+		lessons, err := svc.sqlSvc.contentRepo.GetLessonsByCharacter(char.ID)
 		if err != nil {
 			log.Printf("Failed to get lesson count for character %s: %v", char.ID, err)
 		} else {
@@ -174,7 +174,7 @@ func (svc *ContentService) GetCharacters(dynasty, rarity string) (*dto.Character
 }
 
 func (svc *ContentService) GetCharacterDetails(characterID string) (*dto.CharacterResponse, error) {
-	character, err := svc.sqlSvc.GetCharacter(characterID)
+	character, err := svc.sqlSvc.contentRepo.GetCharacter(characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (svc *ContentService) GetCharacterDetails(characterID string) (*dto.Charact
 	response := svc.mapCharacterToResponse(character)
 
 	// Add lesson count
-	lessons, err := svc.sqlSvc.GetLessonsByCharacter(characterID)
+	lessons, err := svc.sqlSvc.contentRepo.GetLessonsByCharacter(characterID)
 	if err != nil {
 		log.Printf("Failed to get lesson count for character %s: %v", characterID, err)
 	} else {
@@ -220,7 +220,7 @@ func (svc *ContentService) mapCharacterToResponse(char *model.Character) dto.Cha
 // ==================== LESSON METHODS ====================
 
 func (svc *ContentService) GetCharacterLessons(characterID string) ([]dto.LessonResponse, error) {
-	lessons, err := svc.sqlSvc.GetLessonsByCharacter(characterID)
+	lessons, err := svc.sqlSvc.contentRepo.GetLessonsByCharacter(characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func (svc *ContentService) GetCharacterLessons(characterID string) ([]dto.Lesson
 }
 
 func (svc *ContentService) GetLessonContent(lessonID string) (*dto.LessonResponse, error) {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func (svc *ContentService) MapLessonToResponse(lesson *model.Lesson) dto.LessonR
 // ==================== SEARCH METHODS ====================
 
 func (svc *ContentService) SearchContent(req dto.SearchRequest) (*dto.SearchResponse, error) {
-	characters, err := svc.sqlSvc.SearchCharacters(req.Query, req.Era, req.Dynasty, req.Rarity, req.Limit)
+	characters, err := svc.sqlSvc.contentRepo.SearchCharacters(req.Query, req.Era, req.Dynasty, req.Rarity, req.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +318,7 @@ func (svc *ContentService) SearchContent(req dto.SearchRequest) (*dto.SearchResp
 // ==================== ADMIN METHODS ====================
 
 func (svc *ContentService) CreateCharacter(character *model.Character) (*dto.CharacterResponse, error) {
-	created, err := svc.sqlSvc.CreateCharacter(character)
+	created, err := svc.sqlSvc.contentRepo.CreateCharacter(character)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +328,7 @@ func (svc *ContentService) CreateCharacter(character *model.Character) (*dto.Cha
 }
 
 func (svc *ContentService) CreateLesson(lesson *model.Lesson) (*dto.LessonResponse, error) {
-	created, err := svc.sqlSvc.CreateLesson(lesson)
+	created, err := svc.sqlSvc.contentRepo.CreateLesson(lesson)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +339,7 @@ func (svc *ContentService) CreateLesson(lesson *model.Lesson) (*dto.LessonRespon
 
 func (svc *ContentService) CreateLessonFromRequest(req dto.CreateLessonRequest) (*dto.LessonResponse, error) {
 	// Validate character exists
-	_, err := svc.sqlSvc.GetCharacter(req.CharacterID)
+	_, err := svc.sqlSvc.contentRepo.GetCharacter(req.CharacterID)
 	if err != nil {
 		return nil, fmt.Errorf("character not found: %v", err)
 	}
@@ -402,7 +402,7 @@ func (svc *ContentService) CreateLessonFromRequest(req dto.CreateLessonRequest) 
 // ==================== VALIDATION METHODS ====================
 
 func (svc *ContentService) ValidateLessonAnswers(lessonID string, userAnswers map[string]interface{}) (*dto.ValidateLessonResponse, error) {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +484,7 @@ func (svc *ContentService) GetDynasties() ([]string, error) {
 
 func (svc *ContentService) SubmitQuestionAnswer(userID, lessonID, questionID string, answer interface{}) (*dto.SubmitQuestionAnswerResponse, error) {
 	// Get the lesson to validate the question
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +531,7 @@ func (svc *ContentService) SubmitQuestionAnswer(userID, lessonID, questionID str
 		Points:     points,
 	}
 
-	if err := svc.sqlSvc.SaveUserQuestionAnswer(userAnswer); err != nil {
+	if err := svc.sqlSvc.contentRepo.SaveUserQuestionAnswer(userAnswer); err != nil {
 		return nil, err
 	}
 
@@ -555,7 +555,7 @@ func (svc *ContentService) SubmitQuestionAnswer(userID, lessonID, questionID str
 
 func (svc *ContentService) CheckLessonStatus(userID, lessonID string) (*dto.CheckLessonStatusResponse, error) {
 	// Get the lesson
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -566,7 +566,7 @@ func (svc *ContentService) CheckLessonStatus(userID, lessonID string) (*dto.Chec
 	}
 
 	// Get user's answers for this lesson
-	userAnswers, err := svc.sqlSvc.GetUserQuestionAnswers(userID, lessonID)
+	userAnswers, err := svc.sqlSvc.contentRepo.GetUserQuestionAnswers(userID, lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func maxInt(a, b int) int {
 }
 
 func (svc *ContentService) UpdateLessonScript(lessonID, script string) (*model.Lesson, error) {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -641,7 +641,7 @@ func (svc *ContentService) UpdateLessonScript(lessonID, script string) (*model.L
 	lesson.ScriptStatus = "finalized"
 	lesson.ScriptUpdatedAt = &now
 
-	if err := svc.sqlSvc.UpdateLesson(lesson); err != nil {
+	if err := svc.sqlSvc.contentRepo.UpdateLesson(lesson); err != nil {
 		return nil, err
 	}
 
@@ -649,7 +649,7 @@ func (svc *ContentService) UpdateLessonScript(lessonID, script string) (*model.L
 }
 
 func (svc *ContentService) GetLessonProductionStatus(lessonID string) (*dto.LessonProductionStatusResponse, error) {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -677,7 +677,7 @@ func (svc *ContentService) GetLessonProductionStatus(lessonID string) (*dto.Less
 }
 
 func (svc *ContentService) MarkAudioUploaded(lessonID string) error {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return err
 	}
@@ -690,11 +690,11 @@ func (svc *ContentService) MarkAudioUploaded(lessonID string) error {
 	lesson.AudioStatus = "uploaded"
 	lesson.AudioUploadedAt = &now
 
-	return svc.sqlSvc.UpdateLesson(lesson)
+	return svc.sqlSvc.contentRepo.UpdateLesson(lesson)
 }
 
 func (svc *ContentService) MarkAnimationUploaded(lessonID string) error {
-	lesson, err := svc.sqlSvc.GetLesson(lessonID)
+	lesson, err := svc.sqlSvc.contentRepo.GetLesson(lessonID)
 	if err != nil {
 		return err
 	}
@@ -707,5 +707,9 @@ func (svc *ContentService) MarkAnimationUploaded(lessonID string) error {
 	lesson.AnimationStatus = "uploaded"
 	lesson.AnimationUploadedAt = &now
 
-	return svc.sqlSvc.UpdateLesson(lesson)
+	return svc.sqlSvc.contentRepo.UpdateLesson(lesson)
+}
+
+func (svc *ContentService) GetProgress(sessionID string) (*model.GuestProgress, error) {
+	return svc.sqlSvc.contentRepo.GetProgress(sessionID)
 }

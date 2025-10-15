@@ -139,7 +139,7 @@ func (svc *AuthService) generateVerificationCode() (string, error) {
 }
 
 func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.RegisterResponse, error) {
-	_, err := svc.sqlSvc.GetUserByUsername(registerRequest.Username)
+	_, err := svc.sqlSvc.userRepo.GetUserByUsername(registerRequest.Username)
 	if err == nil {
 		return nil, shared.NewBadRequestError(errors.New("username taken"), "Username is already taken")
 	}
@@ -159,7 +159,7 @@ func (svc *AuthService) Register(registerRequest dto.RegisterRequest) (*dto.Regi
 	}
 
 	registerRequest.Password = hashedPassword
-	user, err := svc.sqlSvc.CreateUser(registerRequest, verificationCode)
+	user, err := svc.sqlSvc.userRepo.CreateUser(registerRequest, verificationCode)
 	if err != nil {
 		return nil, shared.NewInternalError(err, err.Error())
 	}
@@ -193,7 +193,7 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 	// 	return nil, shared.NewTooManyRequestsError(errors.New("too many login attempts"), "Too many login attempts. Please try again later.")
 	// }
 
-	user, err := svc.sqlSvc.GetUserByEmailOrUsername(loginRequest.EmailOrUsername)
+	user, err := svc.sqlSvc.userRepo.GetUserByEmailOrUsername(loginRequest.EmailOrUsername)
 	if err != nil {
 		svc.logAuthEventCh <- dto.AuthAuditLog{
 			UserID:    "",
@@ -220,13 +220,13 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 
 	if !svc.checkPasswordHash(loginRequest.Password, user.Password) {
 		svc.dbOperationCh <- func() {
-			svc.sqlSvc.IncrementFailedAttempts(user.ID)
+			svc.sqlSvc.userRepo.IncrementFailedAttempts(user.ID)
 		}
 
 		if user.FailedAttempts >= svc.maxLoginAttempts-1 {
 			lockUntil := time.Now().Add(svc.lockoutDuration)
 			svc.dbOperationCh <- func() {
-				svc.sqlSvc.LockAccount(user.ID, lockUntil)
+				svc.sqlSvc.userRepo.LockAccount(user.ID, lockUntil)
 			}
 		}
 
@@ -246,7 +246,7 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.ResetFailedAttempts(user.ID)
+		svc.sqlSvc.userRepo.ResetFailedAttempts(user.ID)
 	}
 
 	// Generate tokens
@@ -274,7 +274,7 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 		IsActive:         true,
 	}
 
-	sessionID, err := svc.sqlSvc.CreateUserSession(session)
+	sessionID, err := svc.sqlSvc.userRepo.CreateUserSession(session)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to create session")
 	}
@@ -296,7 +296,7 @@ func (svc *AuthService) Login(loginRequest dto.LoginRequest, clientIP, userAgent
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.UpdateLastLogin(user.ID, clientIP)
+		svc.sqlSvc.userRepo.UpdateLastLogin(user.ID, clientIP)
 	}
 
 	location, geoErr := svc.geolocationSvc.GetLocationByIP(clientIP)
@@ -335,13 +335,13 @@ func (svc *AuthService) RefreshToken(refreshRequest dto.RefreshTokenRequest, cli
 	}
 
 	tokenHash := svc.hashToken(refreshRequest.RefreshToken)
-	session, err := svc.sqlSvc.GetActiveSession(userID, tokenHash)
+	session, err := svc.sqlSvc.userRepo.GetActiveSession(userID, tokenHash)
 	if err != nil {
 		return nil, shared.NewUnauthorizedError(err, "Session not found or expired")
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.UpdateSessionLastUsed(session.ID)
+		svc.sqlSvc.userRepo.UpdateSessionLastUsed(session.ID)
 	}
 
 	// Generate tokens with session_id
@@ -352,10 +352,10 @@ func (svc *AuthService) RefreshToken(refreshRequest dto.RefreshTokenRequest, cli
 
 	newTokenHash := svc.hashToken(tokenPair.RefreshToken)
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.UpdateSessionToken(session.ID, newTokenHash)
+		svc.sqlSvc.userRepo.UpdateSessionToken(session.ID, newTokenHash)
 	}
 
-	user, err := svc.sqlSvc.GetUserByID(userID)
+	user, err := svc.sqlSvc.userRepo.GetUserByID(userID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get user info")
 	}
@@ -401,14 +401,14 @@ func (svc *AuthService) Logout(userID, sessionID, accessToken, clientIP, userAge
 		}
 	}
 
-	session, err := svc.sqlSvc.GetSessionByID(sessionID)
+	session, err := svc.sqlSvc.userRepo.GetSessionByID(sessionID)
 	if err == nil && session != nil && session.RefreshTokenJTI != "" {
-		if err := svc.sqlSvc.BlacklistToken(session.RefreshTokenJTI, session.RefreshExpiresAt); err != nil {
+		if err := svc.sqlSvc.userRepo.BlacklistToken(session.RefreshTokenJTI, session.RefreshExpiresAt); err != nil {
 			log.WithError(err).Error("Failed to blacklist refresh token")
 		}
 	}
 
-	err = svc.sqlSvc.DeactivateSession(sessionID, userID)
+	err = svc.sqlSvc.userRepo.DeactivateSession(sessionID, userID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to logout")
 	}
@@ -432,18 +432,18 @@ func (svc *AuthService) LogoutAllDevices(userID, currentSessionID, accessToken, 
 		}
 	}
 
-	sessions, err := svc.sqlSvc.GetUserActiveSessions(userID)
+	sessions, err := svc.sqlSvc.userRepo.GetUserActiveSessions(userID)
 	if err == nil {
 		for _, session := range sessions {
 			if session.RefreshTokenJTI != "" {
-				if err := svc.sqlSvc.BlacklistToken(session.RefreshTokenJTI, session.RefreshExpiresAt); err != nil {
+				if err := svc.sqlSvc.userRepo.BlacklistToken(session.RefreshTokenJTI, session.RefreshExpiresAt); err != nil {
 					log.WithError(err).Errorf("Failed to blacklist refresh token for session %s", session.ID)
 				}
 			}
 		}
 	}
 
-	err = svc.sqlSvc.DeactivateAllUserSessions(userID, currentSessionID)
+	err = svc.sqlSvc.userRepo.DeactivateAllUserSessions(userID, currentSessionID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to logout from all devices")
 	}
@@ -461,7 +461,7 @@ func (svc *AuthService) LogoutAllDevices(userID, currentSessionID, accessToken, 
 }
 
 func (svc *AuthService) VerifyEmail(email, code string) error {
-	user, err := svc.sqlSvc.GetUserByVerificationCode(email, code)
+	user, err := svc.sqlSvc.userRepo.GetUserByVerificationCode(email, code)
 	if err != nil {
 		return shared.NewBadRequestError(err, "Invalid verification code or email")
 	}
@@ -475,7 +475,7 @@ func (svc *AuthService) VerifyEmail(email, code string) error {
 		return shared.NewBadRequestError(errors.New("code expired"), "Verification code has expired. Please request a new one")
 	}
 
-	err = svc.sqlSvc.VerifyUserEmail(user.ID)
+	err = svc.sqlSvc.userRepo.VerifyUserEmail(user.ID)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to verify email")
 	}
@@ -492,7 +492,7 @@ func (svc *AuthService) VerifyEmail(email, code string) error {
 }
 
 func (svc *AuthService) ResendVerificationEmail(email string) error {
-	user, err := svc.sqlSvc.GetUserByEmail(email)
+	user, err := svc.sqlSvc.userRepo.GetUserByEmail(email)
 	if err != nil {
 		return shared.NewBadRequestError(err, "User not found")
 	}
@@ -506,7 +506,7 @@ func (svc *AuthService) ResendVerificationEmail(email string) error {
 		return shared.NewInternalError(err, "Failed to generate verification code")
 	}
 
-	err = svc.sqlSvc.UpdateVerificationCode(user.ID, verificationCode)
+	err = svc.sqlSvc.userRepo.UpdateVerificationCode(user.ID, verificationCode)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to update verification code")
 	}
@@ -521,7 +521,7 @@ func (svc *AuthService) ResendVerificationEmail(email string) error {
 }
 
 func (svc *AuthService) ForgotPassword(email string) error {
-	user, err := svc.sqlSvc.GetUserByEmail(email)
+	user, err := svc.sqlSvc.userRepo.GetUserByEmail(email)
 	if err != nil {
 		return nil
 	}
@@ -532,7 +532,7 @@ func (svc *AuthService) ForgotPassword(email string) error {
 	}
 
 	expiresAt := time.Now().Add(time.Hour)
-	err = svc.sqlSvc.CreatePasswordResetCode(user.ID, resetCode, expiresAt)
+	err = svc.sqlSvc.userRepo.CreatePasswordResetCode(user.ID, resetCode, expiresAt)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to create reset code")
 	}
@@ -559,7 +559,7 @@ func (svc *AuthService) ResetPassword(resetRequest dto.ResetPasswordRequest) err
 		return shared.NewBadRequestError(err, err.Error())
 	}
 
-	resetCode, err := svc.sqlSvc.GetPasswordResetCode(resetRequest.Code)
+	resetCode, err := svc.sqlSvc.userRepo.GetPasswordResetCode(resetRequest.Code)
 	if err != nil {
 		return shared.NewBadRequestError(err, "Invalid reset code")
 	}
@@ -573,17 +573,17 @@ func (svc *AuthService) ResetPassword(resetRequest dto.ResetPasswordRequest) err
 		return shared.NewInternalError(err, "Failed to hash password")
 	}
 
-	err = svc.sqlSvc.UpdateUserPassword(resetCode.UserID, hashedPassword)
+	err = svc.sqlSvc.userRepo.UpdateUserPassword(resetCode.UserID, hashedPassword)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to update password")
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.InvalidatePasswordResetCode(resetRequest.Code)
+		svc.sqlSvc.userRepo.InvalidatePasswordResetCode(resetRequest.Code)
 	}
 
 	svc.dbOperationCh <- func() {
-		svc.sqlSvc.DeactivateAllUserSessions(resetCode.UserID, "")
+		svc.sqlSvc.userRepo.DeactivateAllUserSessions(resetCode.UserID, "")
 	}
 
 	svc.logAuthEventCh <- dto.AuthAuditLog{
@@ -598,7 +598,7 @@ func (svc *AuthService) ResetPassword(resetRequest dto.ResetPasswordRequest) err
 }
 
 func (svc *AuthService) ChangePassword(userID string, changeRequest dto.ChangePasswordRequest) error {
-	user, err := svc.sqlSvc.GetUserByID(userID)
+	user, err := svc.sqlSvc.userRepo.GetUserByID(userID)
 	if err != nil {
 		return shared.NewInternalError(err, "User not found")
 	}
@@ -616,7 +616,7 @@ func (svc *AuthService) ChangePassword(userID string, changeRequest dto.ChangePa
 		return shared.NewInternalError(err, "Failed to hash password")
 	}
 
-	err = svc.sqlSvc.UpdateUserPassword(userID, hashedPassword)
+	err = svc.sqlSvc.userRepo.UpdateUserPassword(userID, hashedPassword)
 	if err != nil {
 		return shared.NewInternalError(err, "Failed to update password")
 	}
@@ -656,7 +656,7 @@ func (svc *AuthService) RequiredAuth() fiber.Handler {
 		}
 
 		// Check if user exists and is active
-		user, err := svc.sqlSvc.GetUserByID(claims.UserID)
+		user, err := svc.sqlSvc.userRepo.GetUserByID(claims.UserID)
 		if err != nil || !user.IsActive {
 			return shared.ResponseJSON(c, http.StatusUnauthorized, "Unauthorized", "User account is inactive")
 		}
@@ -729,7 +729,7 @@ func (svc *AuthService) startLoginNotificationEmailJob() {
 
 func (svc *AuthService) startLogAuthEventJob() {
 	for auditLog := range svc.logAuthEventCh {
-		svc.sqlSvc.CreateAuthAuditLog(auditLog)
+		svc.sqlSvc.userRepo.CreateAuthAuditLog(auditLog)
 	}
 }
 
@@ -743,7 +743,7 @@ func (svc *AuthService) GetDetailedLocationInfo(ip string) (*GeolocationResponse
 }
 
 func (svc *AuthService) GetUserDevices(userID string) ([]dto.DeviceInfo, error) {
-	devices, err := svc.sqlSvc.GetUserTrustedDevices(userID)
+	devices, err := svc.sqlSvc.userRepo.GetUserTrustedDevices(userID)
 	if err != nil {
 		return nil, shared.NewInternalError(err, "Failed to get user devices")
 	}
@@ -766,13 +766,13 @@ func (svc *AuthService) GetUserDevices(userID string) ([]dto.DeviceInfo, error) 
 }
 
 func (svc *AuthService) UpdateDeviceTrust(userID, deviceID string, trust bool) error {
-	device, err := svc.sqlSvc.GetTrustedDevice(userID, deviceID)
+	device, err := svc.sqlSvc.userRepo.GetTrustedDevice(userID, deviceID)
 	if err != nil {
 		return shared.NewNotFoundError(err, "Device not found")
 	}
 
 	device.IsTrusted = trust
-	if err := svc.sqlSvc.UpdateTrustedDevice(device); err != nil {
+	if err := svc.sqlSvc.userRepo.UpdateTrustedDevice(device); err != nil {
 		return shared.NewInternalError(err, "Failed to update device trust")
 	}
 
@@ -793,7 +793,7 @@ func (svc *AuthService) UpdateDeviceTrust(userID, deviceID string, trust bool) e
 }
 
 func (svc *AuthService) RemoveDevice(userID, deviceID string) error {
-	if err := svc.sqlSvc.RemoveTrustedDevice(userID, deviceID); err != nil {
+	if err := svc.sqlSvc.userRepo.RemoveTrustedDevice(userID, deviceID); err != nil {
 		return shared.NewInternalError(err, "Failed to remove device")
 	}
 
@@ -809,11 +809,11 @@ func (svc *AuthService) RemoveDevice(userID, deviceID string) error {
 }
 
 func (svc *AuthService) RegisterOrUpdateDevice(userID, deviceID, name, deviceType, os, browser, ip string) error {
-	device, err := svc.sqlSvc.GetTrustedDevice(userID, deviceID)
+	device, err := svc.sqlSvc.userRepo.GetTrustedDevice(userID, deviceID)
 	if err == nil {
 		device.LastUsed = time.Now()
 		device.IP = ip
-		return svc.sqlSvc.UpdateTrustedDevice(device)
+		return svc.sqlSvc.userRepo.UpdateTrustedDevice(device)
 	}
 
 	newDevice := &model.TrustedDevice{
@@ -827,5 +827,5 @@ func (svc *AuthService) RegisterOrUpdateDevice(userID, deviceID, name, deviceTyp
 		IsTrusted: false,
 	}
 
-	return svc.sqlSvc.CreateTrustedDevice(newDevice)
+	return svc.sqlSvc.userRepo.CreateTrustedDevice(newDevice)
 }

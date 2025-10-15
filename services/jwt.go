@@ -276,7 +276,7 @@ func (svc *JWTService) isTokenBlacklisted(jti string) bool {
 	exists, err := svc.redisSvc.Exists(ctx, fmt.Sprintf("blacklist:%s", jti))
 	if err != nil {
 		log.WithError(err).Warnf("Redis check failed for JTI %s, falling back to DB", jti)
-		return svc.sqlSvc.IsTokenBlacklisted(jti)
+		return svc.sqlSvc.userRepo.IsTokenBlacklisted(jti)
 	}
 	return exists
 }
@@ -292,7 +292,7 @@ func (svc *JWTService) blacklistToken(jti string, expiresAt time.Time) error {
 		return fmt.Errorf("failed to blacklist token in redis: %w", err)
 	}
 
-	return svc.sqlSvc.BlacklistToken(jti, expiresAt)
+	return svc.sqlSvc.userRepo.BlacklistToken(jti, expiresAt)
 }
 
 func (svc *JWTService) syncBlacklistToRedis() {
@@ -350,9 +350,4 @@ func (svc *JWTService) GetTokenClaims(jwtToken string) (*CustomClaims, error) {
 	}
 
 	return claims, nil
-}
-
-// Clean up expired blacklisted tokens
-func (svc *JWTService) CleanupExpiredTokens() error {
-	return svc.sqlSvc.CleanupExpiredBlacklistedTokens()
 }

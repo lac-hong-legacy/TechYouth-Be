@@ -71,11 +71,11 @@ func (svc *HttpService) Start() error {
 
 	svc.authHandler = handlers.NewAuthHandler(svc.authSvc, svc.jwtSvc, svc.userSvc)
 	svc.userHandler = handlers.NewUserHandler(svc.userSvc, svc.authSvc)
-	svc.guestHandler = handlers.NewGuestHandler(svc.guestSvc, svc.postgresSvc)
+	svc.guestHandler = handlers.NewGuestHandler(svc.guestSvc, svc.contentSvc)
 	svc.contentHandler = handlers.NewContentHandler(svc.contentSvc)
 	svc.leaderboardHandler = handlers.NewLeaderboardHandler(svc.userSvc, svc.jwtSvc)
 	svc.adminHandler = handlers.NewAdminHandler(svc.userSvc, svc.contentSvc)
-	svc.mediaHandler = handlers.NewMediaHandler(svc.mediaSvc, svc.contentSvc, svc.postgresSvc)
+	svc.mediaHandler = handlers.NewMediaHandler(svc.mediaSvc, svc.contentSvc)
 
 	config := fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

@@ -7,14 +7,14 @@ import (
 )
 
 type GuestHandler struct {
-	guestSvc    GuestServiceInterface
-	postgresSvc PostgresServiceInterface
+	guestSvc   GuestServiceInterface
+	contentSvc ContentServiceInterface
 }
 
-func NewGuestHandler(guestSvc GuestServiceInterface, postgresSvc PostgresServiceInterface) *GuestHandler {
+func NewGuestHandler(guestSvc GuestServiceInterface, contentSvc ContentServiceInterface) *GuestHandler {
 	return &GuestHandler{
-		guestSvc:    guestSvc,
-		postgresSvc: postgresSvc,
+		guestSvc:   guestSvc,
+		contentSvc: contentSvc,
 	}
 }
 
@@ -42,7 +42,7 @@ func (h *GuestHandler) CreateSession(c *fiber.Ctx) error {
 		return err
 	}
 
-	progress, err := h.postgresSvc.GetProgress(session.ID)
+	progress, err := h.contentSvc.GetProgress(session.ID)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (h *GuestHandler) CreateSession(c *fiber.Ctx) error {
 func (h *GuestHandler) GetProgress(c *fiber.Ctx) error {
 	sessionID := c.Params("sessionId")
 
-	progress, err := h.postgresSvc.GetProgress(sessionID)
+	progress, err := h.contentSvc.GetProgress(sessionID)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (h *GuestHandler) CompleteLesson(c *fiber.Ctx) error {
 		return err
 	}
 
-	progress, err := h.postgresSvc.GetProgress(sessionID)
+	progress, err := h.contentSvc.GetProgress(sessionID)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (h *GuestHandler) AddHeartsFromAd(c *fiber.Ctx) error {
 		return err
 	}
 
-	progress, err := h.postgresSvc.GetProgress(sessionID)
+	progress, err := h.contentSvc.GetProgress(sessionID)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (h *GuestHandler) LoseHeart(c *fiber.Ctx) error {
 		return err
 	}
 
-	progress, err := h.postgresSvc.GetProgress(sessionID)
+	progress, err := h.contentSvc.GetProgress(sessionID)
 	if err != nil {
 		return err
 	}

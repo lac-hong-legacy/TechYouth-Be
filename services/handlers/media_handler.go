@@ -8,14 +8,12 @@ import (
 type MediaHandler struct {
 	mediaSvc    MediaServiceInterface
 	contentSvc  ContentServiceInterface
-	postgresSvc PostgresServiceInterface
 }
 
-func NewMediaHandler(mediaSvc MediaServiceInterface, contentSvc ContentServiceInterface, postgresSvc PostgresServiceInterface) *MediaHandler {
+func NewMediaHandler(mediaSvc MediaServiceInterface, contentSvc ContentServiceInterface) *MediaHandler {
 	return &MediaHandler{
 		mediaSvc:    mediaSvc,
 		contentSvc:  contentSvc,
-		postgresSvc: postgresSvc,
 	}
 }
 
@@ -122,7 +120,7 @@ func (h *MediaHandler) DeleteMediaAsset(c *fiber.Ctx) error {
 // @Success 200 {object} shared.Response{data=map[string]interface{}}
 // @Router /api/v1/admin/media/statistics [get]
 func (h *MediaHandler) GetMediaStatistics(c *fiber.Ctx) error {
-	stats, err := h.postgresSvc.GetMediaStatistics()
+	stats, err := h.mediaSvc.GetMediaStatistics()
 	if err != nil {
 		return err
 	}
