@@ -80,13 +80,6 @@ func (ds *PostgresService) Configure(ctx *context.Context) error {
 }
 
 func (ds *PostgresService) Start() (err error) {
-	ds.userRepo = repositories.NewUserRepository(ds.db)
-	ds.sessionRepo = repositories.NewSessionRepository(ds.db)
-	ds.rateLimitRepo = repositories.NewRateLimitRepository(ds.db)
-	ds.mediaRepo = repositories.NewMediaRepository(ds.db)
-	ds.contentRepo = repositories.NewContentRepository(ds.db)
-	ds.analyticRepo = repositories.NewAnalyticRepository(ds.db)
-
 	maxRetries := 10
 	retryDelay := time.Second
 
@@ -124,6 +117,14 @@ func (ds *PostgresService) Start() (err error) {
 			retryDelay = 10 * time.Second
 		}
 	}
+
+	// Initialize repositories AFTER database connection is established
+	ds.userRepo = repositories.NewUserRepository(ds.db)
+	ds.sessionRepo = repositories.NewSessionRepository(ds.db)
+	ds.rateLimitRepo = repositories.NewRateLimitRepository(ds.db)
+	ds.mediaRepo = repositories.NewMediaRepository(ds.db)
+	ds.contentRepo = repositories.NewContentRepository(ds.db)
+	ds.analyticRepo = repositories.NewAnalyticRepository(ds.db)
 
 	models := []interface{}{
 		// Existing models
