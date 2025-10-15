@@ -37,9 +37,8 @@ type HttpService struct {
 	adminHandler       *handlers.AdminHandler
 	mediaHandler       *handlers.MediaHandler
 
-	internalPassword string
-	port             int
-	app              *fiber.App
+	port int
+	app  *fiber.App
 }
 
 const HTTP_SVC = "http_svc"
@@ -57,8 +56,6 @@ func (svc *HttpService) Configure(ctx *context.Context) error {
 	} else {
 		svc.port = 8000
 	}
-
-	svc.internalPassword = os.Getenv("INTERNAL_PASSWORD")
 
 	return svc.DefaultService.Configure(ctx)
 }
